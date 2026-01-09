@@ -1031,7 +1031,7 @@ const renderAnnouncementCard = (announcement) => (
               <MdAdd size={32} />
             </button>
           </div>
-
+        
           {/* My Location Button */}
           <button
             className={`flex flex-col items-center relative ${activeTab === "My Location" ? "text-blue-500" : "text-gray-500"}`}
