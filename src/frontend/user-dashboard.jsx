@@ -545,7 +545,7 @@ const renderAnnouncementCard = (announcement) => (
                 style={{display: 'none'}} 
               />
             </div>
-            <h3 className="text-xl font-bold mb-1"> {user?.email ? user.email.split("@")[0].replace(/\b\w/g, c => c.toUpperCase()) : "N/A"}</h3> 
+            <h3 className="text-xl font-bold mb-1"> {formatAuthorName(user?.email)}</h3> 
             <p className="text-gray-500 mb-2">{user?.role || "N/A"}</p>
             <p className="text-sm text-gray-600 mb-1">{user?.email || "N/A"}</p>
             <p className="text-sm text-gray-600">{user?.phone || "N/A"}</p>
@@ -969,7 +969,7 @@ const renderAnnouncementCard = (announcement) => (
             )}
             <div>
               <div className="text-xl font-bold">
-               {user?.email ? user.email.split("@")[0].replace(/\b\w/g, c => c.toUpperCase()) : "N/A"}!
+              {formatAuthorName(user?.email)}!
               </div>
               <div className="flex items-center mt-1 text-xs">
                 <div
