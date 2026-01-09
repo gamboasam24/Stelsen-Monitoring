@@ -701,7 +701,6 @@ const renderAnnouncementCard = (announcement) => (
               </div>
             </div>
 
-           
 
             {/* Filter Tabs */}
             <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
