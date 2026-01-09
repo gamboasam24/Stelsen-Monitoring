@@ -1,0 +1,1 @@
+ALTER TABLE projects ADD COLUMN assigned_users TEXT DEFAULT NULL;

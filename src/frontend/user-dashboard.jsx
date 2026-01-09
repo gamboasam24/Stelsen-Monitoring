@@ -1,0 +1,1123 @@
+import React, { useState, useEffect, useRef } from "react";
+import { 
+  IoMdHome, 
+  IoMdClose, 
+  IoMdNotifications, 
+  IoMdMegaphone,
+  IoMdCheckmarkCircle,
+  IoMdTime 
+} from "react-icons/io";
+import { 
+  MdDashboard, 
+  MdLocationOn, 
+  MdReportProblem, 
+  MdMenu, 
+  MdAdd, 
+  MdEvent, 
+  MdAnnouncement,
+  MdCheckCircle,
+  MdPerson,
+  MdWork,
+  MdChatBubble,
+  MdCalendarToday
+} from "react-icons/md";
+import { 
+  FaUser, 
+  FaSignOutAlt, 
+  FaRegCalendarAlt, 
+  FaRegNewspaper,
+  FaRegBell,
+  FaMapMarkerAlt
+} from "react-icons/fa";
+import { 
+  FiSettings, 
+  FiChevronRight, 
+  FiPlus, 
+  FiChevronLeft, 
+  FiCamera, 
+  FiBell,
+  FiSearch,
+  FiFilter
+} from "react-icons/fi";
+import { 
+  HiOutlineChatAlt2,
+  HiOutlineClipboardList
+} from "react-icons/hi";
+import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
+
+const UserDashboard = ({ user, logout }) => {
+  const [activeTab, setActiveTab] = useState("Home");
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState("Office");
+  const [reportMessage, setReportMessage] = useState("");
+  const [userStatus, setUserStatus] = useState("Active");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState("all");
+  const actionMenuRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  const [center, setCenter] = useState({
+    lat: 14.5995,
+    lng: 120.9842,
+  });
+
+  // Enhanced announcements data
+  const [announcements, setAnnouncements] = useState([
+
+  ]);
+
+  // Filtered announcements
+  const filteredAnnouncements = announcements.filter(ann => {
+    if (selectedFilter === "unread") return ann.unread;
+    if (selectedFilter === "important") return ann.important;
+    if (selectedFilter === "read") return !ann.unread;
+    return true;
+  }).filter(ann => 
+    ann.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ann.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Mark all announcements as read (local state only)
+  const markAllAsRead = async () => {
+    const unreadAnnouncements = announcements.filter(ann => ann.unread);
+    for (const ann of unreadAnnouncements) {
+      await markAsRead(ann.id);
+    }
+  };
+
+  const formatTimeAgo = (dateString) => {
+  const created = new Date(dateString);
+  const now = new Date();
+  const diff = Math.floor((now - created) / 1000);
+
+  if (diff < 60) return "Just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+  return created.toLocaleDateString();
+};
+
+// Format author name from email
+const formatAuthorName = (email) => {
+  if (!email) return "N/A";
+
+  return email
+    .split("@")[0]                 // remove @gmail.com
+    .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
+};
+
+
+useEffect(() => {
+  const fetchAnnouncements = async () => {
+    try {
+      const res = await fetch("/backend/announcements.php", {
+        credentials: "include",
+      });
+      const data = await res.json();
+      const normalized = data.map(a => ({
+        id: a.announcement_id,
+        title: a.title,
+        content: a.content,
+        type: a.type,
+        priority: a.priority,
+        author: formatAuthorName(a.author),
+        time: formatTimeAgo(a.created_at),
+        category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
+        important: a.priority === "high",
+        color: getColorForType(a.type),
+         unread: a.unread === 1, // true/false instead of 1/0
+        icon: getIconForType(a.type),
+      }));
+
+      setAnnouncements(normalized);
+    } catch (err) {
+      console.error("Announcement fetch error:", err);
+    }
+  };
+
+  fetchAnnouncements();
+  const interval = setInterval(fetchAnnouncements, 10000); // Poll every 10 seconds
+
+  return () => clearInterval(interval);
+}, []);
+
+   // Get icon for announcement type
+    const getIconForType = (type) => {
+      switch (type) {
+        case "meeting": return <MdCalendarToday className="text-white" size={18} />;
+        case "deadline": return <IoMdTime className="text-white" size={18} />;
+        case "safety": return <HiOutlineClipboardList className="text-white" size={18} />;
+        case "update": return <MdAnnouncement className="text-white" size={18} />;
+        case "question": return <MdChat className="text-white" size={18} />;
+        default: return <MdChatBubble className="text-white" size={18} />;
+      }
+    };
+
+  // Get color for announcement type
+  const getColorForType = (type) => {
+    switch (type) {
+      case "meeting": return "red";
+      case "deadline": return "red";
+      case "safety": return "green";
+      case "update": return "purple";
+      case "question": return "yellow";
+      default: return "blue";
+    }   
+  };
+
+const getPriorityBadge = (priority) => {
+  if (priority === "high") {
+    return <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">High Priority</span>;
+  }
+  if (priority === "medium") {
+    return <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-600 text-xs rounded-full">Medium Priority</span>;
+  }
+  return null;
+};
+
+
+  // Close action menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target)) {
+        setShowActionMenu(false);
+      }
+    };
+
+    if (showActionMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showActionMenu]);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCenter({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+      },
+      () => alert("Location access denied")
+    );
+  }, []);
+
+  // Mark a specific announcement as read
+  // This function sends a request to the backend and updates the local state
+  const markAsRead = async (id) => {
+    // Send request to backend to mark as read
+    await fetch("/backend/mark_read.php", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ announcement_id: id }),
+    });
+
+    // Update local state to reflect the change immediately
+    setAnnouncements(prev => 
+      prev.map(ann => 
+        ann.announcement_id === id ? { ...ann, unread: false } : ann
+      )
+    );
+  };
+
+
+  const [projects, setProjects] = useState([
+    { id: "1", title: "Site A Construction", status: "ongoing", progress: 75, deadline: "2024-12-31" },
+    { id: "2", title: "Client Meeting", status: "scheduled", progress: 30, deadline: "2024-12-15" },
+    { id: "3", title: "Material Delivery", status: "pending", progress: 10, deadline: "2024-12-20" },
+    { id: "4", title: "Safety Inspection", status: "completed", progress: 100, deadline: "2024-12-10" },
+  ]);
+
+  const [locationHistory, setLocationHistory] = useState([
+    { id: "1", location: "Main Office", time: "09:00 AM", date: "2024-12-10" },
+    { id: "2", location: "Site A", time: "10:30 AM", date: "2024-12-10" },
+    { id: "3", location: "Client Office", time: "02:00 PM", date: "2024-12-10" },
+    { id: "4", location: "Site B", time: "04:45 PM", date: "2024-12-10" },
+  ]);
+
+  const updateLocation = (location) => {
+    const now = new Date();
+    const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const date = now.toLocaleDateString();
+
+    setCurrentLocation(location);
+    setLocationHistory(prev => [{ id: Date.now().toString(), location, time, date }, ...prev.slice(0, 9)]);
+    setShowLocationModal(false);
+    alert(`Location Updated: Your location has been set to ${location}`);
+  };
+
+  const submitReport = () => {
+    if (!reportMessage.trim()) return alert("Please enter a report message");
+    alert("Report Submitted: Your report has been sent to admin");
+    setReportMessage("");
+    setShowReportModal(false);
+    setShowActionMenu(false);
+  };
+
+  const getStatusColor = (status) => {
+    switch (status.toLowerCase()) {
+      case "ongoing": return "bg-green-500";
+      case "completed": return "bg-blue-500";
+      case "scheduled": return "bg-yellow-500";
+      case "pending": return "bg-red-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const getAnnouncementColor = (type) => {
+    switch (type) {
+      case "meeting": return "bg-blue-100 text-blue-600";
+      case "deadline": return "bg-red-100 text-red-600";
+      case "general": return "bg-greengeneral-100 text-green-600";
+      case "maintenance": return "bg-yellow-100 text-yellow-600";
+      case "update": return "bg-purple-100 text-purple-600";
+      default: return <MdChatBubble className="text-white" size={18} />;
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case "high": return "bg-red-500";
+      case "medium": return "bg-yellow-500";
+      case "low": return "bg-green-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const getPriorityText = (priority) => {
+    switch (priority) {
+      case "high": return "High Priority";
+      case "medium": return "Medium Priority";
+      case "low": return "Low Priority";
+      default: return "Normal";
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const getCategoryColor = (color) => {
+    switch (color) {
+      case "blue": return "bg-gradient-to-br from-blue-500 to-blue-600";
+      case "red": return "bg-gradient-to-br from-red-500 to-red-600";
+      case "green": return "bg-gradient-to-br from-green-500 to-green-600";
+      case "purple": return "bg-gradient-to-br from-purple-500 to-purple-600";
+      case "yellow": return "bg-gradient-to-br from-yellow-500 to-yellow-600";
+      default: return "bg-gradient-to-br from-gray-500 to-gray-600";
+    }
+  };
+
+  const handleProfileClick = () => {
+    if (isMobile) {
+      setProfileOpen(true);
+    } else {
+      setActiveTab("Profile");
+    }
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (profileOpen) setProfileOpen(false);
+    if (showActionMenu) setShowActionMenu(false);
+  };
+
+//========================================================== Render Functions ==========================================================
+const renderAnnouncementCard = (announcement) => (
+  <div
+    key={announcement.id}
+    className={`bg-white rounded-2xl p-4 mb-3 shadow-lg ${
+      announcement.unread ? "border-l-4 border-blue-500" : ""
+    }`}
+    onClick={() => markAsRead(announcement.id)}
+  >
+      {/* Header */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center">
+          <div className={`w-10 h-10 rounded-xl ${getCategoryColor(announcement.color)} flex items-center justify-center mr-3`}>
+            {announcement.icon}
+          </div>
+          <div>
+          <h4 className="font-bold text-gray-800">{announcement.title}</h4>
+          <div className="flex items-center text-xs text-gray-500">
+           <span className="text-xs text-gray-500">{announcement.category}</span>
+            {getPriorityBadge(announcement.priority)}
+          </div>
+        </div>
+      </div>
+      {announcement.unread && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
+    </div>
+
+    {/* Content */}
+    <p className="text-gray-600 text-sm mb-3">{announcement.content}</p>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+        <div className="flex items-center space-x-4">
+          <span className="text-xs text-gray-500 flex items-center">
+            <IoMdTime className="mr-1" size={14} />
+            {announcement.time}
+          </span>
+          <span className="text-xs text-gray-500">By: {announcement.author}</span>
+        </div>
+        <div className="flex items-center">
+          {announcement.unread ? (
+           <button
+            onClick={async (e) => {
+              e.stopPropagation(); // Prevent parent click event
+              await markAsRead(announcement.id);
+            }}
+            className="text-xs text-blue-500 font-medium hover:text-blue-600"
+          >
+            Mark as read
+          </button> 
+          ) : (
+            <div className="flex items-center text-green-500 text-sm">
+              <IoMdCheckmarkCircle size={16} className="mr-1" />
+              <span>Read</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderProjectCard = (item) => (
+    <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-lg">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center flex-1">
+          <MdDashboard size={20} />
+          <span className="ml-2 font-semibold">{item.title}</span>
+        </div>
+        <div className={`px-3 py-1 rounded-full ${getStatusColor(item.status)} text-white text-xs`}>
+          {item.status}
+        </div>
+      </div>
+      <div className="flex items-center mb-4">
+        <div className="flex-1 h-2 bg-gray-300 rounded-full mr-3 overflow-hidden">
+          <div
+            className={`h-full rounded-full ${getStatusColor(item.status)}`}
+            style={{ width: `${item.progress}%` }}
+          ></div>
+        </div>
+        <span className="text-sm font-semibold">{item.progress}%</span>
+      </div>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center">
+          <span className="ml-2 text-xs">Deadline: {item.deadline}</span>
+        </div>
+        <button className="flex items-center text-blue-500 text-sm">
+          Details <FiChevronRight size={16} className="ml-1" />
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderLocationHistory = (item) => (
+    <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center">
+      <div className="w-10 h-10 rounded-full bg-blue-50 flex justify-center items-center mr-3">
+        <MdLocationOn size={24} className="text-blue-500" />
+      </div>
+      <div className="flex-1">
+        <div className="font-medium mb-1">{item.location}</div>
+        <div className="flex items-center text-xs text-gray-500">
+          <span>{item.time}</span>
+          <span className="ml-3">{item.date}</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const imageData = reader.result;
+        setSelectedFile(imageData);
+        try {
+          const response = await fetch('/backend/profile.php', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({profile_image: imageData})
+          });
+          const data = await response.json();
+          console.log('Profile update response:', data);
+          if (data.status === 'success') {
+            // Update user object in localStorage with new profile image
+            const updatedUser = { ...user, profile_image: imageData };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            alert('Profile image updated successfully');
+          } else {
+            console.error('Profile update error:', data.message);
+            alert('Failed to update profile image: ' + (data.message || 'Unknown error'));
+          }
+        } catch (error) {
+          console.error('Error updating profile:', error);
+          alert('Error updating profile image: ' + error.message);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const renderProfile = () => (
+    <div className="h-full flex flex-col">
+      {/* Profile Header */}
+      <div className="bg-blue-500 px-5 py-6 flex justify-between items-center text-white">
+        <div className="flex items-center">
+          <img 
+            src={selectedFile || user?.profile_image} 
+            className="w-12 h-12 rounded-full border-2 border-white mr-3"
+            alt="User"
+          />
+          <div>
+            <div className="text-xl font-bold">My Profile</div>
+            <div className="flex items-center mt-1 text-xs">
+              <div
+                className={`w-2 h-2 rounded-full mr-2`}
+                style={{ backgroundColor: userStatus === "Active" ? "#4CAF50" : "#F44336" }}
+              ></div>
+              Status: {userStatus}
+            </div>
+          </div>
+        </div>
+        <button 
+          onClick={() => setProfileOpen(false)}
+          className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+        >
+          <IoMdClose size={24} />
+        </button>
+      </div>
+
+      {/* Profile Content */}
+      <div className="flex-1 overflow-auto p-5 bg-gray-50">
+        {/* User Info Card */}
+        <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
+          <div className="flex flex-col items-center mb-6">
+            <div className="relative mb-4">
+              <img 
+                src={selectedFile || user?.profile_image} 
+                className="w-28 h-28 rounded-full border-4 border-blue-100" 
+                alt="Profile"
+              />
+              <button 
+                className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full border-4 border-white hover:bg-blue-600"
+                onClick={() => fileInputRef.current.click()}
+              >
+                <FiCamera size={16} />
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept="image/*" 
+                style={{display: 'none'}} 
+              />
+            </div>
+            <h3 className="text-xl font-bold mb-1"> {user?.email ? user.email.split("@")[0].replace(/\b\w/g, c => c.toUpperCase()) : "N/A"}</h3> 
+            <p className="text-gray-500 mb-2">{user?.role || "N/A"}</p>
+            <p className="text-sm text-gray-600 mb-1">{user?.email || "N/A"}</p>
+            <p className="text-sm text-gray-600">{user?.phone || "N/A"}</p>
+          </div>
+
+          {/* Department Info */}
+          <div className="border-t pt-4">
+            <h4 className="font-bold text-gray-700 mb-2">Department Information</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-gray-500">Employee ID</p>
+                <p className="font-medium">{user?.employeeId || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Department</p>
+                <p className="font-medium">{user?.department || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Join Date</p>
+                <p className="font-medium">{user?.joinDate || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Work Hours</p>
+                <p className="font-medium">{user?.workHours || "N/A"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Menu Items */}
+        <div className="space-y-3 mb-6">
+          <h4 className="font-bold text-gray-700 mb-2 px-2">Quick Actions</h4>
+          
+          <button className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
+            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+              <FiSettings size={22} className="text-blue-500" />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-medium">Account Settings</div>
+              <div className="text-xs text-gray-500">Manage your account preferences</div>
+            </div>
+            <FiChevronRight size={20} className="text-gray-400" />
+          </button>
+
+          <button className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
+            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mr-4">
+              <MdDashboard size={22} className="text-green-500" />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-medium">My Projects</div>
+              <div className="text-xs text-gray-500">View and manage projects</div>
+            </div>
+            <FiChevronRight size={20} className="text-gray-400" />
+          </button>
+
+          <button className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
+            <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mr-4">
+              <MdLocationOn size={22} className="text-purple-500" />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-medium">Location History</div>
+              <div className="text-xs text-gray-500">Check your location logs</div>
+            </div>
+            <FiChevronRight size={20} className="text-gray-400" />
+          </button>
+
+          <button className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
+            <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center mr-4">
+              <MdReportProblem size={22} className="text-yellow-500" />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-medium">Daily Reports</div>
+              <div className="text-xs text-gray-500">Submit and view reports</div>
+            </div>
+            <FiChevronRight size={20} className="text-gray-400" />
+          </button>
+
+          <button className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mr-4">
+              <FaUser size={22} className="text-red-500" />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-medium">Help & Support</div>
+              <div className="text-xs text-gray-500">Get assistance and FAQs</div>
+            </div>
+            <FiChevronRight size={20} className="text-gray-400" />
+          </button>
+        </div>
+
+        {/* Additional Settings */}
+        <div className="bg-white rounded-xl p-4 mb-6">
+          <h4 className="font-bold text-gray-700 mb-3">Preferences</h4>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span>Notifications</span>
+              <div className="w-12 h-6 bg-blue-500 rounded-full relative">
+                <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Dark Mode</span>
+              <div className="w-12 h-6 bg-gray-300 rounded-full relative">
+                <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Location Sharing</span>
+              <div className="w-12 h-6 bg-blue-500 rounded-full relative">
+                <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Logout Button - UPDATED ICON */}
+        <button
+          className="w-full py-4 bg-red-500 text-white rounded-xl font-medium flex items-center justify-center hover:bg-red-600 transition-colors active:bg-red-700 mb-4"
+          onClick={() => {
+            logout();
+            setProfileOpen(false);
+          }}
+        >
+          <FaSignOutAlt size={20} className="mr-2" />
+          Logout Account
+        </button>
+
+        {/* App Version */}
+        <div className="text-center text-gray-400 text-sm py-3 border-t">
+          <p>Construction Manager Pro v2.1.4</p>
+          <p className="text-xs mt-1">Last updated: Today, 10:30 AM</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "Home":
+        return (
+          <div className="p-5">
+
+            {/* Search Bar */}
+            <div className="mb-6">
+              <div className="relative">
+                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search announcements..."
+                  className="w-full pl-12 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+           
+
+            {/* Filter Tabs */}
+            <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
+              <button 
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedFilter === "all" 
+                    ? "bg-blue-500 text-white shadow" 
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+                onClick={() => setSelectedFilter("all")}
+              >
+                All ({announcements.length})
+              </button>
+              <button 
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedFilter === "unread" 
+                    ? "bg-blue-500 text-white shadow" 
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+                onClick={() => setSelectedFilter("unread")}
+              >
+                Unread ({announcements.filter(a => a.unread).length})
+              </button>
+              <button 
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedFilter === "important" 
+                    ? "bg-blue-500 text-white shadow" 
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+                onClick={() => setSelectedFilter("important")}
+              >
+                Important ({announcements.filter(a => a.important).length})
+              </button>
+            </div>
+
+            {/* Announcements Header */}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800">Announcements</h2>
+              <button 
+                className="text-blue-500 text-sm font-medium flex items-center"
+                onClick={markAllAsRead}
+              >
+                <MdCheckCircle className="mr-1" size={16} />
+                Mark all as read
+              </button>
+            </div>
+
+            {/* Announcements List */}
+            <div className="mb-8">
+              {filteredAnnouncements.length > 0 ? (
+                filteredAnnouncements.map(renderAnnouncementCard)
+              ) : (
+                <div className="text-center py-10">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FiBell size={24} className="text-gray-400" />
+                  </div>
+                  <h3 className="text-gray-600 font-medium">No announcements found</h3>
+                  <p className="text-gray-400 text-sm mt-1">Try a different search or filter</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+       case "My Location":
+        return (
+          <div className="relative h-screen w-full overflow-hidden">
+            {/* MAP */}
+            <div className="absolute inset-0">
+              <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+                <div style={{ width: "100%", height: "100%" }}>
+                  <GoogleMap
+                    mapContainerStyle={{
+                      width: "100%",
+                      height: "100%",
+                    }}
+                    center={center}
+                    zoom={15}
+                    options={{
+                      disableDefaultUI: true,
+                      zoomControl: true,
+                      clickableIcons: false,
+                      styles: [
+                        {
+                          featureType: "poi",
+                          elementType: "labels",
+                          stylers: [{ visibility: "off" }]
+                        }
+                      ]
+                    }}
+                  >
+                    <Marker 
+                      position={center}
+                      icon={{
+                        url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                      }}
+                    />
+                  </GoogleMap>
+                </div>
+              </LoadScript>
+
+              {/* Top Bar */}
+              <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/20 to-transparent pt-4 px-4">
+                <div className="flex items-center justify-between">
+                  <button
+                    className="bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                    onClick={() => handleTabChange("Home")}
+                  >
+                    <FiChevronLeft size={24} />
+                  </button>
+                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-2 shadow">
+                    <div className="text-sm text-gray-500">Current Location</div>
+                    <div className="font-bold text-gray-800">{currentLocation}</div>
+                  </div>
+                  <button
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                    onClick={() => setShowLocationModal(true)}
+                  >
+                    <MdLocationOn size={24} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Location History */}
+              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 shadow-2xl h-[45%]">
+                <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-gray-800">Recent Locations</h3>
+                  <button className="text-blue-500 text-sm font-medium">View All</button>
+                </div>
+                <div className="overflow-auto h-[calc(100%-4rem)]">
+                  {locationHistory.length > 0 ? (
+                    locationHistory.map(renderLocationHistory)
+                  ) : (
+                    <div className="text-center py-10">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MdLocationOn size={24} className="text-gray-400" />
+                      </div>
+                      <p className="text-gray-600">No location history yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "My Project":
+        return (
+          <div className="p-5">
+            <div className="bg-blue-500 text-white rounded-2xl p-5 mb-5">
+              <h3 className="text-lg font-bold mb-4">Project Overview</h3>
+              <div className="flex justify-between">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">4</div>
+                  <div className="text-xs opacity-90">Total Projects</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">2</div>
+                  <div className="text-xs opacity-90">On Track</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">1</div>
+                  <div className="text-xs opacity-90">Behind</div>
+                </div>
+              </div>
+            </div>
+            
+            {projects.map(renderProjectCard)}
+          </div>
+        );
+
+      case "Profile":
+        return !isMobile ? (
+          <div className="p-5">
+            <div className="bg-white rounded-2xl p-5 shadow-lg">
+              <h3 className="text-xl font-bold mb-5">Profile (Desktop View)</h3>
+              <p className="text-gray-600 mb-4">
+                On larger screens, profile shows inline. On mobile, it slides in as a full-screen sidebar.
+              </p>
+              <button
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg"
+                onClick={() => alert("Desktop profile functions")}
+              >
+                Edit Profile
+              </button>
+            </div>
+          </div>
+        ) : null;
+      default:
+        return null;
+    }
+  };
+
+  const ActionMenu = () => (
+    <div className="fixed inset-0 z-30 flex justify-center items-end">
+      {/* Backdrop - Click outside to close */}
+      <div 
+        className="absolute inset-0 bg-black/50"
+        onClick={() => setShowActionMenu(false)}
+      />
+      
+      {/* Bottom Sheet */}
+      <div 
+        ref={actionMenuRef}
+        className="relative bg-white rounded-t-3xl p-5 w-full max-h-[50%] overflow-auto animate-slide-up z-40"
+      >
+        {/* Drag Handle */}
+        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+        <h3 className="text-xl font-bold mb-5 text-center">Quick Actions</h3>
+        
+        <button
+          className="w-full flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 active:bg-gray-100"
+          onClick={() => {
+            setShowReportModal(true);
+            setShowActionMenu(false);
+          }}
+        >
+          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+            <MdReportProblem size={20} className="text-blue-500" />
+          </div>
+          <div className="text-left">
+            <div className="font-medium">Submit Report</div>
+            <div className="text-xs text-gray-500">Submit daily work report</div>
+          </div>
+        </button>
+
+        <button
+          className="w-full flex items-center p-4 hover:bg-gray-50 active:bg-gray-100"
+          onClick={() => alert("Task creation would open here")}
+        >
+          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+            <MdDashboard size={20} className="text-purple-500" />
+          </div>
+          <div className="text-left">
+            <div className="font-medium">Add New Project</div>
+            <div className="text-xs text-gray-500">Create new project</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+
+  const unreadCount = announcements.filter(a => a.unread).length;
+
+  return (
+    <div className="min-h-screen pb-20 bg-gray-100 relative">
+      {/* Main Header */}
+      {activeTab !== "My Location" && (
+        <div className="sticky top-0 z-20 bg-blue-500 px-5 py-4 flex justify-between items-center text-white">
+          <div className="flex items-center">
+            {isMobile && activeTab !== "Profile" && (
+             <button 
+            onClick={() => setProfileOpen(true)}
+                className="mr-3 p-1 rounded-full bg-white/90 hover:bg-white transition-colors shadow"
+                >
+                <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center">
+                    <img
+                    src="/img/stelsenlogo.png"
+                    alt="Menu"
+                    className="w-8 h-8 object-contain"
+                    />
+                </div>
+            </button>
+            )}
+            <div>
+              <div className="text-xl font-bold">
+               {user?.email ? user.email.split("@")[0].replace(/\b\w/g, c => c.toUpperCase()) : "N/A"}!
+              </div>
+              <div className="flex items-center mt-1 text-xs">
+                <div
+                  className={`w-4 h-4 rounded-full mr-2`}
+                  style={{ backgroundColor: userStatus === "Active" ? "#4CAF50" : "#F44336" }}
+                ></div>
+                Status: {userStatus}
+              </div>
+            </div>
+          </div>
+          <div className="relative">
+            <img 
+              src={selectedFile || user?.profile_image} 
+              className="w-10 h-10 rounded-full border-2 border-white cursor-pointer"
+              onClick={handleProfileClick}
+              alt="User Avatar"
+            />
+            {unreadCount > 0 && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className={`transition-all duration-300 ${(profileOpen || showActionMenu) && isMobile ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+        <div className="overflow-auto">
+          {renderTabContent()}
+        </div>
+      </div>
+
+      {/* Bottom Navbar with Centered Add Button */}
+      {activeTab !== "My Location" && (
+        <div className={`fixed bottom-0 left-0 w-full bg-white border-t border-gray-300 flex items-center justify-around py-2 z-10 transition-all duration-300 ${(profileOpen || showActionMenu) ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'}`}>
+          {/* Home Button */}
+          <button
+            className={`flex flex-col items-center relative ${activeTab === "Home" ? "text-blue-500" : "text-gray-500"}`}
+            onClick={() => handleTabChange("Home")}
+          >
+            <IoMdHome size={24} />
+            <span className="text-xs mt-1">Home</span>
+          </button>
+
+          {/* My Project Button */}
+          <button
+            className={`flex flex-col items-center relative ${activeTab === "My Project" ? "text-blue-500" : "text-gray-500"}`}
+            onClick={() => handleTabChange("My Project")}
+          >
+            <MdDashboard size={24} />
+            <span className="text-xs mt-1">Projects</span>
+          </button>
+
+          {/* Centered Add Button */}
+          <div className="relative -top-6">
+            <button
+              onClick={() => setShowActionMenu(true)}
+              className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 transition-all"
+            >
+              <MdAdd size={32} />
+            </button>
+          </div>
+
+          {/* My Location Button */}
+          <button
+            className={`flex flex-col items-center relative ${activeTab === "My Location" ? "text-blue-500" : "text-gray-500"}`}
+            onClick={() => handleTabChange("My Location")}
+          >
+            <MdLocationOn size={24} />
+            <span className="text-xs mt-1">Location</span>
+          </button>
+
+          {/* Profile Button */}
+          <button
+            className={`flex flex-col items-center relative ${activeTab === "Profile" ? "text-blue-500" : "text-gray-500"}`}
+            onClick={handleProfileClick}
+          >
+            <FaUser size={24} />
+            <span className="text-xs mt-1">Profile</span>
+          </button>
+        </div>
+      )}
+
+      {/* Action Menu Modal */}
+      {showActionMenu && <ActionMenu />}
+
+      {/* Profile Sidebar/Drawer - Full Width */}
+      {profileOpen && isMobile && (
+        <div className="fixed top-0 left-0 w-full h-full bg-white z-30 flex flex-col">
+          {renderProfile()}
+        </div>
+      )}
+
+      {/* Location Update Modal */}
+      {showLocationModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-40">
+          <div className="bg-white rounded-t-3xl p-5 w-full max-h-[80%] overflow-auto">
+            <div className="flex justify-between items-center mb-5">
+              <span className="text-xl font-bold">Update Location</span>
+              <button onClick={() => setShowLocationModal(false)}>Close</button>
+            </div>
+            {["Office", "Site A", "Site B", "Client Meeting", "On The Way", "Break"].map(location => (
+              <button
+                key={location}
+                className="flex justify-between items-center w-full py-4 border-b border-gray-100"
+                onClick={() => updateLocation(location)}
+              >
+                <MdLocationOn size={20} className="text-blue-500" />
+                <span>{location}</span>
+                <FiChevronRight size={20} className="text-gray-500" />
+              </button>
+            ))}
+            <button
+              className="flex items-center py-4 mt-3"
+              onClick={() => alert("Add custom location")}
+            >
+              <FiPlus size={20} className="text-blue-500" />
+              <span className="ml-2 text-blue-500">Add Custom Location</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-40">
+          <div className="bg-white rounded-t-3xl p-5 w-full max-h-[70%] overflow-auto">
+            <div className="flex justify-between items-center mb-5">
+              <span className="text-xl font-bold">Submit Daily Report</span>
+              <button onClick={() => setShowReportModal(false)}>Close</button>
+            </div>
+            <textarea
+              className="w-full p-4 border border-gray-300 rounded-lg mb-5"
+              rows={6}
+              placeholder="Describe your work, progress, or any issues..."
+              value={reportMessage}
+              onChange={(e) => setReportMessage(e.target.value)}
+            />
+            <button
+              className={`w-full py-4 rounded-lg ${reportMessage.trim() ? "bg-blue-500 text-white" : "bg-gray-400 text-gray-700"}`}
+              disabled={!reportMessage.trim()}
+              onClick={submitReport}
+            >
+              Submit Report
+            </button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+export default UserDashboard;
