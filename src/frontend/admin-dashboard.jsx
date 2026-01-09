@@ -663,7 +663,7 @@ useEffect(() => {
                       return user ? (
                         <div key={userId} className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
                           <Avatar user={user} size={16} />
-                          <span className="ml-1">{user.name}</span>
+                          <span className="ml-1"> {formatAuthorName(user.email || user.name)}</span>
                         </div>
                       ) : null;
                     }) : <p className="text-sm text-gray-500">None</p>}
@@ -997,7 +997,7 @@ useEffect(() => {
             >
               {users.map(user => (
                 <option key={user.id} value={user.id}>
-                  {user.name} ({user.email})
+                  {formatAuthorName(user.email)} ({user.email})
                 </option>
               ))}
             </select>
