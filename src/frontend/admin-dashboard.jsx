@@ -107,15 +107,16 @@ const AdminDashboard = ({ user, logout }) => {
     lng: 120.9842,
   });
   
-  // Format author name from email
-  const formatAuthorName = (email) => {
-    if (!email) return "Unknown";
+// Format author name from email
+const formatAuthorName = (email) => {
+  if (!email) return "Unknown";
 
-    return email
-      .split("@")[0]                 // remove @gmail.com
-      .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
-  };
-  
+  return email
+    .split("@")[0]            // remove domain
+    .replace(/\d+/g, "")      // remove numbers
+    .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
+};
+
   // Enhanced announcements data
   useEffect(() => {
     fetch("/backend/announcements.php", { credentials: "include" })

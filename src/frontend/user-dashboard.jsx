@@ -103,12 +103,14 @@ const UserDashboard = ({ user, logout }) => {
 
 // Format author name from email
 const formatAuthorName = (email) => {
-  if (!email) return "N/A";
+  if (!email) return "Unknown";
 
   return email
-    .split("@")[0]                 // remove @gmail.com
+    .split("@")[0]            // remove domain
+    .replace(/\d+/g, "")      // remove numbers
     .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
 };
+
 
 
 useEffect(() => {
