@@ -146,7 +146,24 @@ const formatAuthorName = (email) => {
   const [projects, setProjects] = useState([]);
   const [announcements, setAnnouncements] = useState([]); // <-- add this
   const [users, setUsers] = useState([]);
-  const [readComments, setReadComments] = useState({});
+  const [readComments, setReadComments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('adminDashboardReadComments');
+      return saved ? JSON.parse(saved) : {};
+    } catch (err) {
+      console.error('Error loading read comments:', err);
+      return {};
+    }
+  });
+
+  // Save read comments to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('adminDashboardReadComments', JSON.stringify(readComments));
+    } catch (err) {
+      console.error('Error saving read comments:', err);
+    }
+  }, [readComments]);
 
   // Fetch users
   useEffect(() => {
@@ -732,7 +749,7 @@ useEffect(() => {
       
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-600 mb-1">
-          <span>Progress</span>
+          <span></span>
           <span className="font-bold">{item.progress}%</span>
         </div>
         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -753,7 +770,7 @@ useEffect(() => {
             <MdComment size={14} className="mr-1" />
             {item.comments.length}
             {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              <div className="absolute -top-0.5 -right-0.1 w-2 h-2 bg-red-500 rounded-full "></div>
             )}
           </span>
           <button 
@@ -857,13 +874,28 @@ useEffect(() => {
             {/* Comments Section - Preview */}
             <div className="mb-6">
               <button
-                onClick={() => setShowCommentsModal(true)}
+                onClick={() => {
+                  setShowCommentsModal(true);
+                  // Mark all comments as read for this project
+                  if (selectedProject && selectedProject.comments) {
+                    const commentIds = selectedProject.comments.map(c => c.id);
+                    setReadComments(prev => ({
+                      ...prev,
+                      [selectedProject.id]: commentIds
+                    }));
+                  }
+                }}
                 className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all border border-blue-200"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div className="bg-blue-500 p-3 rounded-full mr-3">
+                    <div className="bg-blue-500 p-3 rounded-full mr-3 relative">
                       <MdComment className="text-white" size={24} />
+                      {getUnreadCommentCount(selectedProject?.id) > 0 && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center ">
+                          {getUnreadCommentCount(selectedProject?.id)}
+                        </div>
+                      )}
                     </div>
                     <div className="text-left">
                       <h4 className="text-md font-bold text-gray-800">Comments & Clarifications</h4>

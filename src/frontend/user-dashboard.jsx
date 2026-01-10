@@ -67,7 +67,24 @@ const UserDashboard = ({ user, logout }) => {
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [users, setUsers] = useState([]);
-  const [readComments, setReadComments] = useState({});
+  const [readComments, setReadComments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('userDashboardReadComments');
+      return saved ? JSON.parse(saved) : {};
+    } catch (err) {
+      console.error('Error loading read comments:', err);
+      return {};
+    }
+  });
+
+  // Save read comments to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('userDashboardReadComments', JSON.stringify(readComments));
+    } catch (err) {
+      console.error('Error saving read comments:', err);
+    }
+  }, [readComments]);
 
   const [center, setCenter] = useState({
     lat: 14.5995,
@@ -650,7 +667,7 @@ const renderAnnouncementCard = (announcement) => (
       
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-600 mb-1">
-          <span>Progress</span>
+          <span></span>
           <span className="font-bold">{item.progress}%</span>
         </div>
         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -671,7 +688,7 @@ const renderAnnouncementCard = (announcement) => (
             <MdComment size={14} className="mr-1" />
             {(item.comments && item.comments.length) || 0}
             {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              <div className="absolute -top-0.5 -right-0.1 w-2 h-2 bg-red-500 rounded-full "></div>
             )}
           </span>
           <button 
@@ -801,7 +818,7 @@ const renderAnnouncementCard = (announcement) => (
                   <div className="bg-blue-500 p-3 rounded-full mr-3 relative">
                     <MdComment className="text-white" size={24} />
                     {getUnreadCommentCount(selectedProject?.id) > 0 && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs flex items-center justify-center animate-pulse">
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center ">
                         {getUnreadCommentCount(selectedProject?.id)}
                       </div>
                     )}
