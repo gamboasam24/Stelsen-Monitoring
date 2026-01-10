@@ -36,7 +36,8 @@ import {
   FiChevronRight, 
   FiPlus, 
   FiChevronLeft, 
-  FiCamera, 
+  FiCamera,
+  FiPaperclip,
   FiBell,
   FiSearch,
   FiFilter
@@ -931,7 +932,7 @@ const renderAnnouncementCard = (announcement) => (
                                     isCurrentUser ? 'bg-blue-400' : 'bg-gray-200'
                                   }`}
                                 >
-                                  <FiCamera size={14} className="mr-1" />
+                                  <FiPaperclip size={14} className="mr-1" />
                                   {att.name}
                                 </a>
                               ))}
@@ -958,18 +959,23 @@ const renderAnnouncementCard = (announcement) => (
         <div className="bg-white border-t border-gray-200 p-3 md:p-4 flex-shrink-0">
           {/* Attachments Preview */}
           {commentAttachments.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              {commentAttachments.map((att, idx) => (
-                <div key={idx} className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded px-2 py-1 text-xs">
-                  <span className="truncate max-w-[150px]">{att.name}</span>
-                  <button
-                    onClick={() => removeAttachment(idx)}
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+            <div className="mb-2 p-2 bg-blue-50 rounded border border-blue-200">
+              <div className="text-xs font-medium text-blue-700 mb-2">{commentAttachments.length} file(s) attached</div>
+              <div className="flex flex-wrap gap-2 max-h-[60px] overflow-y-auto">
+                {commentAttachments.map((att, idx) => (
+                  <div key={idx} className="flex items-center gap-1 bg-white border border-blue-200 rounded px-2 py-1 text-xs flex-shrink-0 hover:bg-blue-100">
+                    <FiPaperclip size={12} className="text-blue-600 flex-shrink-0" />
+                    <span className="truncate max-w-[100px]">{att.name}</span>
+                    <button
+                      onClick={() => removeAttachment(idx)}
+                      className="text-gray-400 hover:text-red-500 ml-1"
+                      title="Remove file"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -986,13 +992,16 @@ const renderAnnouncementCard = (announcement) => (
                 }}
                 placeholder="Type a message..."
                 className="flex-1 bg-transparent outline-none text-sm"
+                autoFocus
               />
               <button 
                 onClick={() => commentFileInputRef.current?.click()}
-                className="text-gray-400 hover:text-gray-600 ml-2 flex-shrink-0 transition-colors"
+                className={`text-gray-400 hover:text-blue-600 ml-2 flex-shrink-0 transition-colors ${
+                  commentAttachments.length > 0 ? 'text-blue-600' : ''
+                }`}
                 title="Attach files"
               >
-                <FiCamera size={18} />
+                <FiPaperclip size={18} />
               </button>
               <input
                 ref={commentFileInputRef}
@@ -1008,9 +1017,9 @@ const renderAnnouncementCard = (announcement) => (
                   addComment(selectedProject.id);
                 }
               }}
-              disabled={!commentText.trim()}
+              disabled={!commentText.trim() && commentAttachments.length === 0}
               className={`p-2 md:p-3 rounded-full transition-all flex-shrink-0 ${
-                commentText.trim()
+                (commentText.trim() || commentAttachments.length > 0)
                   ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
