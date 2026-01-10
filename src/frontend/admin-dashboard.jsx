@@ -510,9 +510,31 @@ useEffect(() => {
     if (showActionMenu) setShowActionMenu(false);
   };
 
-  const viewProjectDetails = (project) => {
-    setSelectedProject(project);
+  const viewProjectDetails = async (project) => {
+    // Prime selected project immediately
+    setSelectedProject({ ...project, comments: project.comments || [] });
     setShowProjectDetailsModal(true);
+
+    // Fetch fresh comments for this project
+    try {
+      const res = await fetch(`/backend/comments.php?project_id=${project.id}`, { credentials: "include" });
+      const data = await res.json();
+      if (data.status === "success") {
+        const mapped = (data.comments || []).map((c) => ({
+          id: c.comment_id,
+          text: c.comment,
+          time: "Just now",
+          email: c.email,
+          profile_image: c.profile_image,
+          user: c.user || formatAuthorName(c.email),
+        }));
+
+        setSelectedProject(prev => prev ? { ...prev, comments: mapped } : prev);
+        setProjects(prev => prev.map(p => p.id === project.id ? { ...p, comments: mapped } : p));
+      }
+    } catch (err) {
+      console.error("Project comments fetch error:", err);
+    }
   };
 
   //========================================================== Add Comment ==========================================================
@@ -790,7 +812,7 @@ useEffect(() => {
                       <MdComment className="text-white" size={24} />
                     </div>
                     <div className="text-left">
-                      <h4 className="text-lg font-bold text-gray-800">Comments & Clarifications</h4>
+                      <h4 className="text-md font-bold text-gray-800">Comments & Clarifications</h4>
                       <p className="text-sm text-gray-600">
                         {selectedProject.comments.length > 0 
                           ? `${selectedProject.comments.length} comment${selectedProject.comments.length !== 1 ? 's' : ''}`
@@ -826,11 +848,11 @@ useEffect(() => {
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-gray-50">
-        {selectedProject && selectedProject.comments.length > 0 ? (
+        {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
           <div className="space-y-3">
             {selectedProject.comments.map(comment => {
-              const isCurrentUser = comment.user === "Admin" || comment.email === currentUser?.email;
-              const commentUser = comment.user === "Admin" ? currentUser : users.find(u => u.email === comment.email);
+              const isCurrentUser = comment.email === currentUser?.email;
+              const commentUser = isCurrentUser ? currentUser : users.find(u => u.email === comment.email);
               
               return (
                 <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>

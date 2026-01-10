@@ -518,7 +518,7 @@ const getPriorityBadge = (priority) => {
           {initial.toUpperCase()}
         </div>
       );
-    }s
+    }
 
     return (
       <img
@@ -1554,6 +1554,8 @@ const renderAnnouncementCard = (announcement) => (
       {/* Task Details Bottom Sheet */}
       {showProjectDetailsModal && renderProjectDetailsModal()}
 
+      {/* Comments Modal */}
+      {showCommentsModal && renderCommentsModal()}
     </div>
   );
 };
