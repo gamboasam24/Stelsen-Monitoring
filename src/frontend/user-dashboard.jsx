@@ -55,6 +55,8 @@ const UserDashboard = ({ user, logout }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const actionMenuRef = useRef(null);
@@ -383,6 +385,11 @@ const getPriorityBadge = (priority) => {
     if (showActionMenu) setShowActionMenu(false);
   };
 
+  const viewProjectDetails = (project) => {
+    setSelectedProject(project);
+    setShowProjectDetailsModal(true);
+  };
+
 //========================================================== Render Functions ==========================================================
 const renderAnnouncementCard = (announcement) => (
   <div
@@ -476,9 +483,120 @@ const renderAnnouncementCard = (announcement) => (
           <div>Deadline: <span className="font-medium">{item.deadline}</span></div>
           <div>Budget: <span className="font-medium">{item.budget}</span></div>
         </div>
-        <button className="text-blue-500 text-sm font-medium flex items-center">
+        <button 
+          className="text-blue-500 text-sm font-medium flex items-center"
+          onClick={() => viewProjectDetails(item)}
+        >
           Details <FiChevronRight size={16} className="ml-1" />
         </button>
+      </div>
+    </div>
+  );
+
+  const renderProjectDetailsModal = () => (
+    <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-50">
+      <div className="bg-white rounded-t-3xl p-5 w-full max-h-[90%] overflow-auto">
+        <div className="flex justify-between items-center mb-5">
+          <h3 className="text-xl font-bold text-gray-800">Tasks Details</h3>
+          <button 
+            onClick={() => setShowProjectDetailsModal(false)}
+            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
+          >
+            <IoMdClose size={24} className="text-gray-600" />
+          </button>
+        </div>
+
+        {selectedProject && (
+          <>
+            <div className="flex flex-row items-start sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-gray-200">
+              <h4 className="text-lg font-bold text-gray-800 flex-1">{selectedProject.title}</h4>
+              <div className="flex-shrink-0">
+                <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block`}>
+                  {selectedProject.status}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-6">
+              <div className="space-y-3 sm:space-y-5">
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2 sm:mb-3 uppercase tracking-wide">Assigned Employees</p>
+                  <div className="bg-white rounded-lg p-2 sm:p-3 border border-gray-200 min-h-[150px] sm:min-h-[200px] overflow-y-auto flex flex-wrap gap-1 sm:gap-2 items-start content-start">
+                    {selectedProject.assignedUsers && selectedProject.assignedUsers.length > 0 ? (
+                      selectedProject.assignedUsers.map((uid, idx) => {
+                        const isCurrentUser = String(uid) === String(user?.id);
+                        const label = isCurrentUser
+                          ? `${formatAuthorName(user?.email)} (You)`
+                          : `User #${uid}`;
+
+                        return (
+                          <span
+                            key={`${uid}-${idx}`}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${
+                              isCurrentUser
+                                ? "bg-blue-600 text-white border-blue-700"
+                                : "bg-blue-50 text-blue-800 border-blue-100"
+                            }`}
+                          >
+                            <FaUser size={12} />
+                            <span className="whitespace-nowrap">{label}</span>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-gray-500 w-full">None</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="hidden sm:block">
+                  <p className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">Description</p>
+                  <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3 border border-gray-200">{selectedProject.description}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 sm:space-y-5">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 sm:p-4 border border-blue-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Manager</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.manager || 'N/A'}</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 sm:p-4 border border-green-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Team Users</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.team_users || 0} users</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2 sm:p-4 border border-purple-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Budget</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.budget || 'N/A'}</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-2 sm:p-4 border border-orange-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Deadline</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.deadline || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="sm:hidden mb-6">
+              <p className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">Description</p>
+              <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3 border border-gray-200">{selectedProject.description}</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 border border-gray-200">
+              <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Progress</p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${getStatusColor(selectedProject.status)}`}
+                    style={{ width: `${selectedProject.progress || 0}%` }}
+                  ></div>
+                </div>
+                <span className="text-sm font-semibold text-gray-800">{selectedProject.progress || 0}%</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
