@@ -5,7 +5,8 @@ import {
   IoMdNotifications, 
   IoMdMegaphone,
   IoMdCheckmarkCircle,
-  IoMdTime 
+  IoMdTime,
+  IoMdSend
 } from "react-icons/io";
 import { 
   MdDashboard, 
@@ -19,7 +20,8 @@ import {
   MdPerson,
   MdWork,
   MdChatBubble,
-  MdCalendarToday
+  MdCalendarToday,
+  MdComment
 } from "react-icons/md";
 import { 
   FaUser, 
@@ -62,6 +64,9 @@ const UserDashboard = ({ user, logout }) => {
   const actionMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [users, setUsers] = useState([]);
 
   const [center, setCenter] = useState({
     lat: 14.5995,
@@ -149,6 +154,28 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
+// Fetch users for names/avatars
+useEffect(() => {
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("/backend/users.php", { credentials: "include" });
+      const data = await res.json();
+      const normalized = Array.isArray(data)
+        ? data.map(u => ({
+            ...u,
+            profile_image: u.profile_image || null,
+          }))
+        : [];
+      setUsers(normalized);
+    } catch (err) {
+      console.error("Users fetch error:", err);
+      setUsers([]);
+    }
+  };
+
+  fetchUsers();
+}, []);
+
 // Fetch projects assigned to current user
 useEffect(() => {
   const fetchProjects = async () => {
@@ -172,7 +199,7 @@ useEffect(() => {
         );
       });
       
-      setProjects(userProjects);
+      setProjects(userProjects.map(p => ({ ...p, comments: Array.isArray(p.comments) ? p.comments : [] })));
     } catch (err) {
       console.error("Failed to fetch projects:", err);
     }
@@ -385,9 +412,89 @@ const getPriorityBadge = (priority) => {
     if (showActionMenu) setShowActionMenu(false);
   };
 
-  const viewProjectDetails = (project) => {
-    setSelectedProject(project);
+  const viewProjectDetails = async (project) => {
+    // Prime selected project immediately
+    setSelectedProject({ ...project, comments: project.comments || [] });
     setShowProjectDetailsModal(true);
+
+    // Fetch fresh comments for this project
+    try {
+      const res = await fetch(`/backend/comments.php?project_id=${project.id}`, { credentials: "include" });
+      const data = await res.json();
+      if (data.status === "success") {
+        const mapped = (data.comments || []).map((c) => ({
+          id: c.comment_id,
+          text: c.comment,
+          time: "Just now",
+          email: c.email,
+          profile_image: c.profile_image,
+          user: c.user || formatAuthorName(c.email),
+        }));
+
+        setSelectedProject(prev => prev ? { ...prev, comments: mapped } : prev);
+        setProjects(prev => prev.map(p => p.id === project.id ? { ...p, comments: mapped } : p));
+      }
+    } catch (err) {
+      console.error("Project comments fetch error:", err);
+    }
+  };
+
+  const addComment = async (projectId) => {
+    if (!commentText.trim()) return;
+
+    const newComment = {
+      project_id: projectId,
+      text: commentText,
+    };
+
+    try {
+      const response = await fetch("/backend/comments.php", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newComment),
+      });
+
+      const data = await response.json();
+      if (data.status === "success") {
+        const newCommentObj = {
+          id: data.comment_id || Date.now(),
+          user: data.user || formatAuthorName(user?.email),
+          text: commentText,
+          time: "Just now",
+          profile_image: data.profile_image || getCurrentUserProfileImage(),
+          email: data.email || user?.email,
+        };
+
+        setProjects(prev => prev.map(p => p.id === projectId ? { ...p, comments: [...(p.comments || []), newCommentObj] } : p));
+
+        setSelectedProject(prev => prev && prev.id === projectId
+          ? { ...prev, comments: [...(prev.comments || []), newCommentObj] }
+          : prev
+        );
+
+        setCommentText("");
+      }
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      alert("Failed to add comment. Please try again.");
+    }
+  };
+
+  const getUserById = (uid) => Array.isArray(users) ? users.find(u => String(u.id) === String(uid)) : undefined;
+
+  const getProfileImageByEmail = (email) => {
+    if (!email || !Array.isArray(users)) return null;
+    const match = users.find(u => u.email === email);
+    return match?.profile_image || null;
+  };
+
+  const getCurrentUserProfileImage = () => {
+    if (!Array.isArray(users)) return user?.profile_image || null;
+    const match = users.find(u => String(u.id) === String(user?.id) || u.email === user?.email);
+    return match?.profile_image || user?.profile_image || null;
   };
 
 //========================================================== Render Functions ==========================================================
@@ -525,9 +632,11 @@ const renderAnnouncementCard = (announcement) => (
                     {selectedProject.assignedUsers && selectedProject.assignedUsers.length > 0 ? (
                       selectedProject.assignedUsers.map((uid, idx) => {
                         const isCurrentUser = String(uid) === String(user?.id);
+                        const foundUser = getUserById(uid);
                         const label = isCurrentUser
-                          ? `${formatAuthorName(user?.email)} (You)`
-                          : `User #${uid}`;
+                          ? `${formatAuthorName(user?.email)}`
+                          : formatAuthorName(foundUser?.email) || `User #${uid}`;
+                        const avatar = foundUser?.profile_image;
 
                         return (
                           <span
@@ -538,7 +647,11 @@ const renderAnnouncementCard = (announcement) => (
                                 : "bg-blue-50 text-blue-800 border-blue-100"
                             }`}
                           >
-                            <FaUser size={12} />
+                            {avatar ? (
+                              <img src={avatar} alt={label} className="w-4 h-4 rounded-full" />
+                            ) : (
+                              <FaUser size={12} />
+                            )}
                             <span className="whitespace-nowrap">{label}</span>
                           </span>
                         );
@@ -583,23 +696,134 @@ const renderAnnouncementCard = (announcement) => (
               <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3 border border-gray-200">{selectedProject.description}</p>
             </div>
 
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
-              <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Progress</p>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${getStatusColor(selectedProject.status)}`}
-                    style={{ width: `${selectedProject.progress || 0}%` }}
-                  ></div>
+            <div className="mt-6">
+              <button
+                onClick={() => setShowCommentsModal(true)}
+                className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all border border-blue-200 flex items-center justify-between"
+              >
+                <div className="flex items-center">
+                  <div className="bg-blue-500 p-3 rounded-full mr-3">
+                    <MdComment className="text-white" size={24} />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-lg font-bold text-gray-800">Comments & Clarifications</h4>
+                    <p className="text-sm text-gray-600">
+                      {selectedProject.comments && selectedProject.comments.length > 0
+                        ? `${selectedProject.comments.length} comment${selectedProject.comments.length !== 1 ? "s" : ""}`
+                        : "No comments yet. Start a conversation"}
+                    </p>
+                  </div>
                 </div>
-                <span className="text-sm font-semibold text-gray-800">{selectedProject.progress || 0}%</span>
-              </div>
+                <FiChevronRight size={24} className="text-blue-500" />
+              </button>
             </div>
           </>
         )}
       </div>
     </div>
   );
+
+  const renderCommentsModal = () => {
+    const composerAvatar = getCurrentUserProfileImage();
+
+    return (
+    <div className="fixed inset-0 bg-white z-[60] flex flex-col md:rounded-2xl md:w-[90%] md:h-[90%] md:left-[5%] md:top-[5%] md:bottom-auto md:mx-auto">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 md:px-5 py-3 md:py-4 flex items-center text-white shadow-lg rounded-t-none md:rounded-t-2xl">
+        <button 
+          onClick={() => setShowCommentsModal(false)}
+          className="p-2 rounded-full hover:bg-white/20 mr-3 transition-colors flex-shrink-0"
+        >
+          <FiChevronLeft size={24} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base md:text-lg font-bold truncate">Comments & Clarifications</h3>
+          <p className="text-xs opacity-90 truncate">{selectedProject?.title}</p>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-gray-50">
+        {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
+          <div className="space-y-3">
+            {selectedProject.comments.map(comment => {
+              const isCurrentUser = comment.email === user?.email;
+              const avatarSrc = comment.profile_image || getProfileImageByEmail(comment.email);
+
+              return (
+                <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`flex items-start gap-2 max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {avatarSrc ? (
+                      <img src={avatarSrc} alt={comment.user} className="w-9 h-9 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
+                        {(comment.user || "?").slice(0,2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+                      <div className={`${isCurrentUser ? 'bg-blue-500 text-white' : 'bg-white text-gray-800 border border-gray-200'} rounded-2xl px-4 py-3 shadow-sm`}>
+                        <p className="text-sm leading-relaxed">{comment.text}</p>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1 px-2">{comment.time}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <MdComment size={64} className="opacity-30 mb-3" />
+            <p className="text-lg font-medium">No comments yet</p>
+            <p className="text-sm">Start the conversation below</p>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white border-t border-gray-200 p-3 md:p-4 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          {composerAvatar ? (
+            <img src={composerAvatar} alt="Me" className="w-9 h-9 rounded-full object-cover" />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
+              {formatAuthorName(user?.email || "").slice(0,2) || "ME"}
+            </div>
+          )}
+          <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 md:px-4 py-2">
+            <input
+              type="text"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && commentText.trim()) {
+                  addComment(selectedProject.id);
+                }
+              }}
+              placeholder="Type a message..."
+              className="flex-1 bg-transparent outline-none text-sm"
+            />
+            <button className="text-gray-400 hover:text-gray-600 ml-2 flex-shrink-0">
+              <FiCamera size={18} />
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              if (commentText.trim()) {
+                addComment(selectedProject.id);
+              }
+            }}
+            disabled={!commentText.trim()}
+            className={`p-2 md:p-3 rounded-full transition-all flex-shrink-0 ${
+              commentText.trim()
+                ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            <IoMdSend size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+  };
 
   const renderLocationHistory = (item) => (
     <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center">
@@ -1292,6 +1516,9 @@ const renderAnnouncementCard = (announcement) => (
           </div>
         </div>
       )}
+
+      {/* Task Details Bottom Sheet */}
+      {showProjectDetailsModal && renderProjectDetailsModal()}
 
     </div>
   );

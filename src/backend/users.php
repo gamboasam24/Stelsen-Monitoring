@@ -12,14 +12,9 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $account_type = $_SESSION['account_type'];
 
-if ($account_type !== 'admin') {
-    echo json_encode(['status' => 'error', 'message' => 'Admin only']);
-    exit;
-}
-
 /* =========================
-   📥 GET USERS
-   ========================= */
+    📥 GET USERS (admin + user)
+    ========================= */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $result = $conn->query("SELECT login_id, email, profile_image FROM login WHERE account_type = 'user'");
 
