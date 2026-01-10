@@ -147,6 +147,33 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
+// Fetch projects assigned to current user
+useEffect(() => {
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch("/backend/projects.php", {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await response.json();
+      
+      // Filter projects where current user is assigned
+      const userProjects = data.filter(project => 
+        project.assignedUsers && 
+        project.assignedUsers.includes(String(user?.id))
+      );
+      
+      setProjects(userProjects);
+    } catch (err) {
+      console.error("Failed to fetch projects:", err);
+    }
+  };
+
+  if (user?.id) {
+    fetchProjects();
+  }
+}, [user]);
+
    // Get icon for announcement type
     const getIconForType = (type) => {
       switch (type) {
@@ -245,12 +272,7 @@ const getPriorityBadge = (priority) => {
   };
 
 
-  const [projects, setProjects] = useState([
-    { id: "1", title: "Site A Construction", status: "ongoing", progress: 75, deadline: "2024-12-31" },
-    { id: "2", title: "Client Meeting", status: "scheduled", progress: 30, deadline: "2024-12-15" },
-    { id: "3", title: "Material Delivery", status: "pending", progress: 10, deadline: "2024-12-20" },
-    { id: "4", title: "Safety Inspection", status: "completed", progress: 100, deadline: "2024-12-10" },
-  ]);
+  const [projects, setProjects] = useState([]);
 
   const [locationHistory, setLocationHistory] = useState([
     { id: "1", location: "Main Office", time: "09:00 AM", date: "2024-12-10" },
@@ -412,30 +434,39 @@ const renderAnnouncementCard = (announcement) => (
   );
 
   const renderProjectCard = (item) => (
-    <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-lg">
+    <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center flex-1">
-          <MdDashboard size={20} />
-          <span className="ml-2 font-semibold">{item.title}</span>
+          <MdDashboard size={20} className="text-blue-500" />
+          <div className="ml-3">
+            <h4 className="font-bold text-gray-800">{item.title}</h4>
+            <p className="text-xs text-gray-500">Managed by {item.manager}</p>
+          </div>
         </div>
         <div className={`px-3 py-1 rounded-full ${getStatusColor(item.status)} text-white text-xs`}>
           {item.status}
         </div>
       </div>
-      <div className="flex items-center mb-4">
-        <div className="flex-1 h-2 bg-gray-300 rounded-full mr-3 overflow-hidden">
+      
+      <div className="mb-4">
+        <div className="flex justify-between text-sm text-gray-600 mb-1">
+          <span>Progress</span>
+          <span className="font-bold">{item.progress}%</span>
+        </div>
+        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full ${getStatusColor(item.status)}`}
             style={{ width: `${item.progress}%` }}
           ></div>
         </div>
-        <span className="text-sm font-semibold">{item.progress}%</span>
       </div>
-      <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          <span className="ml-2 text-xs">Deadline: {item.deadline}</span>
+      
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-gray-500">
+          <div>Deadline: <span className="font-medium">{item.deadline}</span></div>
+          <div>Budget: <span className="font-medium">{item.budget}</span></div>
         </div>
-        <button className="flex items-center text-blue-500 text-sm">
+        <button className="text-blue-500 text-sm font-medium flex items-center">
           Details <FiChevronRight size={16} className="ml-1" />
         </button>
       </div>
@@ -849,27 +880,44 @@ const renderAnnouncementCard = (announcement) => (
         );
 
       case "My Project":
+        const totalProjects = projects.length;
+        const ongoingProjects = projects.filter(p => p.status === "ongoing").length;
+        const completedProjects = projects.filter(p => p.status === "completed").length;
+        const pendingProjects = projects.filter(p => p.status === "pending").length;
+        
         return (
           <div className="p-5">
-            <div className="bg-blue-500 text-white rounded-2xl p-5 mb-5">
-              <h3 className="text-lg font-bold mb-4">Project Overview</h3>
-              <div className="flex justify-between">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl p-5 mb-5 shadow-lg">
+              <h3 className="text-lg font-bold mb-4">My Tasks Overview</h3>
+              <div className="grid grid-cols-4 gap-2">
                 <div className="text-center">
-                  <div className="text-2xl font-bold">4</div>
-                  <div className="text-xs opacity-90">Total Projects</div>
+                  <div className="text-2xl font-bold">{totalProjects}</div>
+                  <div className="text-xs opacity-90">Total</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold">2</div>
-                  <div className="text-xs opacity-90">On Track</div>
+                  <div className="text-2xl font-bold">{ongoingProjects}</div>
+                  <div className="text-xs opacity-90">Ongoing</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold">1</div>
-                  <div className="text-xs opacity-90">Behind</div>
+                  <div className="text-2xl font-bold">{completedProjects}</div>
+                  <div className="text-xs opacity-90">Done</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{pendingProjects}</div>
+                  <div className="text-xs opacity-90">Pending</div>
                 </div>
               </div>
             </div>
             
-            {projects.map(renderProjectCard)}
+            {projects.length > 0 ? (
+              projects.map(renderProjectCard)
+            ) : (
+              <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+                <MdDashboard size={48} className="text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">No tasks assigned yet</p>
+                <p className="text-sm text-gray-400 mt-1">Tasks will appear here when assigned by admin</p>
+              </div>
+            )}
           </div>
         );
 
