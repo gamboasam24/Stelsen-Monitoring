@@ -73,6 +73,7 @@ const AdminDashboard = ({ user, logout }) => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [currentLocation, setCurrentLocation] = useState("Office");
   const [reportMessage, setReportMessage] = useState("");
   const [announcementTitle, setAnnouncementTitle] = useState("");
@@ -521,7 +522,6 @@ useEffect(() => {
     const newComment = {
       project_id: projectId,
       text: commentText,
-      user: "Admin",
     };
 
     try {
@@ -536,20 +536,22 @@ useEffect(() => {
 
       const data = await response.json();
       if (data.status === "success") {
+        // Create new comment with profile image
+        const newCommentObj = {
+          id: data.comment_id || Date.now(),
+          user: data.user || "Admin",
+          text: commentText,
+          time: "Just now",
+          profile_image: data.profile_image || currentUser?.profile_image,
+          email: data.email || currentUser?.email
+        };
+
         // Update the local project with the new comment
         const updatedProjects = projects.map(project => {
           if (project.id === projectId) {
             return {
               ...project,
-              comments: [
-                ...project.comments,
-                {
-                  id: data.comment_id || Date.now(),
-                  user: "Admin",
-                  text: commentText,
-                  time: "Just now",
-                }
-              ]
+              comments: [...project.comments, newCommentObj]
             };
           }
           return project;
@@ -561,15 +563,7 @@ useEffect(() => {
         if (selectedProject && selectedProject.id === projectId) {
           setSelectedProject({
             ...selectedProject,
-            comments: [
-              ...selectedProject.comments,
-              {
-                id: data.comment_id || Date.now(),
-                user: "Admin",
-                text: commentText,
-                time: "Just now",
-              }
-            ]
+            comments: [...selectedProject.comments, newCommentObj]
           });
         }
         
@@ -756,58 +750,131 @@ useEffect(() => {
               <p className="text-gray-600 text-sm">{selectedProject.description}</p>
             </div>
 
-            {/* Comments Section */}
+            {/* Comments Section - Preview */}
             <div className="mb-6">
-              <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <MdComment className="mr-2" />
-                Comments & Clarifications
-              </h4>
-              
-              <div className="mb-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <Avatar user={currentUser} size={32} />
-                    <div className="flex flex-col leading-tight">
-                      <p className="font-semibold text-gray-800">Admin</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Add a comment or ask for clarification
+              <button
+                onClick={() => setShowCommentsModal(true)}
+                className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all border border-blue-200"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="bg-blue-500 p-3 rounded-full mr-3">
+                      <MdComment className="text-white" size={24} />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="text-lg font-bold text-gray-800">Comments & Clarifications</h4>
+                      <p className="text-sm text-gray-600">
+                        {selectedProject.comments.length > 0 
+                          ? `${selectedProject.comments.length} comment${selectedProject.comments.length !== 1 ? 's' : ''}`
+                          : 'No comments yet. Start a conversation'}
                       </p>
                     </div>
                   </div>
-                <div className="flex items-center">
-                  <input
-                    type="text"
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Type your comment or question..."
-                    className="flex-1 p-3 border border-gray-300 rounded-l-xl focus:outline-none focus:border-blue-500"
-                  />
-                  <button
-                    onClick={() => addComment(selectedProject.id)}
-                    className="bg-blue-500 text-white p-3 rounded-r-xl hover:bg-blue-600"
-                  >
-                    <IoMdSend size={20} />
-                  </button>
+                  <FiChevronRight size={24} className="text-blue-500" />
                 </div>
-              </div>
-
-              {/* Comments List */}
-              <div className="space-y-4">
-                {selectedProject.comments.map(comment => (
-                  <div key={comment.id} className="bg-gray-50 rounded-xl p-4">
-                    <div className="flex items-center mb-3">
-                      <Avatar user={comment.user === "Admin" ? currentUser : users.find(u => u.name === comment.user)} size={32} />
-                      <div className="ml-3">
-                        <p className="font-medium">{comment.user}</p>
-                        <p className="text-xs text-gray-500">{comment.time}</p>
-                      </div>
-                    </div>
-                    <p className="text-gray-700 leading-relaxed">{comment.text}</p>
-                  </div>
-                ))}
-              </div>
+              </button>
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+
+  const renderCommentsModal = () => (
+    <div className="fixed inset-0 bg-white z-[60] flex flex-col">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex items-center text-white shadow-lg">
+        <button 
+          onClick={() => setShowCommentsModal(false)}
+          className="p-2 rounded-full hover:bg-white/20 mr-3 transition-colors"
+        >
+          <FiChevronLeft size={24} />
+        </button>
+        <div className="flex-1">
+          <h3 className="text-lg font-bold">Comments & Clarifications</h3>
+          <p className="text-xs opacity-90">{selectedProject?.title}</p>
+        </div>
+      </div>
+
+      {/* Messages Container */}
+      <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+        {selectedProject && selectedProject.comments.length > 0 ? (
+          <div className="space-y-3">
+            {selectedProject.comments.map(comment => {
+              const isCurrentUser = comment.user === "Admin" || comment.email === currentUser?.email;
+              const commentUser = comment.user === "Admin" ? currentUser : users.find(u => u.email === comment.email);
+              
+              return (
+                <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`flex items-start gap-2 max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <Avatar 
+                      user={{
+                        ...commentUser,
+                        profile_image: comment.profile_image || commentUser?.profile_image
+                      }} 
+                      size={36} 
+                    />
+                    <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+                      <div className={`${
+                        isCurrentUser 
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-white text-gray-800 border border-gray-200'
+                      } rounded-2xl px-4 py-3 shadow-sm`}>
+                        <p className="text-sm leading-relaxed">{comment.text}</p>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1 px-2">{comment.time}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <MdComment size={64} className="opacity-30 mb-3" />
+            <p className="text-lg font-medium">No comments yet</p>
+            <p className="text-sm">Start the conversation below</p>
+          </div>
+        )}
+      </div>
+
+      {/* Input Area - Fixed at Bottom */}
+      <div className="bg-white border-t border-gray-200 p-4">
+        <div className="flex items-center gap-2">
+          <Avatar user={currentUser} size={36} />
+          <div className="flex-1 flex items-center bg-gray-100 rounded-full px-4 py-2">
+            <input
+              type="text"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && commentText.trim()) {
+                  addComment(selectedProject.id);
+                }
+              }}
+              placeholder="Type a message..."
+              className="flex-1 bg-transparent outline-none text-sm"
+            />
+            <button className="text-gray-400 hover:text-gray-600 ml-2">
+              <FiCamera size={20} />
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              if (commentText.trim()) {
+                addComment(selectedProject.id);
+              }
+            }}
+            disabled={!commentText.trim()}
+            className={`p-3 rounded-full transition-all ${
+              commentText.trim()
+                ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            <IoMdSend size={20} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1677,7 +1744,10 @@ useEffect(() => {
       {/* Project Details Modal */}
       {showProjectDetailsModal && renderProjectDetailsModal()}
 
-      {/* Report Modal */}
+      {/* Comments Modal - Stack Navigation */}
+      {showCommentsModal && renderCommentsModal()}
+
+      {/* Report Modal */
       {showReportModal && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-40">
           <div className="bg-white rounded-t-3xl p-5 w-full max-h-[70%] overflow-auto">
