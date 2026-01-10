@@ -56,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             SELECT 
                 c.comment_id,
                 c.comment,
+                c.attachments,
                 c.created_at,
                 l.email,
                 l.profile_image,
@@ -72,9 +73,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         $comments = [];
         while ($row = $result->fetch_assoc()) {
+            $attachments = null;
+            if ($row['attachments']) {
+                $attachments = json_decode($row['attachments'], true);
+            }
+            
             $comments[] = [
                 'comment_id' => $row['comment_id'],
                 'comment' => $row['comment'],
+                'attachments' => $attachments,
                 'created_at' => $row['created_at'],
                 'email' => $row['email'],
                 'profile_image' => $row['profile_image'],
@@ -98,29 +105,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
    ========================= */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $input = json_decode(file_get_contents('php://input'), true);
+    $project_id = $_POST['project_id'] ?? null;
+    $announcement_id = $_POST['announcement_id'] ?? null;
+    $comment_text = trim($_POST['text'] ?? $_POST['comment'] ?? '');
+    
+    // Handle PROJECT comments
+    if ($project_id) {
+        if (!$comment_text && empty($_FILES['attachments'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Comment text or attachments required']);
+            exit;
+        }
 
-    $announcement_id = $input['announcement_id'] ?? null;
-    $comment = trim($input['comment'] ?? '');
+        // Handle file uploads
+        $attachment_paths = [];
+        if (!empty($_FILES['attachments'])) {
+            $uploads_dir = __DIR__ . '/uploads/comments/';
+            
+            // Create directory if it doesn't exist
+            if (!is_dir($uploads_dir)) {
+                mkdir($uploads_dir, 0755, true);
+            }
 
-    if (!$announcement_id || !$comment) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid input']);
+            foreach ($_FILES['attachments']['name'] as $key => $filename) {
+                if ($_FILES['attachments']['error'][$key] === UPLOAD_ERR_OK) {
+                    $tmp_name = $_FILES['attachments']['tmp_name'][$key];
+                    $file_ext = pathinfo($filename, PATHINFO_EXTENSION);
+                    $unique_filename = uniqid() . '_' . sanitize_filename($filename);
+                    $file_path = $uploads_dir . $unique_filename;
+
+                    if (move_uploaded_file($tmp_name, $file_path)) {
+                        $attachment_paths[] = [
+                            'name' => $filename,
+                            'path' => '/backend/uploads/comments/' . $unique_filename,
+                            'size' => $_FILES['attachments']['size'][$key],
+                            'type' => $_FILES['attachments']['type'][$key]
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Insert comment with file paths
+        $stmt = $conn->prepare("
+            INSERT INTO project_comments (project_id, user_id, comment, attachments, created_at)
+            VALUES (?, ?, ?, ?, NOW())
+        ");
+
+        $attachments_json = !empty($attachment_paths) ? json_encode($attachment_paths) : null;
+        $stmt->bind_param("iiss", $project_id, $user_id, $comment_text, $attachments_json);
+        $stmt->execute();
+        $comment_id = $stmt->insert_id;
+
+        // Get user info
+        $userStmt = $conn->prepare("SELECT email, profile_image, account_type FROM login WHERE login_id = ?");
+        $userStmt->bind_param("i", $user_id);
+        $userStmt->execute();
+        $userResult = $userStmt->get_result();
+        $userData = $userResult->fetch_assoc();
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Comment added',
+            'comment_id' => $comment_id,
+            'email' => $userData['email'],
+            'profile_image' => $userData['profile_image'],
+            'user' => $userData['account_type'] === 'admin' ? 'Admin' : explode('@', $userData['email'])[0],
+            'attachments' => $attachment_paths
+        ]);
         exit;
     }
 
-    $stmt = $conn->prepare("
-        INSERT INTO announcement_comments (announcement_id, user_id, comment)
-        VALUES (?, ?, ?)
-    ");
+    // Handle ANNOUNCEMENT comments
+    if ($announcement_id && $comment_text) {
+        $stmt = $conn->prepare("
+            INSERT INTO announcement_comments (announcement_id, user_id, comment)
+            VALUES (?, ?, ?)
+        ");
 
-    $stmt->bind_param("iis", $announcement_id, $user_id, $comment);
-    $stmt->execute();
+        $stmt->bind_param("iis", $announcement_id, $user_id, $comment_text);
+        $stmt->execute();
 
-    echo json_encode([
-        'status' => 'success',
-        'message' => 'Comment added'
-    ]);
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Comment added'
+        ]);
+        exit;
+    }
+
+    echo json_encode(['status' => 'error', 'message' => 'Invalid input - missing project_id or announcement_id']);
     exit;
+}
+
+// Helper function to sanitize filename
+function sanitize_filename($filename) {
+    $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
+    return trim($filename, '._-');
 }
 
 echo json_encode(['status' => 'error', 'message' => 'Invalid request']);

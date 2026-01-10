@@ -134,6 +134,12 @@ const formatPeso = (value) => {
     fetch("/backend/announcements.php", { credentials: "include" })
       .then(res => res.json())
       .then(data => {
+        if (!Array.isArray(data)) {
+          console.error('Announcements data is not an array:', data);
+          setAnnouncements([]);
+          return;
+        }
+        
         const normalized = data.map(a => ({
           id: a.announcement_id,
           title: a.title,
@@ -150,6 +156,10 @@ const formatPeso = (value) => {
         }));
 
         setAnnouncements(normalized);
+      })
+      .catch(err => {
+        console.error('Failed to fetch announcements:', err);
+        setAnnouncements([]);
       });
   }, []);
 
@@ -484,6 +494,12 @@ useEffect(() => {
       const res = await fetch("/backend/projects.php", { credentials: "include" });
       const data = await res.json();
       
+      if (!Array.isArray(data)) {
+        console.error('Projects data is not an array:', data);
+        setProjects([]);
+        return;
+      }
+      
       // Fetch comment counts for each project
       const projectsWithComments = await Promise.all(
         data.map(async (project) => {
@@ -496,6 +512,7 @@ useEffect(() => {
               ? (commentsData.comments || []).map(c => ({
                   id: c.comment_id,
                   text: c.comment,
+                  attachments: c.attachments || null,
                   time: getCommentTimeAgo(c.created_at),
                   created_at: c.created_at,
                   email: c.email,
@@ -606,6 +623,7 @@ useEffect(() => {
         const mapped = (data.comments || []).map((c) => ({
           id: c.comment_id,
           text: c.comment,
+          attachments: c.attachments || null,
           time: getCommentTimeAgo(c.created_at),
           created_at: c.created_at,
           email: c.email,
@@ -625,25 +643,25 @@ useEffect(() => {
   const addComment = async (projectId) => {
     if (!commentText.trim() && commentAttachments.length === 0) return;
 
-    const newComment = {
-      project_id: projectId,
-      text: commentText,
-      attachments: commentAttachments.length > 0 ? JSON.stringify(commentAttachments) : null,
-    };
+    const formData = new FormData();
+    formData.append("project_id", projectId);
+    formData.append("text", commentText);
+
+    // Append actual files
+    commentAttachments.forEach((attachment, index) => {
+      formData.append("attachments[]", attachment.rawFile);
+    });
 
     try {
       const response = await fetch("/backend/comments.php", {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newComment),
+        body: formData, // FormData handles multipart/form-data automatically
       });
 
       const data = await response.json();
       if (data.status === "success") {
-        // Create new comment with profile image
+        // Create new comment with attachment file paths
         const newCommentObj = {
           id: data.comment_id || Date.now(),
           user: data.user || "Admin",
@@ -652,7 +670,7 @@ useEffect(() => {
           created_at: new Date().toISOString(),
           profile_image: data.profile_image || currentUser?.profile_image,
           email: data.email || currentUser?.email,
-          attachments: commentAttachments.length > 0 ? commentAttachments : null,
+          attachments: data.attachments || null, // Get file paths from backend
         };
 
         // Update the local project with the new comment
@@ -691,21 +709,14 @@ useEffect(() => {
       const newAttachments = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const fileData = {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            data: event.target.result, // Base64 encoded
-          };
-          newAttachments.push(fileData);
-          if (newAttachments.length === files.length) {
-            setCommentAttachments(prev => [...prev, ...newAttachments]);
-          }
-        };
-        reader.readAsDataURL(file);
+        newAttachments.push({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          rawFile: file // Store the actual file object
+        });
       }
+      setCommentAttachments(prev => [...prev, ...newAttachments]);
     }
     // Reset input
     if (commentFileInputRef.current) {
@@ -1020,19 +1031,40 @@ useEffect(() => {
                         <p className="text-sm leading-relaxed">{comment.text}</p>
                         {comment.attachments && comment.attachments.length > 0 && (
                           <div className="mt-3 space-y-2 border-t pt-2 border-opacity-30">
-                            {comment.attachments.map((att, idx) => (
-                              <a
-                                key={idx}
-                                href={att.data}
-                                download={att.name}
-                                className={`flex items-center text-xs px-2 py-1 rounded hover:opacity-80 transition-opacity ${
-                                  isCurrentUser ? 'bg-blue-400' : 'bg-gray-200'
-                                }`}
-                              >
-                                <FiPaperclip size={14} className="mr-1" />
-                                {att.name}
-                              </a>
-                            ))}
+                            {comment.attachments.map((att, idx) => {
+                              const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
+                              return isImage ? (
+                                <div key={idx} className="mt-2">
+                                  <img
+                                    src={att.path}
+                                    alt={att.name}
+                                    className="max-w-xs max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => window.open(att.path, '_blank')}
+                                  />
+                                  <a
+                                    href={att.path}
+                                    download={att.name}
+                                    className="block text-xs mt-1 text-blue-400 hover:underline"
+                                  >
+                                    Download: {att.name}
+                                  </a>
+                                </div>
+                              ) : (
+                                <a
+                                  key={idx}
+                                  href={att.path || att.data}
+                                  download={att.name}
+                                  className={`flex items-center text-xs px-2 py-1 rounded hover:opacity-80 transition-opacity ${
+                                    isCurrentUser ? 'bg-blue-400' : 'bg-gray-200'
+                                  }`}
+                                  target={att.path ? '_blank' : undefined}
+                                  rel={att.path ? 'noopener noreferrer' : undefined}
+                                >
+                                  <FiPaperclip size={14} className="mr-1" />
+                                  {att.name}
+                                </a>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
