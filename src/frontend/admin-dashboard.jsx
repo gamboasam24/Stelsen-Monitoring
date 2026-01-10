@@ -708,17 +708,19 @@ useEffect(() => {
         {selectedProject && (
           <>
             <div className="bg-blue-50 rounded-xl p-4 mb-6">
-              <h4 className="text-lg font-bold text-gray-800 mb-2">{selectedProject.title}</h4>
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <h4 className="text-lg font-bold text-gray-800">{selectedProject.title}</h4>
                 <div>
                   <p className="text-xs text-gray-500">Status</p>
                   <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs`}>
                     {selectedProject.status}
                   </span>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Assigned Employees</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="lg:col-span-2">
+                  <p className="text-xs text-gray-500 mb-3">Assigned Employees</p>
+                  <div className="w-full h-[50%] bg-white rounded-lg p-3 overflow-y-auto border border-gray-200 flex flex-wrap gap-2 items-start content-start">
                     {users.length > 0 && selectedProject.assignedUsers && selectedProject.assignedUsers.length > 0 ? selectedProject.assignedUsers.map(userId => {
                       const user = users.find(u => String(u.id) === String(userId));
                       return user ? (
@@ -727,24 +729,24 @@ useEffect(() => {
                           <span className="ml-1"> {formatAuthorName(user.email || user.name)}</span>
                         </div>
                       ) : null;
-                    }) : <p className="text-sm text-gray-500">None</p>}
+                    }) : <p className="text-sm text-gray-500 w-full">None</p>}
                   </div>
                 </div>
-                <div>
+                <div className="md:col-span-1">
                   <p className="text-xs text-gray-500">Manager</p>
-                  <p className="font-medium">{selectedProject.manager}</p>
+                  <p className="font-medium text-sm">{selectedProject.manager}</p>
                 </div>
-                <div>
+                <div className="md:col-span-1">
                   <p className="text-xs text-gray-500">Team Users</p>
-                  <p className="font-medium">{selectedProject.team_users || 0} users</p>
+                  <p className="font-medium text-sm">{selectedProject.team_users || 0} users</p>
                 </div>
-                <div>
+                <div className="md:col-span-1">
                   <p className="text-xs text-gray-500">Budget</p>
-                  <p className="font-medium">{selectedProject.budget}</p>
+                  <p className="font-medium text-sm">{selectedProject.budget}</p>
                 </div>
-                <div>
+                <div className="md:col-span-1">
                   <p className="text-xs text-gray-500">Deadline</p>
-                  <p className="font-medium">{selectedProject.deadline}</p>
+                  <p className="font-medium text-sm">{selectedProject.deadline}</p>
                 </div>
               </div>
               <p className="text-gray-600 text-sm">{selectedProject.description}</p>
@@ -781,23 +783,23 @@ useEffect(() => {
   );
 
   const renderCommentsModal = () => (
-    <div className="fixed inset-0 bg-white z-[60] flex flex-col">
+    <div className="fixed inset-0 bg-white z-[60] flex flex-col md:rounded-2xl md:w-[90%] md:h-[90%] md:left-[5%] md:top-[5%] md:bottom-auto md:mx-auto">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex items-center text-white shadow-lg">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 md:px-5 py-3 md:py-4 flex items-center text-white shadow-lg rounded-t-none md:rounded-t-2xl">
         <button 
           onClick={() => setShowCommentsModal(false)}
-          className="p-2 rounded-full hover:bg-white/20 mr-3 transition-colors"
+          className="p-2 rounded-full hover:bg-white/20 mr-3 transition-colors flex-shrink-0"
         >
           <FiChevronLeft size={24} />
         </button>
-        <div className="flex-1">
-          <h3 className="text-lg font-bold">Comments & Clarifications</h3>
-          <p className="text-xs opacity-90">{selectedProject?.title}</p>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base md:text-lg font-bold truncate">Comments & Clarifications</h3>
+          <p className="text-xs opacity-90 truncate">{selectedProject?.title}</p>
         </div>
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-gray-50">
         {selectedProject && selectedProject.comments.length > 0 ? (
           <div className="space-y-3">
             {selectedProject.comments.map(comment => {
@@ -839,10 +841,10 @@ useEffect(() => {
       </div>
 
       {/* Input Area - Fixed at Bottom */}
-      <div className="bg-white border-t border-gray-200 p-4">
+      <div className="bg-white border-t border-gray-200 p-3 md:p-4 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <Avatar user={currentUser} size={36} />
-          <div className="flex-1 flex items-center bg-gray-100 rounded-full px-4 py-2">
+          <Avatar user={currentUser} size={32} className="flex-shrink-0" />
+          <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 md:px-4 py-2">
             <input
               type="text"
               value={commentText}
@@ -855,8 +857,8 @@ useEffect(() => {
               placeholder="Type a message..."
               className="flex-1 bg-transparent outline-none text-sm"
             />
-            <button className="text-gray-400 hover:text-gray-600 ml-2">
-              <FiCamera size={20} />
+            <button className="text-gray-400 hover:text-gray-600 ml-2 flex-shrink-0">
+              <FiCamera size={18} />
             </button>
           </div>
           <button
@@ -866,13 +868,13 @@ useEffect(() => {
               }
             }}
             disabled={!commentText.trim()}
-            className={`p-3 rounded-full transition-all ${
+            className={`p-2 md:p-3 rounded-full transition-all flex-shrink-0 ${
               commentText.trim()
                 ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
           >
-            <IoMdSend size={20} />
+            <IoMdSend size={18} />
           </button>
         </div>
       </div>
