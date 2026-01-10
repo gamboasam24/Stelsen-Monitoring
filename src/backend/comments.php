@@ -101,78 +101,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
 
     $announcement_id = $input['announcement_id'] ?? null;
-    $project_id = $input['project_id'] ?? null;
-    $comment = trim($input['text'] ?? $input['comment'] ?? '');
+    $comment = trim($input['comment'] ?? '');
 
-    if (!$comment) {
-        echo json_encode(['status' => 'error', 'message' => 'Comment text required']);
+    if (!$announcement_id || !$comment) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid input']);
         exit;
     }
 
-    // Handle announcement comment
-    if ($announcement_id) {
-        $stmt = $conn->prepare("
-            INSERT INTO announcement_comments (announcement_id, user_id, comment)
-            VALUES (?, ?, ?)
-        ");
+    $stmt = $conn->prepare("
+        INSERT INTO announcement_comments (announcement_id, user_id, comment)
+        VALUES (?, ?, ?)
+    ");
 
-        $stmt->bind_param("iis", $announcement_id, $user_id, $comment);
-        
-        if ($stmt->execute()) {
-            $comment_id = $conn->insert_id;
-            
-            // Fetch user details for response
-            $userStmt = $conn->prepare("SELECT email, profile_image, account_type FROM login WHERE login_id = ?");
-            $userStmt->bind_param("i", $user_id);
-            $userStmt->execute();
-            $userData = $userStmt->get_result()->fetch_assoc();
-            
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Comment added',
-                'comment_id' => $comment_id,
-                'user' => $userData['account_type'] === 'admin' ? 'Admin' : explode('@', $userData['email'])[0],
-                'profile_image' => $userData['profile_image']
-            ]);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to add comment']);
-        }
-        exit;
-    }
+    $stmt->bind_param("iis", $announcement_id, $user_id, $comment);
+    $stmt->execute();
 
-    // Handle project comment
-    if ($project_id) {
-        $stmt = $conn->prepare("
-            INSERT INTO project_comments (project_id, user_id, comment)
-            VALUES (?, ?, ?)
-        ");
-
-        $stmt->bind_param("iis", $project_id, $user_id, $comment);
-        
-        if ($stmt->execute()) {
-            $comment_id = $conn->insert_id;
-            
-            // Fetch user details for response
-            $userStmt = $conn->prepare("SELECT email, profile_image, account_type FROM login WHERE login_id = ?");
-            $userStmt->bind_param("i", $user_id);
-            $userStmt->execute();
-            $userData = $userStmt->get_result()->fetch_assoc();
-            
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Comment added',
-                'comment_id' => $comment_id,
-                'user' => $userData['account_type'] === 'admin' ? 'Admin' : explode('@', $userData['email'])[0],
-                'profile_image' => $userData['profile_image'],
-                'email' => $userData['email']
-            ]);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to add comment']);
-        }
-        exit;
-    }
-
-    echo json_encode(['status' => 'error', 'message' => 'Missing announcement_id or project_id']);
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Comment added'
+    ]);
     exit;
 }
 

@@ -144,6 +144,14 @@ const UserDashboard = ({ user, logout }) => {
       .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
   };
 
+  // Format numbers as Philippine Peso with comma grouping
+  const formatPeso = (value) => {
+    if (value === null || value === undefined || value === "") return "₱0";
+    const num = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+    if (isNaN(num)) return "₱0";
+    return "₱" + num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  };
+
   useEffect(() => {
   const fetchAnnouncements = async () => {
     try {
@@ -719,7 +727,7 @@ const renderAnnouncementCard = (announcement) => (
       <div className="flex items-center justify-between">
         <div className="text-xs text-gray-500">
           <div>Deadline: <span className="font-medium">{item.deadline}</span></div>
-          <div>Budget: <span className="font-medium">{item.budget}</span></div>
+          <div>Budget: <span className="font-medium">{formatPeso(item.budget)}</span></div>
         </div>
         <div className="flex items-center space-x-2">
           <span className="flex items-center text-xs text-gray-500 relative">
@@ -789,9 +797,9 @@ const renderAnnouncementCard = (announcement) => (
                             }`}
                           >
                             {avatar ? (
-                              <img src={avatar} alt={label} className="w-4 h-4 rounded-full" />
+                              <img src={avatar} alt={label} className="w-6 h-6 rounded-full" />
                             ) : (
-                              <FaUser size={12} />
+                              <FaUser size={14} />
                             )}
                             <span className="whitespace-nowrap">{label}</span>
                           </span>
@@ -810,22 +818,22 @@ const renderAnnouncementCard = (announcement) => (
               </div>
 
               <div className="space-y-3 sm:space-y-5">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 sm:p-4 border border-blue-200">
+                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Manager</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.manager || 'N/A'}</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 sm:p-4 border border-green-200">
+                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Team Users</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.team_users || 0} users</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2 sm:p-4 border border-purple-200">
+                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Budget</p>
-                  <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.budget || 'N/A'}</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.budget ? formatPeso(selectedProject.budget) : 'N/A'}</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-2 sm:p-4 border border-orange-200">
+                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Deadline</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.deadline || 'N/A'}</p>
                 </div>
@@ -1084,7 +1092,7 @@ const renderAnnouncementCard = (announcement) => (
   const renderProfile = () => (
     <div className="h-full flex flex-col">
       {/* Profile Header */}
-      <div className="bg-blue-500 px-5 py-6 flex justify-between items-center text-white">
+      <div className="bg-blue-500 px-5 py-4 flex justify-between items-center text-white">
         <div className="flex items-center">
           <img 
             src={selectedFile || user?.profile_image} 

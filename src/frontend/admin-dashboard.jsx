@@ -121,6 +121,14 @@ const formatAuthorName = (email) => {
     .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
 };
 
+// Format numbers as Philippine Peso with comma grouping
+const formatPeso = (value) => {
+  if (value === null || value === undefined || value === "") return "₱0";
+  const num = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+  if (isNaN(num)) return "₱0";
+  return "₱" + num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+};
+
   // Enhanced announcements data
   useEffect(() => {
     fetch("/backend/announcements.php", { credentials: "include" })
@@ -286,6 +294,21 @@ const createProject = async () => {
   } catch (error) {
     console.error("Error creating project:", error);
   }
+};
+
+const handleBudgetChange = (e) => {
+  const value = e.target.value;
+  // Remove all non-numeric characters except the peso sign
+  const numericValue = value.replace(/[^0-9]/g, '');
+  
+  if (numericValue === '') {
+    setProjectBudget('');
+    return;
+  }
+  
+  // Format with commas
+  const formatted = Number(numericValue).toLocaleString('en-PH');
+  setProjectBudget(formatted);
 };
   
  const Avatar = ({ user, size = 32 }) => {
@@ -860,7 +883,7 @@ useEffect(() => {
                       const user = users.find(u => String(u.id) === String(userId));
                       return user ? (
                         <div key={userId} className="flex items-center bg-blue-100 text-blue-800 px-1 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs">
-                          <Avatar user={user} size={22} />
+                          <Avatar user={user} size={32} />
                           <span className="ml-0.5 sm:ml-1 hidden sm:inline"> {formatAuthorName(user.email || user.name)}</span>
                         </div>
                       ) : null;
@@ -878,25 +901,25 @@ useEffect(() => {
               {/* Right Column */}
               <div className="space-y-3 sm:space-y-5">
                 {/* Manager */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 sm:p-4 border border-blue-200">
+                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Manager</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.manager}</p>
                 </div>
 
                 {/* Team Users */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 sm:p-4 border border-green-200">
+                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Team Users</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.team_users || 0} users</p>
                 </div>
 
                 {/* Budget */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2 sm:p-4 border border-purple-200">
+                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Budget</p>
-                  <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.budget}</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{formatPeso(selectedProject.budget)}</p>
                 </div>
 
                 {/* Deadline */}
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-2 sm:p-4 border border-orange-200">
+                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Deadline</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.deadline}</p>
                 </div>
@@ -1200,18 +1223,23 @@ useEffect(() => {
   );
 
   const renderProjectModal = () => (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
-      <div className="bg-white rounded-3xl p-5 w-full max-w-2xl max-h-[95%] overflow-auto">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="text-xl font-bold text-gray-800">Create New Task</h3>
-          <button
-            onClick={() => setShowProjectModal(false)}
-            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
-          >
-            <IoMdClose size={24} className="text-gray-600" />
-          </button>
+    <div className="fixed inset-0 bg-white z-50 flex flex-col animate-slide-in-right">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 md:px-5 py-3 md:py-4 flex items-center text-white shadow-lg">
+        <button 
+          onClick={() => setShowProjectModal(false)}
+          className="p-2 rounded-full hover:bg-white/20 mr-3 transition-colors flex-shrink-0"
+        >
+          <FiChevronLeft size={24} />
+        </button>
+        <div className="flex-1">
+          <h3 className="text-base md:text-lg font-bold">Create New Task</h3>
+          <p className="text-xs opacity-90">Fill in the task details</p>
         </div>
+      </div>
 
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-5 bg-gray-50">
         <div className="space-y-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1235,111 +1263,116 @@ useEffect(() => {
               onChange={(e) => setProjectDescription(e.target.value)}
               placeholder="Enter project description"
               rows={3}
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
-              </label>
-              <select
-                value={projectStatus}
-                onChange={(e) => setProjectStatus(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
-              >
-                <option value="pending">Pending</option>
-                <option value="ongoing">Ongoing</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="completed">Completed</option>
-              </select>
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <select
+              value={projectStatus}
+              onChange={(e) => setProjectStatus(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+            >
+              <option value="pending">Pending</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Employees
+            </label>
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+              {selectedUsers.length > 0 ? selectedUsers.map(userId => {
+                const user = users.find(u => u.id === userId);
+                if (!user) return null;
+
+                const displayName = formatAuthorName(user.email || user.name);
+
+                return (
+                  <div key={userId} className="flex items-center bg-blue-50 rounded-full px-3 py-1 border">
+                    <img 
+                      src={user.profile_image} 
+                      className="w-6 h-6 rounded-full mr-2" 
+                      alt={displayName}
+                    />
+                    <span className="text-sm text-gray-700">{displayName}</span>
+                  </div>
+                );
+              }) : (
+                <p className="text-sm text-gray-500">No employees assigned</p>
+              )}
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                 Employees
-              </label>
-              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                {selectedUsers.length > 0 ? selectedUsers.map(userId => {
-                  const user = users.find(u => u.id === userId);
-                  if (!user) return null;
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={projectStartDate}
+                  onChange={(e) => setProjectStartDate(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+                />
+              </div>
 
-                  const displayName = formatAuthorName(user.email || user.name);
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Deadline
+                </label>
+                <input
+                  type="date"
+                  value={projectDeadline}
+                  onChange={(e) => setProjectDeadline(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+                />
+              </div>
+          </div>
+          </div>
 
-                  return (
-                    <div key={userId} className="flex items-center bg-blue-50 rounded-full px-3 py-1 border">
-                      <img 
-                        src={user.profile_image} 
-                        className="w-6 h-6 rounded-full mr-2" 
-                        alt={displayName}
-                      />
-                      <span className="text-sm text-gray-700">{displayName}</span>
-                    </div>
-                  );
-                }) : (
-                  <p className="text-sm text-gray-500">No employees assigned</p>
-                )}
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Manager
+                </label>
+                <input
+                  type="text"
+                  value={projectManager}
+                  onChange={(e) => setProjectManager(e.target.value)}
+                  placeholder="Project manager"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+                />
+              </div>
+            
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Budget
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 font-medium">₱</span>
+                  <input
+                    type="text"
+                    value={projectBudget}
+                    onChange={handleBudgetChange}
+                    placeholder="50,000"
+                    className="w-full p-3 pl-8 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Deadline
-              </label>
-              <input
-                type="date"
-                value={projectDeadline}
-                onChange={(e) => setProjectDeadline(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={projectStartDate}
-                onChange={(e) => setProjectStartDate(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Manager
-              </label>
-              <input
-                type="text"
-                value={projectManager}
-                onChange={(e) => setProjectManager(e.target.value)}
-                placeholder="Project manager"
-                className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Budget
-            </label>
-            <input
-              type="text"
-              value={projectBudget}
-              onChange={(e) => setProjectBudget(e.target.value)}
-              placeholder="e.g., ₱50,000"
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-          <div>
+          <div className="bg-white rounded-xl p-4 shadow-sm">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Assign Users
             </label>
@@ -1357,7 +1390,7 @@ useEffect(() => {
                 const options = Array.from(e.target.selectedOptions, option => option.value);
                 setSelectedUsers(options);
               }}
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
             >
               {users.map(user => (
                 <option key={user.id} value={user.id}>
@@ -1368,7 +1401,10 @@ useEffect(() => {
             <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple users</p>
           </div>
         </div>
+      </div>
 
+      {/* Fixed Bottom Button */}
+      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
         <button
           onClick={createProject}
           className={`w-full py-4 rounded-xl font-bold text-white ${
@@ -1623,7 +1659,7 @@ useEffect(() => {
   const renderProfile = () => (
   <div className="h-full flex flex-col">
     {/* Profile Header */}
-    <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-6 flex justify-between items-center text-white">
+    <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex justify-between items-center text-white">
       <div className="flex items-center">
         <img 
           src={selectedFile || currentUser?.profile_image} 
@@ -1808,12 +1844,11 @@ useEffect(() => {
 );
 
   const ActionMenu = () => (
-    <div className="fixed inset-0 z-30 flex justify-center items-end">
+    <div className="fixed inset-0 z-30 flex items-end">
       <div 
         className="absolute inset-0 bg-black/50"
         onClick={() => setShowActionMenu(false)}
       />
-      
       <div 
         ref={actionMenuRef}
         className="relative bg-white rounded-t-3xl p-5 w-full max-h-[50%] overflow-auto animate-slide-up z-40"
@@ -1895,15 +1930,12 @@ useEffect(() => {
               onClick={handleProfileClick}
               alt="Admin Avatar"
             />
-            {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
-            )}
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div className={`transition-all duration-300 ${(profileOpen || showActionMenu) && isMobile ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+      <div className={`transition-all duration-300 ${profileOpen && isMobile ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
         <div className="overflow-auto">
           {renderTabContent()}
         </div>
@@ -1911,7 +1943,7 @@ useEffect(() => {
 
       {/* Bottom Navbar */}
       {activeTab !== "My Location" && (
-        <div className={`fixed bottom-0 left-0 w-full bg-white border-t border-gray-300 flex items-center justify-around py-2 z-10 transition-all duration-300 ${(profileOpen || showActionMenu) ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'}`}>
+        <div className={`fixed bottom-0 left-0 w-full bg-white border-t border-gray-300 flex items-center justify-around py-2 z-10 transition-all duration-300 ${profileOpen ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'}`}>
           <button
             className={`flex flex-col items-center relative ${activeTab === "Home" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("Home")}
