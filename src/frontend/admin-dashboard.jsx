@@ -514,6 +514,73 @@ useEffect(() => {
     setShowProjectDetailsModal(true);
   };
 
+  //========================================================== Add Comment ==========================================================
+  const addComment = async (projectId) => {
+    if (!commentText.trim()) return;
+
+    const newComment = {
+      project_id: projectId,
+      text: commentText,
+      user: "Admin",
+    };
+
+    try {
+      const response = await fetch("/backend/comments.php", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newComment),
+      });
+
+      const data = await response.json();
+      if (data.status === "success") {
+        // Update the local project with the new comment
+        const updatedProjects = projects.map(project => {
+          if (project.id === projectId) {
+            return {
+              ...project,
+              comments: [
+                ...project.comments,
+                {
+                  id: data.comment_id || Date.now(),
+                  user: "Admin",
+                  text: commentText,
+                  time: "Just now",
+                }
+              ]
+            };
+          }
+          return project;
+        });
+        
+        setProjects(updatedProjects);
+        
+        // Update selectedProject if it's the current one
+        if (selectedProject && selectedProject.id === projectId) {
+          setSelectedProject({
+            ...selectedProject,
+            comments: [
+              ...selectedProject.comments,
+              {
+                id: data.comment_id || Date.now(),
+                user: "Admin",
+                text: commentText,
+                time: "Just now",
+              }
+            ]
+          });
+        }
+        
+        setCommentText("");
+      }
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      alert("Failed to add comment. Please try again.");
+    }
+  };
+
   //========================================================== Render Functions ==========================================================
   const renderAnnouncementCard = (announcement) => (
     <div 
