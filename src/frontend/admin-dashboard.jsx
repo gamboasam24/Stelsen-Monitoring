@@ -1746,33 +1746,6 @@ useEffect(() => {
 
       {/* Comments Modal - Stack Navigation */}
       {showCommentsModal && renderCommentsModal()}
-
-      {/* Report Modal */
-      {showReportModal && (
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-40">
-          <div className="bg-white rounded-t-3xl p-5 w-full max-h-[70%] overflow-auto">
-            <div className="flex justify-between items-center mb-5">
-              <span className="text-xl font-bold">Generate Report</span>
-              <button onClick={() => setShowReportModal(false)}>Close</button>
-            </div>
-            <textarea
-              className="w-full p-4 border border-gray-300 rounded-lg mb-5"
-              rows={6}
-              placeholder="Enter report details..."
-              value={reportMessage}
-              onChange={(e) => setReportMessage(e.target.value)}
-            />
-            <button
-              className={`w-full py-4 rounded-lg ${reportMessage.trim() ? "bg-blue-500 text-white" : "bg-gray-400 text-gray-700"}`}
-              disabled={!reportMessage.trim()}
-              onClick={submitReport}
-            >
-              Generate Report
-            </button>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };
