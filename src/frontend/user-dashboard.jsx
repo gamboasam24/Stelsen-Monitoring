@@ -625,12 +625,18 @@ const renderAnnouncementCard = (announcement) => (
           <div>Deadline: <span className="font-medium">{item.deadline}</span></div>
           <div>Budget: <span className="font-medium">{item.budget}</span></div>
         </div>
-        <button 
-          className="text-blue-500 text-sm font-medium flex items-center"
-          onClick={() => viewProjectDetails(item)}
-        >
-          Details <FiChevronRight size={16} className="ml-1" />
-        </button>
+        <div className="flex items-center space-x-2">
+          <span className="flex items-center text-xs text-gray-500">
+            <MdComment size={14} className="mr-1" />
+            {(item.comments && item.comments.length) || 0}
+          </span>
+          <button 
+            onClick={() => viewProjectDetails(item)}
+            className="text-blue-500 text-sm font-medium flex items-center"
+          >
+            Details <FiChevronRight size={16} className="ml-1" />
+          </button>
+        </div>
       </div>
     </div>
   );
