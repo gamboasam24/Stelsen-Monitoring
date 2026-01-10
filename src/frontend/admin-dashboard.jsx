@@ -707,49 +707,69 @@ useEffect(() => {
         
         {selectedProject && (
           <>
-            <div className="bg-blue-50 rounded-xl p-4 mb-6">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                <h4 className="text-lg font-bold text-gray-800">{selectedProject.title}</h4>
-                <div>
-                  <p className="text-xs text-gray-500">Status</p>
-                  <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs`}>
-                    {selectedProject.status}
-                  </span>
-                </div>
+            {/* Title and Status */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6 pb-4 border-b border-gray-200">
+              <h4 className="text-lg font-bold text-gray-800">{selectedProject.title}</h4>
+              <div className="flex-shrink-0">
+                <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block`}>
+                  {selectedProject.status}
+                </span>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                <div className="lg:col-span-2">
-                  <p className="text-xs text-gray-500 mb-3">Assigned Employees</p>
-                  <div className="w-full h-[50%] bg-white rounded-lg p-3 overflow-y-auto border border-gray-200 flex flex-wrap gap-2 items-start content-start">
+            </div>
+
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-6">
+              {/* Left Column */}
+              <div className="space-y-3 sm:space-y-5">
+                {/* Assigned Employees */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2 sm:mb-3 uppercase tracking-wide">Assigned Employees</p>
+                  <div className="bg-white rounded-lg p-2 sm:p-3 border border-gray-200 min-h-[150px] sm:min-h-[200px] overflow-y-auto flex flex-wrap gap-1 sm:gap-2 items-start content-start">
                     {users.length > 0 && selectedProject.assignedUsers && selectedProject.assignedUsers.length > 0 ? selectedProject.assignedUsers.map(userId => {
                       const user = users.find(u => String(u.id) === String(userId));
                       return user ? (
-                        <div key={userId} className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                          <Avatar user={user} size={16} />
-                          <span className="ml-1"> {formatAuthorName(user.email || user.name)}</span>
+                        <div key={userId} className="flex items-center bg-blue-100 text-blue-800 px-1 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs">
+                          <Avatar user={user} size={14} />
+                          <span className="ml-0.5 sm:ml-1 hidden sm:inline"> {formatAuthorName(user.email || user.name)}</span>
                         </div>
                       ) : null;
                     }) : <p className="text-sm text-gray-500 w-full">None</p>}
                   </div>
                 </div>
-                <div className="md:col-span-1">
-                  <p className="text-xs text-gray-500">Manager</p>
-                  <p className="font-medium text-sm">{selectedProject.manager}</p>
-                </div>
-                <div className="md:col-span-1">
-                  <p className="text-xs text-gray-500">Team Users</p>
-                  <p className="font-medium text-sm">{selectedProject.team_users || 0} users</p>
-                </div>
-                <div className="md:col-span-1">
-                  <p className="text-xs text-gray-500">Budget</p>
-                  <p className="font-medium text-sm">{selectedProject.budget}</p>
-                </div>
-                <div className="md:col-span-1">
-                  <p className="text-xs text-gray-500">Deadline</p>
-                  <p className="font-medium text-sm">{selectedProject.deadline}</p>
+
+                {/* Description */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">Description</p>
+                  <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3 border border-gray-200">{selectedProject.description}</p>
                 </div>
               </div>
-              <p className="text-gray-600 text-sm">{selectedProject.description}</p>
+
+              {/* Right Column */}
+              <div className="space-y-5">
+                {/* Manager */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Manager</p>
+                  <p className="font-semibold text-gray-800 text-sm">{selectedProject.manager}</p>
+                </div>
+
+                {/* Team Users */}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Team Users</p>
+                  <p className="font-semibold text-gray-800 text-sm">{selectedProject.team_users || 0} users</p>
+                </div>
+
+                {/* Budget */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Budget</p>
+                  <p className="font-semibold text-gray-800 text-sm">{selectedProject.budget}</p>
+                </div>
+
+                {/* Deadline */}
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Deadline</p>
+                  <p className="font-semibold text-gray-800 text-sm">{selectedProject.deadline}</p>
+                </div>
+              </div>
             </div>
 
             {/* Comments Section - Preview */}
