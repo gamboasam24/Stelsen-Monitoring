@@ -729,7 +729,7 @@ useEffect(() => {
                       const user = users.find(u => String(u.id) === String(userId));
                       return user ? (
                         <div key={userId} className="flex items-center bg-blue-100 text-blue-800 px-1 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs">
-                          <Avatar user={user} size={14} />
+                          <Avatar user={user} size={22} />
                           <span className="ml-0.5 sm:ml-1 hidden sm:inline"> {formatAuthorName(user.email || user.name)}</span>
                         </div>
                       ) : null;
