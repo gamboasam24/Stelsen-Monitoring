@@ -1065,16 +1065,20 @@ useEffect(() => {
               <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                 {selectedUsers.length > 0 ? selectedUsers.map(userId => {
                   const user = users.find(u => u.id === userId);
-                  return user ? (
+                  if (!user) return null;
+
+                  const displayName = formatAuthorName(user.email || user.name);
+
+                  return (
                     <div key={userId} className="flex items-center bg-blue-50 rounded-full px-3 py-1 border">
                       <img 
                         src={user.profile_image} 
                         className="w-6 h-6 rounded-full mr-2" 
-                        alt={user.name}
+                        alt={displayName}
                       />
-                      <span className="text-sm text-gray-700">{user.name}</span>
+                      <span className="text-sm text-gray-700">{displayName}</span>
                     </div>
-                  ) : null;
+                  );
                 }) : (
                   <p className="text-sm text-gray-500">No employees assigned</p>
                 )}
