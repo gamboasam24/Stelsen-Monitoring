@@ -67,6 +67,7 @@ const UserDashboard = ({ user, logout }) => {
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [users, setUsers] = useState([]);
+  const [readComments, setReadComments] = useState({});
 
   const [center, setCenter] = useState({
     lat: 14.5995,
@@ -105,22 +106,25 @@ const UserDashboard = ({ user, logout }) => {
   if (diff < 60) return "Just now";
   if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
-  return created.toLocaleDateString();
-};
+    if (diff < 604800) return `${Math.floor(diff / 86400)} day${Math.floor(diff / 86400) !== 1 ? 's' : ''} ago`;
+    return created.toLocaleDateString();
+  };
 
-// Format author name from email
-const formatAuthorName = (email) => {
-  if (!email) return "Unknown";
+  const getCommentTimeAgo = (timestamp) => {
+    if (!timestamp) return "Just now";
+    return formatTimeAgo(timestamp);
+  };
 
-  return email
-    .split("@")[0]            // remove domain
-    .replace(/\d+/g, "")      // remove numbers
-    .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
-};
+  const formatAuthorName = (email) => {
+    if (!email) return "Unknown";
 
+    return email
+      .split("@")[0]            // remove domain
+      .replace(/\d+/g, "")      // remove numbers
+      .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
+  };
 
-
-useEffect(() => {
+  useEffect(() => {
   const fetchAnnouncements = async () => {
     try {
       const res = await fetch("/backend/announcements.php", {
@@ -199,7 +203,34 @@ useEffect(() => {
         );
       });
       
-      setProjects(userProjects.map(p => ({ ...p, comments: Array.isArray(p.comments) ? p.comments : [] })));
+      // Fetch comment counts for each project
+      const projectsWithComments = await Promise.all(
+        userProjects.map(async (project) => {
+          try {
+            const commentsRes = await fetch(`/backend/comments.php?project_id=${project.id}`, { 
+              credentials: "include" 
+            });
+            const commentsData = await commentsRes.json();
+            const comments = commentsData.status === "success" 
+              ? (commentsData.comments || []).map(c => ({
+                  id: c.comment_id,
+                  text: c.comment,
+                  time: getCommentTimeAgo(c.created_at),
+                  created_at: c.created_at,
+                  email: c.email,
+                  profile_image: c.profile_image,
+                  user: c.user || formatAuthorName(c.email),
+                }))
+              : [];
+            return { ...project, comments };
+          } catch (err) {
+            console.error(`Failed to fetch comments for project ${project.id}:`, err);
+            return { ...project, comments: [] };
+          }
+        })
+      );
+      
+      setProjects(projectsWithComments);
     } catch (err) {
       console.error("Failed to fetch projects:", err);
     }
@@ -425,7 +456,8 @@ const getPriorityBadge = (priority) => {
         const mapped = (data.comments || []).map((c) => ({
           id: c.comment_id,
           text: c.comment,
-          time: "Just now",
+          time: getCommentTimeAgo(c.created_at),
+          created_at: c.created_at,
           email: c.email,
           profile_image: c.profile_image,
           user: c.user || formatAuthorName(c.email),
@@ -464,6 +496,7 @@ const getPriorityBadge = (priority) => {
           user: data.user || formatAuthorName(user?.email),
           text: commentText,
           time: "Just now",
+          created_at: new Date().toISOString(),
           profile_image: data.profile_image || getCurrentUserProfileImage(),
           email: data.email || user?.email,
         };
@@ -592,7 +625,15 @@ const renderAnnouncementCard = (announcement) => (
     </div>
   );
 
-  const renderProjectCard = (item) => (
+  const getUnreadCommentCount = (projectId) => {
+    const projectReadComments = readComments[projectId] || [];
+    const projectComments = projects.find(p => p.id === projectId)?.comments || [];
+    return projectComments.filter(c => !projectReadComments.includes(c.id)).length;
+  };
+
+  const renderProjectCard = (item) => {
+    const unreadCount = getUnreadCommentCount(item.id);
+    return (
     <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center flex-1">
@@ -626,9 +667,12 @@ const renderAnnouncementCard = (announcement) => (
           <div>Budget: <span className="font-medium">{item.budget}</span></div>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="flex items-center text-xs text-gray-500">
+          <span className="flex items-center text-xs text-gray-500 relative">
             <MdComment size={14} className="mr-1" />
             {(item.comments && item.comments.length) || 0}
+            {unreadCount > 0 && (
+              <div className="absolute -top-1 -right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            )}
           </span>
           <button 
             onClick={() => viewProjectDetails(item)}
@@ -639,7 +683,8 @@ const renderAnnouncementCard = (announcement) => (
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderProjectDetailsModal = () => (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-50">
@@ -739,12 +784,27 @@ const renderAnnouncementCard = (announcement) => (
 
             <div className="mt-6">
               <button
-                onClick={() => setShowCommentsModal(true)}
-                className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all border border-blue-200 flex items-center justify-between"
+                onClick={() => {
+                  setShowCommentsModal(true);
+                  // Mark all comments as read for this project
+                  if (selectedProject && selectedProject.comments) {
+                    const commentIds = selectedProject.comments.map(c => c.id);
+                    setReadComments(prev => ({
+                      ...prev,
+                      [selectedProject.id]: commentIds
+                    }));
+                  }
+                }}
+                className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all border border-blue-200 flex items-center justify-between relative"
               >
                 <div className="flex items-center">
-                  <div className="bg-blue-500 p-3 rounded-full mr-3">
+                  <div className="bg-blue-500 p-3 rounded-full mr-3 relative">
                     <MdComment className="text-white" size={24} />
+                    {getUnreadCommentCount(selectedProject?.id) > 0 && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs flex items-center justify-center animate-pulse">
+                        {getUnreadCommentCount(selectedProject?.id)}
+                      </div>
+                    )}
                   </div>
                   <div className="text-left">
                     <h4 className="text-md font-bold text-gray-800">Comments & Clarifications</h4>

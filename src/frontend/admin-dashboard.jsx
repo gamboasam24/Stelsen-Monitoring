@@ -146,6 +146,7 @@ const formatAuthorName = (email) => {
   const [projects, setProjects] = useState([]);
   const [announcements, setAnnouncements] = useState([]); // <-- add this
   const [users, setUsers] = useState([]);
+  const [readComments, setReadComments] = useState({});
 
   // Fetch users
   useEffect(() => {
@@ -365,8 +366,14 @@ const markAsRead = async (id) => {
   if (diff < 60) return "Just now";
   if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)} day${Math.floor(diff / 86400) !== 1 ? 's' : ''} ago`;
   return created.toLocaleDateString();
 };
+
+  const getCommentTimeAgo = (timestamp) => {
+    if (!timestamp) return "Just now";
+    return formatTimeAgo(timestamp);
+  };
 
   // Location history
   const [locationHistory, setLocationHistory] = useState([
@@ -429,12 +436,45 @@ const markAsRead = async (id) => {
 
 
 useEffect(() => {
-  fetch("/backend/projects.php", {
-    credentials: "include",
-  })
-    .then(res => res.json())
-    .then(data => setProjects(data))
-    .catch(err => console.error("Projects error:", err));
+  const fetchProjectsWithComments = async () => {
+    try {
+      const res = await fetch("/backend/projects.php", { credentials: "include" });
+      const data = await res.json();
+      
+      // Fetch comment counts for each project
+      const projectsWithComments = await Promise.all(
+        data.map(async (project) => {
+          try {
+            const commentsRes = await fetch(`/backend/comments.php?project_id=${project.id}`, { 
+              credentials: "include" 
+            });
+            const commentsData = await commentsRes.json();
+            const comments = commentsData.status === "success" 
+              ? (commentsData.comments || []).map(c => ({
+                  id: c.comment_id,
+                  text: c.comment,
+                  time: getCommentTimeAgo(c.created_at),
+                  created_at: c.created_at,
+                  email: c.email,
+                  profile_image: c.profile_image,
+                  user: c.user || formatAuthorName(c.email),
+                }))
+              : [];
+            return { ...project, comments };
+          } catch (err) {
+            console.error(`Failed to fetch comments for project ${project.id}:`, err);
+            return { ...project, comments: [] };
+          }
+        })
+      );
+      
+      setProjects(projectsWithComments);
+    } catch (err) {
+      console.error("Projects error:", err);
+    }
+  };
+  
+  fetchProjectsWithComments();
 }, []);
 
   //========================================================== Update location ==========================================================
@@ -523,7 +563,8 @@ useEffect(() => {
         const mapped = (data.comments || []).map((c) => ({
           id: c.comment_id,
           text: c.comment,
-          time: "Just now",
+          time: getCommentTimeAgo(c.created_at),
+          created_at: c.created_at,
           email: c.email,
           profile_image: c.profile_image,
           user: c.user || formatAuthorName(c.email),
@@ -564,6 +605,7 @@ useEffect(() => {
           user: data.user || "Admin",
           text: commentText,
           time: "Just now",
+          created_at: new Date().toISOString(),
           profile_image: data.profile_image || currentUser?.profile_image,
           email: data.email || currentUser?.email
         };
@@ -665,7 +707,15 @@ useEffect(() => {
     </div>
   );
 
-  const renderProjectCard = (item) => (
+  const getUnreadCommentCount = (projectId) => {
+    const projectReadComments = readComments[projectId] || [];
+    const projectComments = projects.find(p => p.id === projectId)?.comments || [];
+    return projectComments.filter(c => !projectReadComments.includes(c.id)).length;
+  };
+
+  const renderProjectCard = (item) => {
+    const unreadCount = getUnreadCommentCount(item.id);
+    return (
     <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center flex-1">
@@ -699,9 +749,12 @@ useEffect(() => {
           <div>Team Users: <span className="font-medium">{item.team_users || 0} users</span></div>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="flex items-center text-xs text-gray-500">
+          <span className="flex items-center text-xs text-gray-500 relative">
             <MdComment size={14} className="mr-1" />
             {item.comments.length}
+            {unreadCount > 0 && (
+              <div className="absolute -top-1 -right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            )}
           </span>
           <button 
             onClick={() => viewProjectDetails(item)}
@@ -712,7 +765,8 @@ useEffect(() => {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderProjectDetailsModal = () => (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-50">
