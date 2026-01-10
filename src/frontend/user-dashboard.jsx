@@ -158,10 +158,17 @@ useEffect(() => {
       const data = await response.json();
       
       // Filter projects where current user is assigned
-      const userProjects = data.filter(project => 
-        project.assignedUsers && 
-        project.assignedUsers.includes(String(user?.id))
-      );
+      // Handle both string and number IDs for comparison
+      const userProjects = data.filter(project => {
+        if (!project.assignedUsers || !Array.isArray(project.assignedUsers)) {
+          return false;
+        }
+        // Check if user ID exists in assignedUsers (handle both string and number)
+        return project.assignedUsers.some(assignedId => 
+          String(assignedId) === String(user?.id) || 
+          Number(assignedId) === Number(user?.id)
+        );
+      });
       
       setProjects(userProjects);
     } catch (err) {
@@ -171,6 +178,9 @@ useEffect(() => {
 
   if (user?.id) {
     fetchProjects();
+    // Refresh projects every 10 seconds to stay in sync
+    const interval = setInterval(fetchProjects, 10000);
+    return () => clearInterval(interval);
   }
 }, [user]);
 
