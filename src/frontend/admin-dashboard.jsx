@@ -708,8 +708,8 @@ useEffect(() => {
         {selectedProject && (
           <>
             {/* Title and Status */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6 pb-4 border-b border-gray-200">
-              <h4 className="text-lg font-bold text-gray-800">{selectedProject.title}</h4>
+            <div className="flex flex-row items-start sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-gray-200">
+              <h4 className="text-lg font-bold text-gray-800 flex-1">{selectedProject.title}</h4>
               <div className="flex-shrink-0">
                 <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block`}>
                   {selectedProject.status}
@@ -737,39 +737,45 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* Description */}
-                <div>
+                {/* Description - Hidden on Mobile, Shown on Desktop */}
+                <div className="hidden sm:block">
                   <p className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">Description</p>
                   <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3 border border-gray-200">{selectedProject.description}</p>
                 </div>
               </div>
 
               {/* Right Column */}
-              <div className="space-y-5">
+              <div className="space-y-3 sm:space-y-5">
                 {/* Manager */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Manager</p>
-                  <p className="font-semibold text-gray-800 text-sm">{selectedProject.manager}</p>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 sm:p-4 border border-blue-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Manager</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.manager}</p>
                 </div>
 
                 {/* Team Users */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Team Users</p>
-                  <p className="font-semibold text-gray-800 text-sm">{selectedProject.team_users || 0} users</p>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 sm:p-4 border border-green-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Team Users</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.team_users || 0} users</p>
                 </div>
 
                 {/* Budget */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Budget</p>
-                  <p className="font-semibold text-gray-800 text-sm">{selectedProject.budget}</p>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2 sm:p-4 border border-purple-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Budget</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.budget}</p>
                 </div>
 
                 {/* Deadline */}
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
-                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Deadline</p>
-                  <p className="font-semibold text-gray-800 text-sm">{selectedProject.deadline}</p>
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-2 sm:p-4 border border-orange-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Deadline</p>
+                  <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.deadline}</p>
                 </div>
               </div>
+            </div>
+
+            {/* Description - Full Width on Mobile */}
+            <div className="sm:hidden mb-6">
+              <p className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">Description</p>
+              <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3 border border-gray-200">{selectedProject.description}</p>
             </div>
 
             {/* Comments Section - Preview */}
