@@ -497,6 +497,41 @@ const getPriorityBadge = (priority) => {
     return match?.profile_image || user?.profile_image || null;
   };
 
+  // Avatar component for consistent profile display
+  const Avatar = ({ userObj, size = 32 }) => {
+    const initial =
+      userObj?.name?.charAt(0) ||
+      userObj?.email?.charAt(0) ||
+      "?";
+
+    const [imgError, setImgError] = useState(false);
+
+    // PRIORITY: profile_image → fallback to initials
+    const imageSrc = userObj?.profile_image || null;
+
+    if (!imageSrc || imgError) {
+      return (
+        <div
+          className="bg-blue-500 text-white font-bold flex items-center justify-center rounded-full"
+          style={{ width: size, height: size }}
+        >
+          {initial.toUpperCase()}
+        </div>
+      );
+    }s
+
+    return (
+      <img
+        src={imageSrc}
+        alt="Profile"
+        onError={() => setImgError(true)}
+        referrerPolicy="no-referrer"
+        className="rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  };
+
 //========================================================== Render Functions ==========================================================
 const renderAnnouncementCard = (announcement) => (
   <div
@@ -706,7 +741,7 @@ const renderAnnouncementCard = (announcement) => (
                     <MdComment className="text-white" size={24} />
                   </div>
                   <div className="text-left">
-                    <h4 className="text-lg font-bold text-gray-800">Comments & Clarifications</h4>
+                    <h4 className="text-md font-bold text-gray-800">Comments & Clarifications</h4>
                     <p className="text-sm text-gray-600">
                       {selectedProject.comments && selectedProject.comments.length > 0
                         ? `${selectedProject.comments.length} comment${selectedProject.comments.length !== 1 ? "s" : ""}`
@@ -724,105 +759,104 @@ const renderAnnouncementCard = (announcement) => (
   );
 
   const renderCommentsModal = () => {
-    const composerAvatar = getCurrentUserProfileImage();
-
     return (
-    <div className="fixed inset-0 bg-white z-[60] flex flex-col md:rounded-2xl md:w-[90%] md:h-[90%] md:left-[5%] md:top-[5%] md:bottom-auto md:mx-auto">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 md:px-5 py-3 md:py-4 flex items-center text-white shadow-lg rounded-t-none md:rounded-t-2xl">
-        <button 
-          onClick={() => setShowCommentsModal(false)}
-          className="p-2 rounded-full hover:bg-white/20 mr-3 transition-colors flex-shrink-0"
-        >
-          <FiChevronLeft size={24} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-base md:text-lg font-bold truncate">Comments & Clarifications</h3>
-          <p className="text-xs opacity-90 truncate">{selectedProject?.title}</p>
+      <div className="fixed inset-0 bg-white z-[60] flex flex-col md:rounded-2xl md:w-[90%] md:h-[90%] md:left-[5%] md:top-[5%] md:bottom-auto md:mx-auto">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 md:px-5 py-3 md:py-4 flex items-center text-white shadow-lg rounded-t-none md:rounded-t-2xl">
+          <button 
+            onClick={() => setShowCommentsModal(false)}
+            className="p-2 rounded-full hover:bg-white/20 mr-3 transition-colors flex-shrink-0"
+          >
+            <FiChevronLeft size={24} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base md:text-lg font-bold truncate">Comments & Clarifications</h3>
+            <p className="text-xs opacity-90 truncate">{selectedProject?.title}</p>
+          </div>
         </div>
-      </div>
 
-      <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-gray-50">
-        {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
-          <div className="space-y-3">
-            {selectedProject.comments.map(comment => {
-              const isCurrentUser = comment.email === user?.email;
-              const avatarSrc = comment.profile_image || getProfileImageByEmail(comment.email);
-
-              return (
-                <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`flex items-start gap-2 max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {avatarSrc ? (
-                      <img src={avatarSrc} alt={comment.user} className="w-9 h-9 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
-                        {(comment.user || "?").slice(0,2).toUpperCase()}
+        {/* Messages Container */}
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-gray-50">
+          {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
+            <div className="space-y-3">
+              {selectedProject.comments.map(comment => {
+                const isCurrentUser = comment.email === user?.email;
+                const commentUser = isCurrentUser ? user : users.find(u => u.email === comment.email);
+                
+                return (
+                  <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`flex items-start gap-2 max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <Avatar 
+                        userObj={{
+                          ...commentUser,
+                          profile_image: comment.profile_image || commentUser?.profile_image
+                        }} 
+                        size={36} 
+                      />
+                      <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+                        <div className={`${
+                          isCurrentUser 
+                            ? 'bg-blue-500 text-white' 
+                            : 'bg-white text-gray-800 border border-gray-200'
+                        } rounded-2xl px-4 py-3 shadow-sm`}>
+                          <p className="text-sm leading-relaxed">{comment.text}</p>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1 px-2">{comment.time}</p>
                       </div>
-                    )}
-                    <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
-                      <div className={`${isCurrentUser ? 'bg-blue-500 text-white' : 'bg-white text-gray-800 border border-gray-200'} rounded-2xl px-4 py-3 shadow-sm`}>
-                        <p className="text-sm leading-relaxed">{comment.text}</p>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1 px-2">{comment.time}</p>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <MdComment size={64} className="opacity-30 mb-3" />
-            <p className="text-lg font-medium">No comments yet</p>
-            <p className="text-sm">Start the conversation below</p>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white border-t border-gray-200 p-3 md:p-4 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          {composerAvatar ? (
-            <img src={composerAvatar} alt="Me" className="w-9 h-9 rounded-full object-cover" />
+                );
+              })}
+            </div>
           ) : (
-            <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
-              {formatAuthorName(user?.email || "").slice(0,2) || "ME"}
+            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+              <MdComment size={64} className="opacity-30 mb-3" />
+              <p className="text-lg font-medium">No comments yet</p>
+              <p className="text-sm">Start the conversation below</p>
             </div>
           )}
-          <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 md:px-4 py-2">
-            <input
-              type="text"
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && commentText.trim()) {
+        </div>
+
+        {/* Input Area - Fixed at Bottom */}
+        <div className="bg-white border-t border-gray-200 p-3 md:p-4 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Avatar userObj={user} size={32} className="flex-shrink-0" />
+            <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 md:px-4 py-2">
+              <input
+                type="text"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && commentText.trim()) {
+                    addComment(selectedProject.id);
+                  }
+                }}
+                placeholder="Type a message..."
+                className="flex-1 bg-transparent outline-none text-sm"
+              />
+              <button className="text-gray-400 hover:text-gray-600 ml-2 flex-shrink-0">
+                <FiCamera size={18} />
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                if (commentText.trim()) {
                   addComment(selectedProject.id);
                 }
               }}
-              placeholder="Type a message..."
-              className="flex-1 bg-transparent outline-none text-sm"
-            />
-            <button className="text-gray-400 hover:text-gray-600 ml-2 flex-shrink-0">
-              <FiCamera size={18} />
+              disabled={!commentText.trim()}
+              className={`p-2 md:p-3 rounded-full transition-all flex-shrink-0 ${
+                commentText.trim()
+                  ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <IoMdSend size={18} />
             </button>
           </div>
-          <button
-            onClick={() => {
-              if (commentText.trim()) {
-                addComment(selectedProject.id);
-              }
-            }}
-            disabled={!commentText.trim()}
-            className={`p-2 md:p-3 rounded-full transition-all flex-shrink-0 ${
-              commentText.trim()
-                ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            <IoMdSend size={18} />
-          </button>
         </div>
       </div>
-    </div>
-  );
+    );
   };
 
   const renderLocationHistory = (item) => (
