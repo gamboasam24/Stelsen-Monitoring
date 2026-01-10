@@ -63,7 +63,9 @@ const UserDashboard = ({ user, logout }) => {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const actionMenuRef = useRef(null);
   const fileInputRef = useRef(null);
+  const commentFileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [commentAttachments, setCommentAttachments] = useState([]);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [users, setUsers] = useState([]);
@@ -489,11 +491,12 @@ const getPriorityBadge = (priority) => {
   };
 
   const addComment = async (projectId) => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() && commentAttachments.length === 0) return;
 
     const newComment = {
       project_id: projectId,
       text: commentText,
+      attachments: commentAttachments.length > 0 ? JSON.stringify(commentAttachments) : null,
     };
 
     try {
@@ -516,6 +519,7 @@ const getPriorityBadge = (priority) => {
           created_at: new Date().toISOString(),
           profile_image: data.profile_image || getCurrentUserProfileImage(),
           email: data.email || user?.email,
+          attachments: commentAttachments.length > 0 ? commentAttachments : null,
         };
 
         setProjects(prev => prev.map(p => p.id === projectId ? { ...p, comments: [...(p.comments || []), newCommentObj] } : p));
@@ -526,6 +530,7 @@ const getPriorityBadge = (priority) => {
         );
 
         setCommentText("");
+        setCommentAttachments([]);
       }
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -534,6 +539,38 @@ const getPriorityBadge = (priority) => {
   };
 
   const getUserById = (uid) => Array.isArray(users) ? users.find(u => String(u.id) === String(uid)) : undefined;
+
+  const handleCommentFileChange = (e) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newAttachments = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const fileData = {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            data: event.target.result, // Base64 encoded
+          };
+          newAttachments.push(fileData);
+          if (newAttachments.length === files.length) {
+            setCommentAttachments(prev => [...prev, ...newAttachments]);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    // Reset input
+    if (commentFileInputRef.current) {
+      commentFileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (index) => {
+    setCommentAttachments(prev => prev.filter((_, i) => i !== index));
+  };
 
   const getProfileImageByEmail = (email) => {
     if (!email || !Array.isArray(users)) return null;
@@ -883,6 +920,23 @@ const renderAnnouncementCard = (announcement) => (
                             : 'bg-white text-gray-800 border border-gray-200'
                         } rounded-2xl px-4 py-3 shadow-sm`}>
                           <p className="text-sm leading-relaxed">{comment.text}</p>
+                          {comment.attachments && comment.attachments.length > 0 && (
+                            <div className="mt-3 space-y-2 border-t pt-2 border-opacity-30">
+                              {comment.attachments.map((att, idx) => (
+                                <a
+                                  key={idx}
+                                  href={att.data}
+                                  download={att.name}
+                                  className={`flex items-center text-xs px-2 py-1 rounded hover:opacity-80 transition-opacity ${
+                                    isCurrentUser ? 'bg-blue-400' : 'bg-gray-200'
+                                  }`}
+                                >
+                                  <FiCamera size={14} className="mr-1" />
+                                  {att.name}
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <p className="text-xs text-gray-400 mt-1 px-2">{comment.time}</p>
                       </div>
@@ -902,6 +956,22 @@ const renderAnnouncementCard = (announcement) => (
 
         {/* Input Area - Fixed at Bottom */}
         <div className="bg-white border-t border-gray-200 p-3 md:p-4 flex-shrink-0">
+          {/* Attachments Preview */}
+          {commentAttachments.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {commentAttachments.map((att, idx) => (
+                <div key={idx} className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded px-2 py-1 text-xs">
+                  <span className="truncate max-w-[150px]">{att.name}</span>
+                  <button
+                    onClick={() => removeAttachment(idx)}
+                    className="text-gray-400 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Avatar userObj={user} size={32} className="flex-shrink-0" />
             <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 md:px-4 py-2">
@@ -910,20 +980,31 @@ const renderAnnouncementCard = (announcement) => (
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 onKeyPress={(e) => {
-                  if (e.key === 'Enter' && commentText.trim()) {
+                  if (e.key === 'Enter' && (commentText.trim() || commentAttachments.length > 0)) {
                     addComment(selectedProject.id);
                   }
                 }}
                 placeholder="Type a message..."
                 className="flex-1 bg-transparent outline-none text-sm"
               />
-              <button className="text-gray-400 hover:text-gray-600 ml-2 flex-shrink-0">
+              <button 
+                onClick={() => commentFileInputRef.current?.click()}
+                className="text-gray-400 hover:text-gray-600 ml-2 flex-shrink-0 transition-colors"
+                title="Attach files"
+              >
                 <FiCamera size={18} />
               </button>
+              <input
+                ref={commentFileInputRef}
+                type="file"
+                multiple
+                onChange={handleCommentFileChange}
+                style={{ display: 'none' }}
+              />
             </div>
             <button
               onClick={() => {
-                if (commentText.trim()) {
+                if (commentText.trim() || commentAttachments.length > 0) {
                   addComment(selectedProject.id);
                 }
               }}
