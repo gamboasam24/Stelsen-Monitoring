@@ -1,10 +1,14 @@
 <?php
+$tempDir = sys_get_temp_dir() . '/php_sessions';
+if (!is_dir($tempDir)) mkdir($tempDir, 0777, true);
+session_save_path($tempDir);
 session_start();
 header('Content-Type: application/json');
 require_once 'db.php';
 
 /* 🔐 Auth check */
 if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
 }

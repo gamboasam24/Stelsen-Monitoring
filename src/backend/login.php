@@ -1,5 +1,20 @@
 <?php
-session_start();
+// Use system temp directory for sessions to avoid permission issues
+$tempDir = sys_get_temp_dir() . '/php_sessions';
+if (!is_dir($tempDir)) {
+    mkdir($tempDir, 0777, true);
+}
+session_save_path($tempDir);
+
+// Start session with error suppression and check
+@session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    http_response_code(500);
+    die(json_encode([
+        'status' => 'error',
+        'message' => 'Session error. Check XAMPP tmp directory permissions.'
+    ]));
+}
 header('Content-Type: application/json');
 
 $allowed_origins = ["http://localhost:5173", "http://127.0.0.1:5173"];
