@@ -26,6 +26,7 @@ import {
   MdBookmarkAdd,
   MdChat,
   MdComment,
+  MdPushPin,
   MdAssignment,
   MdEdit,
   MdDelete,
@@ -167,6 +168,7 @@ const formatPeso = (value) => {
           author: formatAuthorName(a.author),
           time: formatTimeAgo(a.created_at),
           unread: a.unread === 1,
+          is_pinned: a.is_pinned === 1,
           category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
           important: a.priority === "high",
           color: getColorForType(a.type),
@@ -402,29 +404,66 @@ const handleBudgetChange = (e) => {
 
   //================================================== Mark announcement as read =================================================
 const markAsRead = async (id) => {
-  await fetch("/backend/announcements_read.php", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  });
-
-  setAnnouncements(prev =>
-    prev.map(a => a.id === id ? { ...a, unread: false } : a)
-  );
+  try {
+    const res = await fetch("/backend/announcements_read.php", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    if (data.status !== "success") {
+      console.error("Mark as read failed:", data.message);
+    }
+    setAnnouncements(prev =>
+      prev.map(a => a.id === id ? { ...a, unread: false } : a)
+    );
+  } catch (err) {
+    console.error("Mark as read error:", err);
+  }
 };
 
   //======================================================= Mark all as read =================================================
-  const markAllAsRead = () => {
-    setAnnouncements(prev => 
-      prev.map(ann => ({ ...ann, unread: false }))
-    );
+  const markAllAsRead = async () => {
+    try {
+      const res = await fetch("/backend/announcements_read.php", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ all: true }),
+      });
+      const data = await res.json();
+      if (data.status !== "success") {
+        console.error("Mark all as read failed:", data.message);
+      }
+      setAnnouncements(prev => 
+        prev.map(ann => ({ ...ann, unread: false }))
+      );
+    } catch (err) {
+      console.error("Mark all as read error:", err);
+    }
   };
 
-  // Delete announcement
-  const deleteAnnouncement = (id) => {
-    if (window.confirm("Are you sure you want to delete this announcement?")) {
-      setAnnouncements(prev => prev.filter(ann => ann.id !== id));
+  // Toggle pin state for an announcement
+  const togglePin = async (id, nextPinned) => {
+    try {
+      const res = await fetch("/backend/announcements.php", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "pin", id, pinned: nextPinned })
+      });
+      const data = await handleApiResponse(res);
+      if (data.status !== "success") {
+        console.error("Pin update failed:", data.message);
+        return;
+      }
+      setAnnouncements(prev => {
+        const updated = prev.map(a => a.id === id ? { ...a, is_pinned: nextPinned } : a);
+        return [...updated].sort((a, b) => (b.is_pinned - a.is_pinned));
+      });
+    } catch (err) {
+      console.error("Toggle pin error:", err);
     }
   };
 
@@ -511,16 +550,28 @@ useEffect(() => {
     try {
       const res = await fetch("/backend/projects.php", { credentials: "include" });
       const data = await handleApiResponse(res);
-      
+
       if (!Array.isArray(data)) {
         console.error('Projects data is not an array:', data);
         setProjects([]);
         return;
       }
-      
-      // Fetch comment counts for each project
+
+      const normalizedProjects = data.map(project => ({
+        id: project.id || project.project_id,
+        title: project.title,
+        description: project.description || "",
+        status: project.status || "pending",
+        progress: project.progress || 0,
+        deadline: project.deadline || "",
+        manager: project.manager || "",
+        team_users: project.team_users || 0,
+        assignedUsers: project.assignedUsers || project.assigned_users || [],
+        comments: [],
+      }));
+
       const projectsWithComments = await Promise.all(
-        data.map(async (project) => {
+        normalizedProjects.map(async (project) => {
           try {
             const commentsRes = await fetch(`/backend/comments.php?project_id=${project.id}`, { 
               credentials: "include" 
@@ -545,7 +596,7 @@ useEffect(() => {
           }
         })
       );
-      
+
       setProjects(projectsWithComments);
     } catch (err) {
       console.error("Projects error:", err);
@@ -618,7 +669,7 @@ useEffect(() => {
     if (isMobile) {
       setProfileOpen(true);
     } else {
-      setActiveTab("Profile");
+      setProfileOpen(prev => !prev);
     }
   };
 
@@ -863,16 +914,15 @@ useEffect(() => {
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
           )}
           <button 
-            onClick={() => deleteAnnouncement(announcement.id)}
-            className="text-gray-400 hover:text-red-500"
+            onClick={() => togglePin(announcement.id, !announcement.is_pinned)}
+            className={(announcement.is_pinned ? "text-red-500" : "text-gray-400") + " hover:text-yellow-600"}
+            title={announcement.is_pinned ? "Unpin" : "Pin"}
           >
-            <MdDelete size={18} />
+            <MdPushPin size={18} />
           </button>
         </div>
+
       </div>
-      
-      {/* Content */}
-      <p className="text-gray-600 text-sm mb-4">{announcement.content}</p>
       
       {/* Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
