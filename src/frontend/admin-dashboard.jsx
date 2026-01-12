@@ -61,7 +61,6 @@ import {
   HiOutlineClipboardList,
   HiOutlineDocumentAdd
 } from "react-icons/hi";
-import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
 
 const AdminDashboard = ({ user, logout }) => {
   const [currentUser, setCurrentUser] = useState(user);
@@ -133,6 +132,19 @@ const formatPeso = (value) => {
   if (isNaN(num)) return "₱0";
   return "₱" + num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 };
+
+  // Get user's current geolocation
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCenter({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+      },
+      () => console.log("Location access denied")
+    );
+  }, []);
 
   // 🔒 Helper function to check for session expiry and auto-logout
   const handleApiResponse = async (response) => {
@@ -405,13 +417,13 @@ const handleBudgetChange = (e) => {
   //================================================== Mark announcement as read =================================================
 const markAsRead = async (id) => {
   try {
-    const res = await fetch("/backend/announcements.php", {
+    const res = await fetch("/backend/announcements_read.php", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_read", id }),
+      body: JSON.stringify({ id }),
     });
-    const data = await handleApiResponse(res);
+    const data = await res.json();
     if (data.status !== "success") {
       console.error("Mark as read failed:", data.message);
     }
@@ -426,13 +438,13 @@ const markAsRead = async (id) => {
   //======================================================= Mark all as read =================================================
   const markAllAsRead = async () => {
     try {
-      const res = await fetch("/backend/announcements.php", {
+      const res = await fetch("/backend/announcements_read.php", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "mark_all_read" }),
+        body: JSON.stringify({ all: true }),
       });
-      const data = await handleApiResponse(res);
+      const data = await res.json();
       if (data.status !== "success") {
         console.error("Mark all as read failed:", data.message);
       }
@@ -1622,6 +1634,21 @@ useEffect(() => {
     </div>
   );
 
+  const renderLocationHistory = (item) => (
+    <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center">
+      <div className="w-10 h-10 rounded-full bg-blue-50 flex justify-center items-center mr-3">
+        <MdLocationOn size={24} className="text-blue-500" />
+      </div>
+      <div className="flex-1">
+        <div className="font-medium mb-1">{item.location}</div>
+        <div className="flex items-center text-xs text-gray-500">
+          <span>{item.time}</span>
+          <span className="ml-3">{item.date}</span>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "Home":
@@ -1715,75 +1742,57 @@ useEffect(() => {
           </div>
         );
 
-      case "Announcements":
+      case "My Location":
         return (
-          <div className="p-5">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800">Announcements</h1>
-              <p className="text-gray-500">Create and manage announcements</p>
-            </div>
+          <div className="relative h-full w-full">
+            {/* Location Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-5 sticky top-0 z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <button
+                    className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors mr-3"
+                    onClick={() => handleTabChange("Home")}
+                    aria-label="Back"
+                    title="Back"
+                  >
+                    <FiChevronLeft size={24} />
+                  </button>
+                  <div>
+                    <h2 className="text-2xl font-bold">My Location</h2>
+                    <p className="text-blue-100 text-sm mt-1">Track and manage your location</p>
+                  </div>
+                </div>
+                <button
+                  className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors"
+                  onClick={() => setShowLocationModal(true)}
+                >
+                  <MdLocationOn size={24} />
+                </button>
+              </div>
 
-            {/* Search Bar */}
-            <div className="mb-6">
-              <div className="relative">
-                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search announcements..."
-                  className="w-full pl-12 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+              {/* Current Location Card */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+                <div className="text-sm text-blue-100 mb-1">Current Location</div>
+                <div className="text-2xl font-bold">{currentLocation}</div>
               </div>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
-              <button 
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedFilter === "all" 
-                    ? "bg-blue-500 text-white shadow" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedFilter("all")}
-              >
-                All ({announcements.length})
-              </button>
-              <button 
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedFilter === "unread" 
-                    ? "bg-blue-500 text-white shadow" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedFilter("unread")}
-              >
-                Unread ({announcements.filter(a => a.unread).length})
-              </button>
-              <button 
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedFilter === "important" 
-                    ? "bg-blue-500 text-white shadow" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedFilter("important")}
-              >
-                Important ({announcements.filter(a => a.important).length})
-              </button>
-            </div>
-
-            {/* Announcements List */}
-            <div className="mb-8">
-              {filteredAnnouncements.length > 0 ? (
-                filteredAnnouncements.map(renderAnnouncementCard)
-              ) : (
-                <div className="text-center py-10">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <IoMdMegaphone size={24} className="text-gray-400" />
+            {/* Location History */}
+            <div className="p-5">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Recent Locations</h3>
+              <div>
+                {locationHistory.length > 0 ? (
+                  locationHistory.map(renderLocationHistory)
+                ) : (
+                  <div className="text-center py-10">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <MdLocationOn size={24} className="text-gray-400" />
+                    </div>
+                    <p className="text-gray-600 font-medium">No location history yet</p>
+                    <p className="text-gray-400 text-sm mt-1">Update your location to start tracking</p>
                   </div>
-                  <h3 className="text-gray-600 font-medium">No announcements found</h3>
-                  <p className="text-gray-400 text-sm mt-1">Try a different search or create a new announcement</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         );
@@ -2169,11 +2178,11 @@ useEffect(() => {
           </div>
 
           <button
-            className={`flex flex-col items-center relative ${activeTab === "Announcements" ? "text-blue-500" : "text-gray-500"}`}
-            onClick={() => handleTabChange("Announcements")}
+            className={`flex flex-col items-center relative ${activeTab === "My Location" ? "text-blue-500" : "text-gray-500"}`}
+            onClick={() => handleTabChange("My Location")}
           >
-            <IoMdMegaphone size={24} />
-            <span className="text-xs mt-1">Announce</span>
+            <MdLocationOn size={24} />
+            <span className="text-xs mt-1">Location</span>
           </button>
 
           <button
@@ -2207,6 +2216,31 @@ useEffect(() => {
 
       {/* Comments Modal - Stack Navigation */}
       {showCommentsModal && renderCommentsModal()}
+
+      {/* Location Update Modal */}
+      {showLocationModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-40">
+          <div className="bg-white rounded-t-3xl p-5 w-full max-h-[80%] overflow-auto">
+            <div className="flex justify-between items-center mb-5">
+              <span className="text-xl font-bold">Update Location</span>
+              <button onClick={() => setShowLocationModal(false)}>
+                <IoMdClose size={24} />
+              </button>
+            </div>
+            {["Office", "Site A", "Site B", "Client Meeting", "On The Way", "Break"].map(location => (
+              <button
+                key={location}
+                className="flex justify-between items-center w-full py-4 border-b border-gray-100 hover:bg-gray-50"
+                onClick={() => updateLocation(location)}
+              >
+                <MdLocationOn size={20} className="text-blue-500" />
+                <span>{location}</span>
+                <FiChevronRight size={20} className="text-gray-500" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Camera Modal */}
       {showCameraModal && (

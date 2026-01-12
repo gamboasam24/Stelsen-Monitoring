@@ -16,13 +16,14 @@ import {
   MdAdd, 
   MdEvent, 
   MdAnnouncement,
+  MdPushPin,
+  MdChat,
   MdCheckCircle,
   MdPerson,
   MdWork,
   MdChatBubble,
   MdCalendarToday,
-  MdComment,
-  MdPushPin
+  MdComment
 } from "react-icons/md";
 import { 
   FaUser, 
@@ -66,15 +67,11 @@ const UserDashboard = ({ user, logout }) => {
   const actionMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const commentFileInputRef = useRef(null);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [commentAttachments, setCommentAttachments] = useState([]);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [users, setUsers] = useState([]);
-  const [showCameraModal, setShowCameraModal] = useState(false);
-  const [cameraStream, setCameraStream] = useState(null);
   const [readComments, setReadComments] = useState(() => {
     try {
       const saved = localStorage.getItem('userDashboardReadComments');
@@ -84,6 +81,8 @@ const UserDashboard = ({ user, logout }) => {
       return {};
     }
   });
+
+  // Pin state is provided by backend (persisted like admin)
 
   // Save read comments to localStorage whenever they change
   useEffect(() => {
@@ -108,12 +107,13 @@ const UserDashboard = ({ user, logout }) => {
   const filteredAnnouncements = announcements.filter(ann => {
     if (selectedFilter === "unread") return ann.unread;
     if (selectedFilter === "important") return ann.important;
+    if (selectedFilter === "pinned") return ann.is_pinned;
     if (selectedFilter === "read") return !ann.unread;
     return true;
   }).filter(ann => 
     ann.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     ann.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ).sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned));
 
   // Mark all announcements as read (local state only)
   const markAllAsRead = async () => {
@@ -157,27 +157,13 @@ const UserDashboard = ({ user, logout }) => {
     return "₱" + num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
-  // 🔒 Helper function to check for session expiry and auto-logout
-  const handleApiResponse = async (response) => {
-    if (!response.ok) {
-      return response.json().then(data => {
-        if (data.message === "Unauthorized") {
-          console.error("Session expired - logging out");
-          logout();
-        }
-        throw new Error(data.message || "API request failed");
-      });
-    }
-    return response.json();
-  };
-
   useEffect(() => {
   const fetchAnnouncements = async () => {
     try {
       const res = await fetch("/backend/announcements.php", {
         credentials: "include",
       });
-      const data = await handleApiResponse(res);
+      const data = await res.json();
       const normalized = data.map(a => ({
         id: a.announcement_id,
         title: a.title,
@@ -189,9 +175,9 @@ const UserDashboard = ({ user, logout }) => {
         category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
         important: a.priority === "high",
         color: getColorForType(a.type),
-        unread: a.unread === 1,
-        is_pinned: a.is_pinned === 1,
+         unread: a.unread === 1, // true/false instead of 1/0
         icon: getIconForType(a.type),
+        is_pinned: a.is_pinned === 1,
       }));
 
       setAnnouncements(normalized);
@@ -211,7 +197,7 @@ useEffect(() => {
   const fetchUsers = async () => {
     try {
       const res = await fetch("/backend/users.php", { credentials: "include" });
-      const data = await handleApiResponse(res);
+      const data = await res.json();
       const normalized = Array.isArray(data)
         ? data.map(u => ({
             ...u,
@@ -236,7 +222,7 @@ useEffect(() => {
         method: "GET",
         credentials: "include",
       });
-      const data = await handleApiResponse(response);
+      const data = await response.json();
       
       // Filter projects where current user is assigned
       // Handle both string and number IDs for comparison
@@ -258,7 +244,7 @@ useEffect(() => {
             const commentsRes = await fetch(`/backend/comments.php?project_id=${project.id}`, { 
               credentials: "include" 
             });
-            const commentsData = await handleApiResponse(commentsRes);
+            const commentsData = await commentsRes.json();
             const comments = commentsData.status === "success" 
               ? (commentsData.comments || []).map(c => ({
                   id: c.comment_id,
@@ -373,26 +359,22 @@ const getPriorityBadge = (priority) => {
   // Mark a specific announcement as read
   // This function sends a request to the backend and updates the local state
   const markAsRead = async (id) => {
-    try {
-      const res = await fetch("/backend/announcements.php", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "mark_read", id }),
-      });
-      const data = await handleApiResponse(res);
-      if (data.status !== "success") {
-        console.error("Mark as read failed:", data.message);
-      }
-      setAnnouncements(prev =>
-        prev.map(a => a.id === id ? { ...a, unread: false } : a)
-      );
-    } catch (err) {
-      console.error("Mark as read error:", err);
-    }
+    // Send request to backend to mark as read
+    await fetch("/backend/mark_read.php", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ announcement_id: id }),
+    });
+
+    // Update local state to reflect the change immediately
+    setAnnouncements(prev => 
+      prev.map(ann => 
+        ann.id === id ? { ...ann, unread: false } : ann
+      )
+    );
   };
 
-  // Toggle pin state for an announcement
   const togglePin = async (id, nextPinned) => {
     try {
       const res = await fetch("/backend/announcements.php", {
@@ -401,19 +383,19 @@ const getPriorityBadge = (priority) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "pin", id, pinned: nextPinned })
       });
-      const data = await handleApiResponse(res);
+      const data = await res.json();
       if (data.status !== "success") {
         console.error("Pin update failed:", data.message);
-        return;
       }
       setAnnouncements(prev => {
         const updated = prev.map(a => a.id === id ? { ...a, is_pinned: nextPinned } : a);
-        return [...updated].sort((a, b) => (b.is_pinned - a.is_pinned));
+        return [...updated].sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned));
       });
     } catch (err) {
       console.error("Toggle pin error:", err);
     }
   };
+
 
   const [projects, setProjects] = useState([]);
 
@@ -524,7 +506,7 @@ const getPriorityBadge = (priority) => {
     // Fetch fresh comments for this project
     try {
       const res = await fetch(`/backend/comments.php?project_id=${project.id}`, { credentials: "include" });
-      const data = await handleApiResponse(res);
+      const data = await res.json();
       if (data.status === "success") {
         const mapped = (data.comments || []).map((c) => ({
           id: c.comment_id,
@@ -620,61 +602,6 @@ const getPriorityBadge = (priority) => {
     setCommentAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' },
-        audio: false 
-      });
-      setCameraStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setShowCameraModal(true);
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      alert('Unable to access camera. Please check permissions.');
-    }
-  };
-
-  const stopCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
-      setCameraStream(null);
-    }
-    setShowCameraModal(false);
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const timestamp = new Date().getTime();
-          const file = new File([blob], `camera-${timestamp}.jpg`, { type: 'image/jpeg' });
-          
-          setCommentAttachments(prev => [...prev, {
-            name: file.name,
-            preview: URL.createObjectURL(blob),
-            size: file.size,
-            type: file.type,
-            rawFile: file
-          }]);
-          
-          stopCamera();
-        }
-      }, 'image/jpeg', 0.9);
-    }
-  };
-
   // Auto-refresh comments when modal is open
   useEffect(() => {
     if (!showCommentsModal || !selectedProject?.id) return;
@@ -682,7 +609,7 @@ const getPriorityBadge = (priority) => {
     const refreshComments = async () => {
       try {
         const res = await fetch(`/backend/comments.php?project_id=${selectedProject.id}`, { credentials: "include" });
-        const data = await handleApiResponse(res);
+        const data = await res.json();
         if (data.status === "success") {
           const mapped = (data.comments || []).map((c) => ({
             id: c.comment_id,
@@ -779,17 +706,15 @@ const renderAnnouncementCard = (announcement) => (
         </div>
       </div>
       <div className="flex items-center space-x-2">
-        {announcement.unread && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            togglePin(announcement.id, !announcement.is_pinned);
-          }}
-          className={(announcement.is_pinned ? "text-yellow-500" : "text-gray-400") + " hover:text-yellow-600"}
+          onClick={(e) => { e.stopPropagation(); togglePin(announcement.id, !announcement.is_pinned); }}
+          className={`p-2 rounded-full hover:bg-gray-100 transition ${announcement.is_pinned ? "text-red-500" : "text-gray-500"}`}
+          aria-label={announcement.is_pinned ? "Unpin announcement" : "Pin announcement"}
           title={announcement.is_pinned ? "Unpin" : "Pin"}
         >
           <MdPushPin size={18} />
         </button>
+        {announcement.unread && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
       </div>
     </div>
 
@@ -800,7 +725,7 @@ const renderAnnouncementCard = (announcement) => (
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
         <div className="flex items-center space-x-4">
           <span className="text-xs text-gray-500 flex items-center">
-            <IoMdTime className="mr-1" size={14} />
+            <IoMdTime className="mr-1" size={14} />73
             {announcement.time}
           </span>
           <span className="text-xs text-gray-500">By: {announcement.author}</span>
@@ -1175,13 +1100,6 @@ const renderAnnouncementCard = (announcement) => (
               >
                 <FiPaperclip size={18} />
               </button>
-              <button 
-                onClick={startCamera}
-                className="text-gray-400 hover:text-green-600 ml-2 flex-shrink-0 transition-colors"
-                title="Take photo"
-              >
-                <FiCamera size={18} />
-              </button>
               <input
                 ref={commentFileInputRef}
                 type="file"
@@ -1472,7 +1390,7 @@ const renderAnnouncementCard = (announcement) => (
 
 
             {/* Filter Tabs */}
-            <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
+            <div className="flex space-x-2 mb-6 overflow-x-auto">
               <button 
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                   selectedFilter === "all" 
@@ -1503,10 +1421,20 @@ const renderAnnouncementCard = (announcement) => (
               >
                 Important ({announcements.filter(a => a.important).length})
               </button>
+              <button 
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedFilter === "pinned" 
+                    ? "bg-blue-500 text-white shadow" 
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+                onClick={() => setSelectedFilter("pinned")}
+              >
+                Pinned ({announcements.filter(a => a.is_pinned).length})
+              </button>
             </div>
 
             {/* Announcements Header */}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 mt-0">
               <h2 className="text-lg font-bold text-gray-800">Announcements</h2>
               <button 
                 className="text-blue-500 text-sm font-medium flex items-center"
@@ -1908,46 +1836,6 @@ const renderAnnouncementCard = (announcement) => (
 
       {/* Comments Modal */}
       {showCommentsModal && renderCommentsModal()}
-
-      {/* Camera Modal */}
-      {showCameraModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold">Take Photo</h3>
-              <button onClick={stopCamera} className="text-gray-500 hover:text-gray-700">
-                <IoMdClose size={24} />
-              </button>
-            </div>
-            
-            <div className="relative bg-black">
-              <video 
-                ref={videoRef}
-                autoPlay 
-                playsInline
-                className="w-full h-auto max-h-[60vh] object-contain"
-              />
-              <canvas ref={canvasRef} style={{ display: 'none' }} />
-            </div>
-
-            <div className="p-4 flex justify-center gap-4">
-              <button
-                onClick={stopCamera}
-                className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={capturePhoto}
-                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
-              >
-                <FiCamera size={20} />
-                Capture
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

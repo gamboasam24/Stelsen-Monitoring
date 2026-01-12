@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $valid_user_ids[] = $user_row['login_id'];
     }
 
-    $result = $conn->query("SELECT * FROM projects");
+    $result = $conn->query("SELECT * FROM projects ORDER BY id DESC");
 
     $projects = [];
     while ($row = $result->fetch_assoc()) {
