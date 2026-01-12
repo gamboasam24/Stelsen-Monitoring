@@ -575,6 +575,39 @@ const getPriorityBadge = (priority) => {
     setCommentAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Auto-refresh comments when modal is open
+  useEffect(() => {
+    if (!showCommentsModal || !selectedProject?.id) return;
+
+    const refreshComments = async () => {
+      try {
+        const res = await fetch(`/backend/comments.php?project_id=${selectedProject.id}`, { credentials: "include" });
+        const data = await res.json();
+        if (data.status === "success") {
+          const mapped = (data.comments || []).map((c) => ({
+            id: c.comment_id,
+            text: c.comment,
+            time: getCommentTimeAgo(c.created_at),
+            created_at: c.created_at,
+            email: c.email,
+            profile_image: c.profile_image,
+            user: c.user || formatAuthorName(c.email),
+            attachments: c.attachments || null,
+          }));
+
+          setSelectedProject(prev => prev ? { ...prev, comments: mapped } : prev);
+          setProjects(prev => prev.map(p => p.id === selectedProject.id ? { ...p, comments: mapped } : p));
+        }
+      } catch (err) {
+        console.error("Auto-refresh comments error:", err);
+      }
+    };
+
+    // Refresh every 3 seconds
+    const interval = setInterval(refreshComments, 3000);
+    return () => clearInterval(interval);
+  }, [showCommentsModal, selectedProject?.id]);
+
   const getProfileImageByEmail = (email) => {
     if (!email || !Array.isArray(users)) return null;
     const match = users.find(u => u.email === email);
@@ -919,12 +952,14 @@ const renderAnnouncementCard = (announcement) => (
                       <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
                         <div className={`${
                           isCurrentUser 
-                            ? 'bg-blue-500 text-white' 
+                            ? (comment.text ? 'bg-blue-500 text-white' : 'bg-transparent')
                             : 'bg-white text-gray-800 border border-gray-200'
                         } rounded-2xl px-4 py-3 shadow-sm`}>
-                          <p className="text-sm leading-relaxed">{comment.text}</p>
+                          {comment.text && <p className="text-sm leading-relaxed">{comment.text}</p>}
                           {comment.attachments && comment.attachments.length > 0 && (
-                            <div className="mt-3 space-y-2 border-t pt-2 border-opacity-30">
+                            <div className={`space-y-2 ${
+                              comment.text ? 'mt-3 border-t pt-2 border-opacity-30' : ''
+                            }`}>
                               {comment.attachments.map((att, idx) => {
                                 const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
                                 return isImage ? (
@@ -932,7 +967,9 @@ const renderAnnouncementCard = (announcement) => (
                                     <img
                                       src={att.path}
                                       alt={att.name}
-                                      className="max-w-xs max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                      className={`rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity ${
+                                        comment.text ? 'w-full max-w-[280px] max-h-56' : 'w-full max-h-96'
+                                      }`}
                                       onClick={() => window.open(att.path, '_blank')}
                                     />
                                     <a
