@@ -157,6 +157,18 @@ const UserDashboard = ({ user, logout }) => {
     return "₱" + num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
+  // Treat tasks as new for 3 days from start date; if no date, assume new when progress is 0
+  const isProjectNew = (dateValue, progress) => {
+    if (dateValue) {
+      const start = new Date(dateValue);
+      if (!isNaN(start)) {
+        const diffDays = (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays <= 3) return true;
+      }
+    }
+    return progress === undefined || progress === null || Number(progress) === 0;
+  };
+
   useEffect(() => {
   const fetchAnnouncements = async () => {
     try {
@@ -256,10 +268,12 @@ useEffect(() => {
                   user: c.user || formatAuthorName(c.email),
                 }))
               : [];
-            return { ...project, comments };
+            const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+            return { ...project, comments, isNew };
           } catch (err) {
             console.error(`Failed to fetch comments for project ${project.id}:`, err);
-            return { ...project, comments: [] };
+            const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+            return { ...project, comments: [], isNew };
           }
         })
       );
@@ -725,7 +739,7 @@ const renderAnnouncementCard = (announcement) => (
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
         <div className="flex items-center space-x-4">
           <span className="text-xs text-gray-500 flex items-center">
-            <IoMdTime className="mr-1" size={14} />73
+            <IoMdTime className="mr-1" size={14} />
             {announcement.time}
           </span>
           <span className="text-xs text-gray-500">By: {announcement.author}</span>
@@ -761,7 +775,12 @@ const renderAnnouncementCard = (announcement) => (
   const renderProjectCard = (item) => {
     const unreadCount = getUnreadCommentCount(item.id);
     return (
-    <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
+    <div key={item.id} className="relative bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
+      {item.isNew && (
+        <span className="absolute -top-1 -left-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg z-10">
+          New
+        </span>
+      )}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center flex-1">
           <MdDashboard size={20} className="text-blue-500" />

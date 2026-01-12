@@ -133,6 +133,18 @@ const formatPeso = (value) => {
   return "₱" + num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 };
 
+// Treat tasks as new for 3 days from start date; if no date, assume new when progress is 0
+const isProjectNew = (dateValue, progress) => {
+  if (dateValue) {
+    const start = new Date(dateValue);
+    if (!isNaN(start)) {
+      const diffDays = (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 3) return true;
+    }
+  }
+  return progress === undefined || progress === null || Number(progress) === 0;
+};
+
   // Get user's current geolocation
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -417,16 +429,18 @@ const handleBudgetChange = (e) => {
   //================================================== Mark announcement as read =================================================
 const markAsRead = async (id) => {
   try {
-    const res = await fetch("/backend/announcements_read.php", {
+    const res = await fetch("/backend/mark_read.php", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ announcement_id: id }),
     });
+
     const data = await res.json();
     if (data.status !== "success") {
       console.error("Mark as read failed:", data.message);
     }
+
     setAnnouncements(prev =>
       prev.map(a => a.id === id ? { ...a, unread: false } : a)
     );
@@ -438,19 +452,8 @@ const markAsRead = async (id) => {
   //======================================================= Mark all as read =================================================
   const markAllAsRead = async () => {
     try {
-      const res = await fetch("/backend/announcements_read.php", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ all: true }),
-      });
-      const data = await res.json();
-      if (data.status !== "success") {
-        console.error("Mark all as read failed:", data.message);
-      }
-      setAnnouncements(prev => 
-        prev.map(ann => ({ ...ann, unread: false }))
-      );
+      // Reuse the single-item endpoint for all announcements
+      await Promise.all(announcements.map(a => markAsRead(a.id)));
     } catch (err) {
       console.error("Mark all as read error:", err);
     }
@@ -580,6 +583,7 @@ useEffect(() => {
         team_users: project.team_users || 0,
         assignedUsers: project.assignedUsers || project.assigned_users || [],
         comments: [],
+        isNew: isProjectNew(project.startDate || project.start_date || project.created_at, project.progress),
       }));
 
       const projectsWithComments = await Promise.all(
@@ -601,10 +605,12 @@ useEffect(() => {
                   user: c.user || formatAuthorName(c.email),
                 }))
               : [];
-            return { ...project, comments };
+            const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+            return { ...project, comments, isNew };
           } catch (err) {
             console.error(`Failed to fetch comments for project ${project.id}:`, err);
-            return { ...project, comments: [] };
+            const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+            return { ...project, comments: [], isNew };
           }
         })
       );
@@ -943,7 +949,7 @@ useEffect(() => {
             <IoMdTime className="mr-1" size={14} />
             {announcement.time}
           </span>
-          <span className="text-xs text-gray-500">By: {announcement.author}</span>
+          <span className="text-xs text-gray-500">By: {formatAuthorName(announcement.author)}</span>
         </div>
         <div className="flex items-center">
           {announcement.unread ? (
@@ -973,7 +979,12 @@ useEffect(() => {
   const renderProjectCard = (item) => {
     const unreadCount = getUnreadCommentCount(item.id);
     return (
-    <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
+    <div key={item.id} className="relative bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
+      {item.isNew && (
+        <span className="absolute -top-1 -left-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg z-10">
+          New
+        </span>
+      )}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center flex-1">
           <MdDashboard size={20} className="text-blue-500" />
