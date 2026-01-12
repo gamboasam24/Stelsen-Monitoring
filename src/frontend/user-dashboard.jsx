@@ -67,11 +67,15 @@ const UserDashboard = ({ user, logout }) => {
   const actionMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const commentFileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [commentAttachments, setCommentAttachments] = useState([]);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [users, setUsers] = useState([]);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [readComments, setReadComments] = useState(() => {
     try {
@@ -636,6 +640,61 @@ const getPriorityBadge = (priority) => {
     setCommentAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setShowCameraModal(true);
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      alert('Unable to access camera. Please check permissions.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setShowCameraModal(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const timestamp = new Date().getTime();
+          const file = new File([blob], `camera-${timestamp}.jpg`, { type: 'image/jpeg' });
+
+          setCommentAttachments(prev => [...prev, {
+            name: file.name,
+            preview: URL.createObjectURL(blob),
+            size: file.size,
+            type: file.type,
+            rawFile: file,
+          }]);
+
+          stopCamera();
+        }
+      }, 'image/jpeg', 0.9);
+    }
+  };
+
   // Auto-refresh comments when modal is open
   useEffect(() => {
     if (!showCommentsModal || !selectedProject?.id) return;
@@ -1128,6 +1187,12 @@ const renderAnnouncementCard = (announcement) => (
                 }}
                 placeholder="Type a message..."
                 className="flex-1 bg-transparent outline-none text-sm"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                inputMode="text"
+                enterKeyHint="send"
                 autoFocus
               />
               <button 
@@ -1138,6 +1203,13 @@ const renderAnnouncementCard = (announcement) => (
                 title="Attach files"
               >
                 <FiPaperclip size={18} />
+              </button>
+              <button 
+                onClick={startCamera}
+                className="text-gray-400 hover:text-green-600 ml-2 flex-shrink-0 transition-colors"
+                title="Take photo"
+              >
+                <FiCamera size={18} />
               </button>
               <input
                 ref={commentFileInputRef}
@@ -1895,6 +1967,46 @@ const renderAnnouncementCard = (announcement) => (
 
       {/* Comments Modal */}
       {showCommentsModal && renderCommentsModal()}
+
+      {/* Camera Modal */}
+      {showCameraModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold">Take Photo</h3>
+              <button onClick={stopCamera} className="text-gray-500 hover:text-gray-700">
+                <IoMdClose size={24} />
+              </button>
+            </div>
+            
+            <div className="relative bg-black">
+              <video 
+                ref={videoRef}
+                autoPlay 
+                playsInline
+                className="w-full h-auto max-h-[60vh] object-contain"
+              />
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
+            </div>
+
+            <div className="p-4 flex justify-center gap-4">
+              <button
+                onClick={stopCamera}
+                className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={capturePhoto}
+                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+              >
+                <FiCamera size={20} />
+                Capture
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

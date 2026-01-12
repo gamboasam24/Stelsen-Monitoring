@@ -1317,6 +1317,12 @@ useEffect(() => {
               }}
               placeholder="Type a message..."
               className="flex-1 bg-transparent outline-none text-sm"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="text"
+              enterKeyHint="send"
               autoFocus
             />
             <button 
