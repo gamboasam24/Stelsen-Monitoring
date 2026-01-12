@@ -405,13 +405,13 @@ const handleBudgetChange = (e) => {
   //================================================== Mark announcement as read =================================================
 const markAsRead = async (id) => {
   try {
-    const res = await fetch("/backend/announcements_read.php", {
+    const res = await fetch("/backend/announcements.php", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ action: "mark_read", id }),
     });
-    const data = await res.json();
+    const data = await handleApiResponse(res);
     if (data.status !== "success") {
       console.error("Mark as read failed:", data.message);
     }
@@ -426,13 +426,13 @@ const markAsRead = async (id) => {
   //======================================================= Mark all as read =================================================
   const markAllAsRead = async () => {
     try {
-      const res = await fetch("/backend/announcements_read.php", {
+      const res = await fetch("/backend/announcements.php", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ all: true }),
+        body: JSON.stringify({ action: "mark_all_read" }),
       });
-      const data = await res.json();
+      const data = await handleApiResponse(res);
       if (data.status !== "success") {
         console.error("Mark all as read failed:", data.message);
       }

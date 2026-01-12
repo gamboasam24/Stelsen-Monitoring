@@ -21,7 +21,8 @@ import {
   MdWork,
   MdChatBubble,
   MdCalendarToday,
-  MdComment
+  MdComment,
+  MdPushPin
 } from "react-icons/md";
 import { 
   FaUser, 
@@ -188,7 +189,8 @@ const UserDashboard = ({ user, logout }) => {
         category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
         important: a.priority === "high",
         color: getColorForType(a.type),
-         unread: a.unread === 1, // true/false instead of 1/0
+        unread: a.unread === 1,
+        is_pinned: a.is_pinned === 1,
         icon: getIconForType(a.type),
       }));
 
@@ -371,22 +373,47 @@ const getPriorityBadge = (priority) => {
   // Mark a specific announcement as read
   // This function sends a request to the backend and updates the local state
   const markAsRead = async (id) => {
-    // Send request to backend to mark as read
-    await fetch("/backend/mark_read.php", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ announcement_id: id }),
-    });
-
-    // Update local state to reflect the change immediately
-    setAnnouncements(prev => 
-      prev.map(ann => 
-        ann.announcement_id === id ? { ...ann, unread: false } : ann
-      )
-    );
+    try {
+      const res = await fetch("/backend/announcements.php", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_read", id }),
+      });
+      const data = await handleApiResponse(res);
+      if (data.status !== "success") {
+        console.error("Mark as read failed:", data.message);
+      }
+      setAnnouncements(prev =>
+        prev.map(a => a.id === id ? { ...a, unread: false } : a)
+      );
+    } catch (err) {
+      console.error("Mark as read error:", err);
+    }
   };
 
+  // Toggle pin state for an announcement
+  const togglePin = async (id, nextPinned) => {
+    try {
+      const res = await fetch("/backend/announcements.php", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "pin", id, pinned: nextPinned })
+      });
+      const data = await handleApiResponse(res);
+      if (data.status !== "success") {
+        console.error("Pin update failed:", data.message);
+        return;
+      }
+      setAnnouncements(prev => {
+        const updated = prev.map(a => a.id === id ? { ...a, is_pinned: nextPinned } : a);
+        return [...updated].sort((a, b) => (b.is_pinned - a.is_pinned));
+      });
+    } catch (err) {
+      console.error("Toggle pin error:", err);
+    }
+  };
 
   const [projects, setProjects] = useState([]);
 
@@ -751,7 +778,19 @@ const renderAnnouncementCard = (announcement) => (
           </div>
         </div>
       </div>
-      {announcement.unread && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
+      <div className="flex items-center space-x-2">
+        {announcement.unread && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePin(announcement.id, !announcement.is_pinned);
+          }}
+          className={(announcement.is_pinned ? "text-yellow-500" : "text-gray-400") + " hover:text-yellow-600"}
+          title={announcement.is_pinned ? "Unpin" : "Pin"}
+        >
+          <MdPushPin size={18} />
+        </button>
+      </div>
     </div>
 
     {/* Content */}

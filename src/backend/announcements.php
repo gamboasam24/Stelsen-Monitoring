@@ -71,12 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
     $action = $input['action'] ?? null;
 
-    // Toggle pin (admin only)
+    // Toggle pin (any logged-in user)
     if ($action === 'pin') {
-        if ($account_type !== 'admin') {
-            echo json_encode(['status' => 'error', 'message' => 'Admin only']);
-            exit;
-        }
         $announcement_id = isset($input['id']) ? (int)$input['id'] : 0;
         $pinned = isset($input['pinned']) ? (int)!!$input['pinned'] : null;
         if ($announcement_id <= 0 || $pinned === null) {
