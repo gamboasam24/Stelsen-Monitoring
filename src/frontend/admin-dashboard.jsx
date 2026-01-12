@@ -88,7 +88,7 @@ const AdminDashboard = ({ user, logout }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [selectedFilter, setSelectedFilter] = useState("unread");
   const actionMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const commentFileInputRef = useRef(null);
@@ -197,6 +197,7 @@ const isProjectNew = (dateValue, progress) => {
           important: a.priority === "high",
           color: getColorForType(a.type),
           icon: getIconForType(a.type),
+          created_at: a.created_at,
         }));
 
         setAnnouncements(normalized);
@@ -211,6 +212,7 @@ const isProjectNew = (dateValue, progress) => {
   const [projects, setProjects] = useState([]);
   const [announcements, setAnnouncements] = useState([]); // <-- add this
   const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [readComments, setReadComments] = useState(() => {
     try {
       const saved = localStorage.getItem('adminDashboardReadComments');
@@ -240,6 +242,14 @@ const isProjectNew = (dateValue, progress) => {
       .catch(err => console.error("Users error:", err));
   }, [logout]);
 
+  // Initial loading management - hide loading screen after data is fetched
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500); // Minimum loading time for smooth UX
+    return () => clearTimeout(timer);
+  }, []);
+
   //================================================== Filtered announcements ==================================================
   const filteredAnnouncements = announcements.filter(ann => {
     if (selectedFilter === "unread") return ann.unread;
@@ -249,7 +259,10 @@ const isProjectNew = (dateValue, progress) => {
   }).filter(ann => 
     ann.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     ann.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ).sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return Number(b.is_pinned) - Number(a.is_pinned);
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
 
 //============================================= Create new announcement =================================================
 const createAnnouncement = async () => {
@@ -960,7 +973,7 @@ useEffect(() => {
               Mark as read
             </button>
           ) : (
-            <div className="flex items-center text-green-500 text-sm">
+            <div className="flex items-center text-gray-500 text-sm">
               <IoMdCheckmarkCircle size={16} className="mr-1" />
               <span>Read</span>
             </div>
@@ -2114,6 +2127,15 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen pb-20 bg-gray-100 relative">
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center z-50">
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-800 text-2xl font-bold">Loading...</p>
+          </div>
+        </div>
+      )}
       {/* Main Header */}
       {activeTab !== "My Location" && (
         <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex justify-between items-center text-white shadow-lg">

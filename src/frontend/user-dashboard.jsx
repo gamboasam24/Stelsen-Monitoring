@@ -63,7 +63,7 @@ const UserDashboard = ({ user, logout }) => {
   const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [selectedFilter, setSelectedFilter] = useState("new");
   const actionMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const commentFileInputRef = useRef(null);
@@ -72,6 +72,7 @@ const UserDashboard = ({ user, logout }) => {
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [readComments, setReadComments] = useState(() => {
     try {
       const saved = localStorage.getItem('userDashboardReadComments');
@@ -109,11 +110,15 @@ const UserDashboard = ({ user, logout }) => {
     if (selectedFilter === "important") return ann.important;
     if (selectedFilter === "pinned") return ann.is_pinned;
     if (selectedFilter === "read") return !ann.unread;
+    if (selectedFilter === "new") return ann.isNew;
     return true;
   }).filter(ann => 
     ann.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     ann.content.toLowerCase().includes(searchQuery.toLowerCase())
-  ).sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned));
+  ).sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return Number(b.is_pinned) - Number(a.is_pinned);
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
 
   // Mark all announcements as read (local state only)
   const markAllAsRead = async () => {
@@ -176,21 +181,28 @@ const UserDashboard = ({ user, logout }) => {
         credentials: "include",
       });
       const data = await res.json();
-      const normalized = data.map(a => ({
-        id: a.announcement_id,
-        title: a.title,
-        content: a.content,
-        type: a.type,
-        priority: a.priority,
-        author: formatAuthorName(a.author),
-        time: formatTimeAgo(a.created_at),
-        category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
-        important: a.priority === "high",
-        color: getColorForType(a.type),
-         unread: a.unread === 1, // true/false instead of 1/0
-        icon: getIconForType(a.type),
-        is_pinned: a.is_pinned === 1,
-      }));
+      const normalized = data.map(a => {
+        const createdDate = new Date(a.created_at);
+        const now = new Date();
+        const daysDiff = (now - createdDate) / (1000 * 60 * 60 * 24);
+        return {
+          id: a.announcement_id,
+          title: a.title,
+          content: a.content,
+          type: a.type,
+          priority: a.priority,
+          author: formatAuthorName(a.author),
+          time: formatTimeAgo(a.created_at),
+          category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
+          important: a.priority === "high",
+          color: getColorForType(a.type),
+          unread: a.unread === 1,
+          icon: getIconForType(a.type),
+          is_pinned: a.is_pinned === 1,
+          isNew: daysDiff <= 3,
+          created_at: a.created_at,
+        };
+      });
 
       setAnnouncements(normalized);
     } catch (err) {
@@ -224,6 +236,14 @@ useEffect(() => {
   };
 
   fetchUsers();
+}, []);
+
+// Initial loading management - hide loading screen after data is fetched
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setIsLoading(false);
+  }, 1500); // Minimum loading time for smooth UX
+  return () => clearTimeout(timer);
 }, []);
 
 // Fetch projects assigned to current user
@@ -756,7 +776,7 @@ const renderAnnouncementCard = (announcement) => (
             Mark as read
           </button> 
           ) : (
-            <div className="flex items-center text-green-500 text-sm">
+            <div className="flex items-center text-gray-500 text-sm">
               <IoMdCheckmarkCircle size={16} className="mr-1" />
               <span>Read</span>
             </div>
@@ -1422,6 +1442,16 @@ const renderAnnouncementCard = (announcement) => (
               </button>
               <button 
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedFilter === "new" 
+                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg" 
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+                onClick={() => setSelectedFilter("new")}
+              >
+                New ({announcements.filter(a => a.isNew).length})
+              </button>
+              <button 
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                   selectedFilter === "unread" 
                     ? "bg-blue-500 text-white shadow" 
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -1450,6 +1480,7 @@ const renderAnnouncementCard = (announcement) => (
               >
                 Pinned ({announcements.filter(a => a.is_pinned).length})
               </button>
+              
             </div>
 
             {/* Announcements Header */}
@@ -1681,6 +1712,15 @@ const renderAnnouncementCard = (announcement) => (
 
   return (
     <div className="min-h-screen pb-20 bg-gray-100 relative">
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center z-50">
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-800 text-2xl font-bold">Loading...</p>
+          </div>
+        </div>
+      )}
       {/* Main Header */}
       {activeTab !== "My Location" && (
         <div className="sticky top-0 z-20 bg-blue-500 px-5 py-4 flex justify-between items-center text-white">

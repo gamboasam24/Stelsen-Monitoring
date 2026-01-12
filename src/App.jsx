@@ -38,6 +38,7 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isValidatingSession, setIsValidatingSession] = useState(true);
   
   // Auth flow state
   const [currentView, setCurrentView] = useState(AUTH_VIEWS.LOGIN);
@@ -49,6 +50,7 @@ function App() {
   // ✅ Check localStorage and validate session with backend on mount
   useEffect(() => {
     const validateSession = async () => {
+      setIsValidatingSession(true);
       const storedUser = localStorage.getItem("user");
       const storedToken = localStorage.getItem("auth_token");
       
@@ -83,6 +85,11 @@ function App() {
           setLoggedIn(false);
         }
       }
+      
+      // Add a small delay to prevent flash
+      setTimeout(() => {
+        setIsValidatingSession(false);
+      }, 500);
     };
     
     validateSession();
@@ -397,6 +404,18 @@ const handleGoogleLoginSuccess = (googleUser) => {
     setPassword(demoPassword);
     setCurrentView(AUTH_VIEWS.LOGIN);
   };
+
+  // Show loading screen while validating session
+  if (isValidatingSession) {
+    return (
+      <div className="fixed inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center z-50">
+        <div className="flex flex-col items-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-800 text-2xl font-bold">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loggedIn && user) {
     return user.account_type === "admin" ? (
