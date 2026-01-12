@@ -1175,7 +1175,7 @@ const renderAnnouncementCard = (announcement) => (
           )}
           <div className="flex items-center gap-2">
             <Avatar userObj={user} size={32} className="flex-shrink-0" />
-            <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 md:px-4 py-2">
+            <div className="flex-1 flex items-center bg-gray-100 rounded-full pl-2 pr-1.5 py-1.5">
               <input
                 type="text"
                 value={commentText}
@@ -1185,9 +1185,12 @@ const renderAnnouncementCard = (announcement) => (
                     addComment(selectedProject.id);
                   }
                 }}
-                placeholder="Type a message..."
-                className="flex-1 bg-transparent outline-none text-sm"
+                placeholder="Message..."
+                className="flex-1 bg-transparent outline-none text-sm md:text-base"
                 autoComplete="off"
+                data-lpignore="true"
+                data-1p-ignore
+                data-form-type="other"
                 autoCorrect="off"
                 autoCapitalize="none"
                 spellCheck={false}
@@ -1197,19 +1200,19 @@ const renderAnnouncementCard = (announcement) => (
               />
               <button 
                 onClick={() => commentFileInputRef.current?.click()}
-                className={`text-gray-400 hover:text-blue-600 ml-2 flex-shrink-0 transition-colors ${
+                className={`text-gray-400 hover:text-blue-600 ml-1 flex-shrink-0 transition-colors ${
                   commentAttachments.length > 0 ? 'text-blue-600' : ''
                 }`}
                 title="Attach files"
               >
-                <FiPaperclip size={18} />
+                <FiPaperclip size={20} />
               </button>
               <button 
                 onClick={startCamera}
-                className="text-gray-400 hover:text-green-600 ml-2 flex-shrink-0 transition-colors"
+                className="text-gray-400 hover:text-green-600 ml-1 flex-shrink-0 transition-colors"
                 title="Take photo"
               >
-                <FiCamera size={18} />
+                <FiCamera size={20} />
               </button>
               <input
                 ref={commentFileInputRef}
@@ -1232,7 +1235,7 @@ const renderAnnouncementCard = (announcement) => (
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
-              <IoMdSend size={18} />
+              <IoMdSend size={20} />
             </button>
           </div>
         </div>
