@@ -807,6 +807,17 @@ useEffect(() => {
   };
 
   const addUserToProject = async (userId, userName) => {
+    // Check if user is already assigned
+    if (selectedProject?.assignedUsers?.includes(String(userId))) {
+      Swal.fire({
+        title: "User Already Assigned",
+        text: `${userName} is already assigned to this project.`,
+        icon: "info",
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
     // Confirmation dialog
     const result = await Swal.fire({
       title: "Add User to Project",

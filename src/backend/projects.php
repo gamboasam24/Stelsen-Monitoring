@@ -99,9 +99,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $assigned_users = json_decode($project['assigned_users'] ?? '[]', true);
 
             if ($action === 'add') {
-                if (!in_array($user_id, $assigned_users)) {
-                    $assigned_users[] = $user_id;
+                // Check if user is already assigned
+                if (in_array($user_id, $assigned_users)) {
+                    echo json_encode(['status' => 'error', 'message' => 'User is already assigned to this project']);
+                    exit;
                 }
+                $assigned_users[] = $user_id;
             } elseif ($action === 'remove') {
                 $assigned_users = array_filter($assigned_users, function($id) use ($user_id) {
                     return $id !== $user_id;
