@@ -24,7 +24,8 @@ import {
   MdChatBubble,
   MdCalendarToday,
   MdComment,
-  MdPeople
+  MdPeople,
+  MdNotifications
 } from "react-icons/md";
 import {
   FaUser,
@@ -61,7 +62,8 @@ const UserDashboard = ({ user, logout }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
-  const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
+  // Navigation stack for screen-based navigation (replaces modals)
+  const [navigationStack, setNavigationStack] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("new");
@@ -79,6 +81,8 @@ const UserDashboard = ({ user, logout }) => {
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [readComments, setReadComments] = useState(() => {
     try {
       const saved = localStorage.getItem('userDashboardReadComments');
@@ -182,6 +186,7 @@ const UserDashboard = ({ user, logout }) => {
 
   useEffect(() => {
   const fetchAnnouncements = async () => {
+    setIsLoadingAnnouncements(true);
     try {
       const res = await fetch("/backend/announcements.php", {
         credentials: "include",
@@ -211,8 +216,10 @@ const UserDashboard = ({ user, logout }) => {
       });
 
       setAnnouncements(normalized);
+      setIsLoadingAnnouncements(false);
     } catch (err) {
       console.error("Announcement fetch error:", err);
+      setIsLoadingAnnouncements(false);
     }
   };
 
@@ -255,6 +262,7 @@ useEffect(() => {
 // Fetch projects assigned to current user
 useEffect(() => {
   const fetchProjects = async () => {
+    setIsLoadingProjects(true);
     try {
       const response = await fetch("/backend/projects.php", {
         method: "GET",
@@ -305,8 +313,10 @@ useEffect(() => {
       );
       
       setProjects(projectsWithComments);
+      setIsLoadingProjects(false);
     } catch (err) {
       console.error("Failed to fetch projects:", err);
+      setIsLoadingProjects(false);
     }
   };
 
@@ -470,7 +480,7 @@ const getPriorityBadge = (priority) => {
       case "ongoing": return "bg-green-500";
       case "completed": return "bg-blue-500";
       case "scheduled": return "bg-yellow-500";
-      case "pending": return "bg-red-500";
+      case "pending": return "bg-violet-500";
       default: return "bg-gray-500";
     }
   };
@@ -538,10 +548,23 @@ const getPriorityBadge = (priority) => {
     if (showActionMenu) setShowActionMenu(false);
   };
 
+  // Navigation Stack Functions
+  const pushScreen = (screenName, data = {}) => {
+    setNavigationStack(prev => [...prev, { screen: screenName, data }]);
+  };
+
+  const popScreen = () => {
+    setNavigationStack(prev => prev.slice(0, -1));
+  };
+
+  const getCurrentScreen = () => {
+    return navigationStack[navigationStack.length - 1];
+  };
+
   const viewProjectDetails = async (project) => {
     // Prime selected project immediately
     setSelectedProject({ ...project, comments: project.comments || [] });
-    setShowProjectDetailsModal(true);
+    pushScreen("projectDetails", { project });
 
     // Fetch fresh comments for this project
     try {
@@ -809,8 +832,11 @@ const getPriorityBadge = (priority) => {
 
     const [imgError, setImgError] = useState(false);
 
-    // PRIORITY: profile_image → fallback to initials
-    const imageSrc = userObj?.profile_image || null;
+    // PRIORITY: uploaded → google → fallback
+    const imageSrc =
+      userObj?.uploaded_profile_image ||
+      userObj?.profile_image ||
+      null;
 
     if (!imageSrc || imgError) {
       return (
@@ -839,11 +865,16 @@ const getPriorityBadge = (priority) => {
 const renderAnnouncementCard = (announcement) => (
   <div
     key={announcement.id}
-    className={`bg-white rounded-2xl p-4 mb-3 shadow-lg ${
+    className={`relative bg-white rounded-2xl p-4 mb-3 shadow-lg ${
       announcement.unread ? "border-l-4 border-blue-500" : ""
     }`}
     onClick={() => markAsRead(announcement.id)}
   >
+      {announcement.isNew && (
+        <span className="absolute -top-1 -right-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg z-10">
+          New
+        </span>
+      )}
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center">
@@ -916,90 +947,107 @@ const renderAnnouncementCard = (announcement) => (
     return (
     <div key={item.id} className="relative bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
       {item.isNew && (
-        <span className="absolute -top-1 -left-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg z-10">
-          New
-        </span>
+      <span className="absolute -top-1 -left-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg z-10">
+        New
+      </span>
       )}
       <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center flex-1">
-          <MdDashboard size={20} className="text-blue-500" />
-          <div className="ml-3">
-            <h4 className="font-bold text-gray-800">{item.title}</h4>
-            <p className="text-xs text-gray-500">Managed by {item.manager}</p>
-          </div>
+      <div className="flex items-center flex-1">
+        <div className="ml-3">
+        <h4 className="font-bold text-gray-800">{item.title}</h4>
+        <p className="text-xs text-gray-500">Managed by {item.manager}</p>
         </div>
-        <div className={`px-3 py-1 rounded-full ${getStatusColor(item.status)} text-white text-xs`}>
-          {item.status}
-        </div>
+      </div>
+      <div className={`px-3 py-1 rounded-full ${getStatusColor(item.status)} text-white text-xs`}>
+        {item.status}
+      </div>
       </div>
       
       <div className="mb-4">
-        <div className="flex justify-between text-sm text-gray-600 mb-1">
-          <span></span>
-          <span className="font-bold">{item.progress}%</span>
-        </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full ${getStatusColor(item.status)}`}
-            style={{ width: `${item.progress}%` }}
-          ></div>
-        </div>
+      <div className="flex justify-between text-sm text-gray-600 mb-1">
+        <span></span>
+        <span className="font-bold">{item.progress}%</span>
+      </div>
+      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div
+        className={`h-full rounded-full ${getStatusColor(item.status)}`}
+        style={{ width: `${item.progress}%` }}
+        ></div>
+      </div>
       </div>
       
       <div className="flex items-center justify-between">
-        <div className="text-xs text-gray-500">
-          <div>Deadline: <span className="font-medium">{item.deadline}</span></div>
-          <div>Budget: <span className="font-medium">{formatPeso(item.budget)}</span></div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="flex items-center text-xs text-gray-500 relative">
-            <MdComment size={14} className="mr-1" />
-            {(item.comments && item.comments.length) || 0}
-            {unreadCount > 0 && (
-              <div className="absolute -top-0.5 -right-0.1 w-2 h-2 bg-red-500 rounded-full "></div>
-            )}
-          </span>
-          <button 
-            onClick={() => viewProjectDetails(item)}
-            className="text-blue-500 text-sm font-medium flex items-center"
-          >
-            Details <FiChevronRight size={16} className="ml-1" />
-          </button>
-        </div>
+      <div className="text-xs text-gray-500">
+        <div>Deadline: <span className="font-medium">{item.deadline}</span></div>
+        <div>Budget: <span className="font-medium">{formatPeso(item.budget)}</span></div>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+        onClick={() => {
+          setSelectedProject({ ...item, comments: item.comments || [] });
+          setShowCommentsModal(true);
+          // Mark all comments as read for this project
+          if (item && item.comments) {
+          const commentIds = item.comments.map(c => c.id);
+          setReadComments(prev => ({
+            ...prev,
+            [item.id]: commentIds
+          }));
+          }
+        }}
+        className="flex items-center text-xs text-gray-500 relative hover:text-blue-500 transition-colors"
+        >
+        <MdComment size={14} className="mr-1" />
+        {(item.comments && item.comments.length) || 0}
+        {unreadCount > 0 && (
+          <div className="absolute -top-0.5 -right-0.1 w-2 h-2 bg-red-500 rounded-full "></div>
+        )}
+        </button>
+        <button 
+        onClick={() => viewProjectDetails(item)}
+        className="text-blue-500 text-sm font-medium flex items-center"
+        >
+        Details <FiChevronRight size={16} className="ml-1" />
+        </button>
+      </div>
       </div>
     </div>
     );
   };
 
   const renderProjectDetailsModal = () => (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-50">
-      <div className="bg-white rounded-t-3xl p-5 w-full max-h-[90%] overflow-auto">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="text-xl font-bold text-gray-800">Tasks Details</h3>
-          <button 
-            onClick={() => setShowProjectDetailsModal(false)}
-            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
-          >
-            <IoMdClose size={24} className="text-gray-600" />
-          </button>
-        </div>
+    <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
+      {/* Header with Back Button */}
+      <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+        <button 
+          onClick={popScreen}
+          className="p-2 rounded-full hover:bg-gray-100 mr-3"
+        >
+          <FiChevronLeft size={24} className="text-gray-700" />
+        </button>
+        <h3 className="flex-1 text-lg font-bold text-gray-800">Tasks Details</h3>
+        {selectedProject && (
+          <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block flex-shrink-0`}>
+            {selectedProject.status}
+          </span>
+        )}
+      </div>
 
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-5">
+
+        
         {selectedProject && (
           <>
             <div className="flex flex-row items-start sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-gray-200">
               <h4 className="text-lg font-bold text-gray-800 flex-1">{selectedProject.title}</h4>
-              <div className="flex-shrink-0">
-                <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block`}>
-                  {selectedProject.status}
-                </span>
-              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-6">
               <div className="space-y-3 sm:space-y-5">
-                <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-2 sm:mb-3 uppercase tracking-wide">Assigned Employees</p>
-                  <div className="bg-white rounded-lg p-2 sm:p-3 border border-gray-200 min-h-[150px] sm:min-h-[200px] overflow-y-auto flex flex-wrap gap-1 sm:gap-2 items-start content-start">
+                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
+                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Team Users</p>
+                  <div className="flex flex-wrap gap-1 sm:gap-2 items-start content-start">
                     {selectedProject.assignedUsers && selectedProject.assignedUsers.length > 0 ? (
                       selectedProject.assignedUsers.map((uid, idx) => {
                         const isCurrentUser = String(uid) === String(user?.id);
@@ -1043,11 +1091,6 @@ const renderAnnouncementCard = (announcement) => (
                 <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Manager</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.manager || 'N/A'}</p>
-                </div>
-
-                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
-                  <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Team Users</p>
-                  <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.team_users || 0} users</p>
                 </div>
 
                 <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
@@ -1107,9 +1150,7 @@ const renderAnnouncementCard = (announcement) => (
         )}
       </div>
     </div>
-  );
-
- 
+  ); 
  const renderCommentsModal = () => (
    <div className="fixed inset-0 bg-white z-[60] flex flex-col">
      {/* Messenger-style Header */}
@@ -1567,9 +1608,13 @@ const renderAnnouncementCard = (announcement) => (
       <div className="bg-blue-500 px-5 py-4 flex justify-between items-center text-white">
         <div className="flex items-center">
           <img 
-            src={selectedFile || user?.profile_image} 
+            src={selectedFile || user?.uploaded_profile_image || user?.profile_image} 
             className="w-12 h-12 rounded-full border-2 border-white mr-3"
             alt="User"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
           />
           <div>
             <div className="text-xl font-bold">My Profile</div>
@@ -1597,9 +1642,13 @@ const renderAnnouncementCard = (announcement) => (
           <div className="flex flex-col items-center mb-6">
             <div className="relative mb-4">
               <img 
-                src={selectedFile || user?.profile_image} 
+                src={selectedFile || user?.uploaded_profile_image || user?.profile_image} 
                 className="w-28 h-28 rounded-full border-4 border-blue-100" 
                 alt="Profile"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
               />
               <button 
                 className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full border-4 border-white hover:bg-blue-600"
@@ -1751,97 +1800,159 @@ const renderAnnouncementCard = (announcement) => (
     </div>
   );
 
+  // Shimmer/Skeleton Loading Component
+  const ShimmerCard = () => (
+    <div className="bg-white rounded-2xl p-4 mb-3 shadow-lg animate-pulse">
+      <div className="h-4 bg-gray-200 rounded mb-3 w-3/4"></div>
+      <div className="h-3 bg-gray-200 rounded mb-2"></div>
+      <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+    </div>
+  );
+
+  const ShimmerStatsCard = () => (
+    <div className="bg-gradient-to-br from-gray-300 to-gray-200 text-white rounded-2xl p-4 shadow-lg animate-pulse">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="h-8 bg-gray-400 rounded w-12 mb-2"></div>
+          <div className="h-3 bg-gray-400 rounded w-24"></div>
+        </div>
+        <div className="w-6 h-6 bg-gray-400 rounded-full"></div>
+      </div>
+    </div>
+  );
+
+  const ShimmerProjectCard = () => (
+    <div className="bg-white rounded-2xl p-4 mb-4 shadow-lg animate-pulse">
+      <div className="h-5 bg-gray-200 rounded mb-3 w-2/3"></div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+        <div className="h-6 bg-gray-300 rounded-full w-20"></div>
+      </div>
+      <div className="h-2 bg-gray-200 rounded-full mb-3"></div>
+      <div className="flex items-center justify-between">
+        <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+        <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+      </div>
+    </div>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "Home":
         return (
           <div className="p-5">
 
-            {/* Search Bar */}
-            <div className="mb-6">
-              <div className="relative">
-                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search announcements..."
-                  className="w-full pl-12 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
+            {/* Enhanced Search and Filter Bar */}
+                  <div className="mb-8">
+                    {/* Search Bar with Icon */}
+                    <div className="relative mb-5">
+                    <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type="text"
+                      placeholder="Search announcements..."
+                      className="w-full pl-12 pr-4 py-3.5 bg-white rounded-2xl border-2 border-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm hover:shadow-md"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    </div>
 
+                    {/* Enhanced Filter Buttons */}
+                    <div className="flex space-x-2 overflow-x-auto pb-3 scrollbar-hide">
+                    <button 
+                      className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+                      selectedFilter === "all" 
+                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200" 
+                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
+                      }`}
+                      onClick={() => setSelectedFilter("all")}
+                    >
+                      All ({announcements.length})
+                    </button>
+                    <button 
+                      className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+                      selectedFilter === "new" 
+                        ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-200" 
+                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
+                      }`}
+                      onClick={() => setSelectedFilter("new")}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                      New ({announcements.filter(a => a.isNew).length})
+                      </span>
+                    </button>
+                    <button 
+                      className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+                      selectedFilter === "unread" 
+                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200" 
+                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
+                      }`}
+                      onClick={() => setSelectedFilter("unread")}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                      <MdNotifications size={16} />
+                      Unread ({announcements.filter(a => a.unread).length})
+                      </span>
+                    </button>
+                    <button 
+                      className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+                      selectedFilter === "important" 
+                        ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200" 
+                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
+                      }`}
+                      onClick={() => setSelectedFilter("important")}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                      ⭐ Important ({announcements.filter(a => a.important).length})
+                      </span>
+                    </button>
+                    <button 
+                      className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+                      selectedFilter === "pinned" 
+                        ? "bg-gradient-to-r from-pink-500 to-red-500 text-white shadow-lg shadow-pink-200" 
+                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
+                      }`}
+                      onClick={() => setSelectedFilter("pinned")}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                      <MdPushPin size={16} />
+                      Pinned ({announcements.filter(a => a.is_pinned).length})
+                      </span>
+                    </button>
+                    </div>
+                  </div>
+                  
+                  {/* Section Header with Action Button */}
+                  <div className="flex justify-between items-center mb-6 sticky top-20 bg-gray-100 -mx-5 px-5 py-3 z-10">
+                    <div>
+                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                      <div className="w-1.5 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
+                      Announcements
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {filteredAnnouncements.length} {selectedFilter === "all" ? "total" : selectedFilter}
+                    </p>
+                    </div>
+                    {!isLoading && announcements.filter(a => a.unread).length > 0 && (
+                    <button 
+                      className="px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-600 text-sm font-semibold rounded-full hover:shadow-lg active:scale-95 transition-all flex items-center gap-2 border border-blue-200"
+                      onClick={markAllAsRead}
+                    >
+                      Mark all read
+                    </button>
+                    )}
+                  </div>
 
-            {/* Filter Tabs */}
-            <div className="flex space-x-2 mb-6 overflow-x-auto">
-              <button 
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedFilter === "all" 
-                    ? "bg-blue-500 text-white shadow" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedFilter("all")}
-              >
-                All ({announcements.length})
-              </button>
-              <button 
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedFilter === "new" 
-                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedFilter("new")}
-              >
-                New ({announcements.filter(a => a.isNew).length})
-              </button>
-              <button 
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedFilter === "unread" 
-                    ? "bg-blue-500 text-white shadow" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedFilter("unread")}
-              >
-                Unread ({announcements.filter(a => a.unread).length})
-              </button>
-              <button 
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedFilter === "important" 
-                    ? "bg-blue-500 text-white shadow" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedFilter("important")}
-              >
-                Important ({announcements.filter(a => a.important).length})
-              </button>
-              <button 
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedFilter === "pinned" 
-                    ? "bg-blue-500 text-white shadow" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedFilter("pinned")}
-              >
-                Pinned ({announcements.filter(a => a.is_pinned).length})
-              </button>
-              
-            </div>
-
-            {/* Announcements Header */}
-            <div className="flex justify-between items-center mb-4 mt-0">
-              <h2 className="text-lg font-bold text-gray-800">Announcements</h2>
-              <button 
-                className="text-blue-500 text-sm font-medium flex items-center"
-                onClick={markAllAsRead}
-              >
-                <MdCheckCircle className="mr-1" size={16} />
-                Mark all as read
-              </button>
-            </div>
-
-            {/* Announcements List */}
+                  {/* Announcements List */}
             <div className="mb-8">
-              {filteredAnnouncements.length > 0 ? (
+              {isLoadingAnnouncements ? (
+                <>
+                  <ShimmerCard />
+                  <ShimmerCard />
+                  <ShimmerCard />
+                  <ShimmerCard />
+                </>
+              ) : filteredAnnouncements.length > 0 ? (
                 filteredAnnouncements.map(renderAnnouncementCard)
               ) : (
                 <div className="text-center py-10">
@@ -1947,29 +2058,40 @@ const renderAnnouncementCard = (announcement) => (
         
         return (
           <div className="p-5">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl p-5 mb-5 shadow-lg">
-              <h3 className="text-lg font-bold mb-4">My Tasks Overview</h3>
-              <div className="grid grid-cols-4 gap-2">
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{totalProjects}</div>
-                  <div className="text-xs opacity-90">Total</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{ongoingProjects}</div>
-                  <div className="text-xs opacity-90">Ongoing</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{completedProjects}</div>
-                  <div className="text-xs opacity-90">Done</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{pendingProjects}</div>
-                  <div className="text-xs opacity-90">Pending</div>
+            {isLoadingProjects ? (
+              <div className="bg-gray-300 rounded-2xl p-5 mb-5 shadow-lg animate-pulse h-32"></div>
+            ) : (
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl p-5 mb-5 shadow-lg">
+                <h3 className="text-lg font-bold mb-4">My Tasks Overview</h3>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{totalProjects}</div>
+                    <div className="text-xs opacity-90">Total</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{ongoingProjects}</div>
+                    <div className="text-xs opacity-90">Ongoing</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{completedProjects}</div>
+                    <div className="text-xs opacity-90">Done</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{pendingProjects}</div>
+                    <div className="text-xs opacity-90">Pending</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             
-            {projects.length > 0 ? (
+            {isLoadingProjects ? (
+              <>
+                <ShimmerProjectCard />
+                <ShimmerProjectCard />
+                <ShimmerProjectCard />
+                <ShimmerProjectCard />
+              </>
+            ) : projects.length > 0 ? (
               projects.map(renderProjectCard)
             ) : (
               <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
@@ -2098,10 +2220,14 @@ const renderAnnouncementCard = (announcement) => (
           </div>
           <div className="relative">
             <img 
-              src={selectedFile || user?.profile_image} 
+              src={selectedFile || user?.uploaded_profile_image || user?.profile_image} 
               className="w-10 h-10 rounded-full border-2 border-white cursor-pointer"
               onClick={handleProfileClick}
               alt="User Avatar"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
             />
             {unreadCount > 0 && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
@@ -2234,11 +2360,17 @@ const renderAnnouncementCard = (announcement) => (
         </div>
       )}
 
-      {/* Task Details Bottom Sheet */}
-      {showProjectDetailsModal && renderProjectDetailsModal()}
+      {/* Task Details - Stack Navigation */}
+      {getCurrentScreen()?.screen === "projectDetails" && renderProjectDetailsModal()}
 
-      {/* Comments Modal */}
-      {showCommentsModal && renderCommentsModal()}
+      {/* Comments Modal - Reset navigation stack */}
+      {showCommentsModal && (() => {
+        // Reset navigation stack when comments modal is open
+        if (navigationStack.length > 0) {
+          setNavigationStack([]);
+        }
+        return renderCommentsModal();
+      })()}
 
       {/* Camera Modal */}
       {showCameraModal && (

@@ -193,12 +193,14 @@ const isProjectNew = (dateValue, progress) => {
 
   // Enhanced announcements data
   useEffect(() => {
+    setIsLoadingAnnouncements(true);
     fetch("/backend/announcements.php", { credentials: "include" })
       .then(res => handleApiResponse(res))
       .then(data => {
         if (!Array.isArray(data)) {
           console.error('Announcements data is not an array:', data);
           setAnnouncements([]);
+          setIsLoadingAnnouncements(false);
           return;
         }
         
@@ -220,10 +222,12 @@ const isProjectNew = (dateValue, progress) => {
         }));
 
         setAnnouncements(normalized);
+        setIsLoadingAnnouncements(false);
       })
       .catch(err => {
         console.error('Failed to fetch announcements:', err);
         setAnnouncements([]);
+        setIsLoadingAnnouncements(false);
       });
   }, [logout]);
 
@@ -232,6 +236,8 @@ const isProjectNew = (dateValue, progress) => {
   const [announcements, setAnnouncements] = useState([]); // <-- add this
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [readComments, setReadComments] = useState(() => {
     try {
       const saved = localStorage.getItem('adminDashboardReadComments');
@@ -594,6 +600,7 @@ const markAsRead = async (id) => {
 
 useEffect(() => {
   const fetchProjectsWithComments = async () => {
+    setIsLoadingProjects(true);
     try {
       const res = await fetch("/backend/projects.php", { credentials: "include" });
       const data = await handleApiResponse(res);
@@ -601,6 +608,7 @@ useEffect(() => {
       if (!Array.isArray(data)) {
         console.error('Projects data is not an array:', data);
         setProjects([]);
+        setIsLoadingProjects(false);
         return;
       }
 
@@ -612,6 +620,7 @@ useEffect(() => {
         progress: project.progress || 0,
         deadline: project.deadline || "",
         manager: project.manager || "",
+        budget: project.budget || 0,
         team_users: project.team_users || 0,
         assignedUsers: project.assignedUsers || project.assigned_users || [],
         comments: [],
@@ -648,8 +657,10 @@ useEffect(() => {
       );
 
       setProjects(projectsWithComments);
+      setIsLoadingProjects(false);
     } catch (err) {
       console.error("Projects error:", err);
+      setIsLoadingProjects(false);
     }
   };
   
@@ -681,7 +692,7 @@ useEffect(() => {
       case "ongoing": return "bg-green-500";
       case "completed": return "bg-blue-500";
       case "scheduled": return "bg-yellow-500";
-      case "pending": return "bg-red-500";
+      case "pending": return "bg-violet-500";
       default: return "bg-gray-500";
     }
   };
@@ -1136,9 +1147,11 @@ useEffect(() => {
             <MdPushPin size={18} />
           </button>
         </div>
-
       </div>
       
+      {/* Content */}
+      <p className="text-gray-600 text-sm mb-3">{announcement.content}</p>
+
       {/* Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
         <div className="flex items-center space-x-4">
@@ -1176,60 +1189,73 @@ useEffect(() => {
   const renderProjectCard = (item) => {
     const unreadCount = getUnreadCommentCount(item.id);
     return (
-    <div key={item.id} className="relative bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
-      {item.isNew && (
-        <span className="absolute -top-1 -left-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg z-10">
-          New
-        </span>
-      )}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center flex-1">
-          <MdDashboard size={20} className="text-blue-500" />
-          <div className="ml-3">
-            <h4 className="font-bold text-gray-800">{item.title}</h4>
-            <p className="text-xs text-gray-500">Managed by {item.manager}</p>
+      <div key={item.id} className="relative bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
+        {item.isNew && (
+          <span className="absolute -top-1 -left-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg z-10">
+            New
+          </span>
+        )}
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center flex-1">
+            <div className="ml-3">
+              <h4 className="font-bold text-gray-800">{item.title}</h4>
+              <p className="text-xs text-gray-500">Managed by {item.manager}</p>
+            </div>
+          </div>
+          <div className={`px-3 py-1 rounded-full ${getStatusColor(item.status)} text-white text-xs`}>
+            {item.status}
           </div>
         </div>
-        <div className={`px-3 py-1 rounded-full ${getStatusColor(item.status)} text-white text-xs`}>
-          {item.status}
+        
+        <div className="mb-4">
+          <div className="flex justify-between text-sm text-gray-600 mb-1">
+            <span></span>
+            <span className="font-bold">{item.progress}%</span>
+          </div>
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full ${getStatusColor(item.status)}`}
+              style={{ width: `${item.progress}%` }}
+            ></div>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-xs text-gray-500">
+            <div>Deadline: <span className="font-medium">{item.deadline}</span></div>
+             <div>Budget: <span className="font-medium">{formatPeso(item.budget)}</span></div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                setSelectedProject({ ...item, comments: item.comments || [] });
+                setShowCommentsModal(true);
+                // Mark all comments as read for this project
+                if (item && item.comments) {
+                  const commentIds = item.comments.map(c => c.id);
+                  setReadComments(prev => ({
+                    ...prev,
+                    [item.id]: commentIds
+                  }));
+                }
+              }}
+              className="flex items-center text-xs text-gray-500 relative hover:text-blue-500 transition-colors"
+            >
+              <MdComment size={14} className="mr-1" />
+              {item.comments.length}
+              {getUnreadCommentCount(item.id) > 0 && (
+                <div className="absolute -top-0.5 -right-0.1 w-2 h-2 bg-red-500 rounded-full"></div>
+              )}
+            </button>
+            <button 
+              onClick={() => viewProjectDetails(item)}
+              className="text-blue-500 text-sm font-medium flex items-center"
+            >
+              Details <FiChevronRight size={16} className="ml-1" />
+            </button>
+          </div>
         </div>
       </div>
-      
-      <div className="mb-4">
-        <div className="flex justify-between text-sm text-gray-600 mb-1">
-          <span></span>
-          <span className="font-bold">{item.progress}%</span>
-        </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full ${getStatusColor(item.status)}`}
-            style={{ width: `${item.progress}%` }}
-          ></div>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-xs text-gray-500">
-          <div>Deadline: <span className="font-medium">{item.deadline}</span></div>
-          <div>Team Users: <span className="font-medium">{item.team_users || 0} users</span></div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="flex items-center text-xs text-gray-500 relative">
-            <MdComment size={14} className="mr-1" />
-            {item.comments.length}
-            {unreadCount > 0 && (
-              <div className="absolute -top-0.5 -right-0.1 w-2 h-2 bg-red-500 rounded-full "></div>
-            )}
-          </span>
-          <button 
-            onClick={() => viewProjectDetails(item)}
-            className="text-blue-500 text-sm font-medium flex items-center"
-          >
-            Details <FiChevronRight size={16} className="ml-1" />
-          </button>
-        </div>
-      </div>
-    </div>
     );
   };
 
@@ -1244,6 +1270,11 @@ useEffect(() => {
           <FiChevronLeft size={24} className="text-gray-700" />
         </button>
         <h3 className="flex-1 text-lg font-bold text-gray-800">Tasks Details</h3>
+        {selectedProject && (
+          <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block flex-shrink-0`}>
+            {selectedProject.status}
+          </span>
+        )}
       </div>
 
       {/* Content */}
@@ -1254,11 +1285,6 @@ useEffect(() => {
             {/* Title and Status */}
             <div className="flex flex-row items-start sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-gray-200">
               <h4 className="text-lg font-bold text-gray-800 flex-1">{selectedProject.title}</h4>
-              <div className="flex-shrink-0">
-                <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block`}>
-                  {selectedProject.status}
-                </span>
-              </div>
             </div>
 
             {/* Two Column Layout */}
@@ -2218,59 +2244,112 @@ useEffect(() => {
     </div>
   );
 
+  // Shimmer/Skeleton Loading Component
+  const ShimmerCard = () => (
+    <div className="bg-white rounded-2xl p-4 mb-3 shadow-lg animate-pulse">
+      <div className="h-4 bg-gray-200 rounded mb-3 w-3/4"></div>
+      <div className="h-3 bg-gray-200 rounded mb-2"></div>
+      <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+    </div>
+  );
+
+  const ShimmerStatsCard = () => (
+    <div className="bg-gradient-to-br from-gray-300 to-gray-200 text-white rounded-2xl p-4 shadow-lg animate-pulse">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="h-8 bg-gray-400 rounded w-12 mb-2"></div>
+          <div className="h-3 bg-gray-400 rounded w-24"></div>
+        </div>
+        <div className="w-6 h-6 bg-gray-400 rounded-full"></div>
+      </div>
+    </div>
+  );
+
+  const ShimmerProjectCard = () => (
+    <div className="bg-white rounded-2xl p-4 mb-4 shadow-lg animate-pulse">
+      <div className="h-5 bg-gray-200 rounded mb-3 w-2/3"></div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+        <div className="h-6 bg-gray-300 rounded-full w-20"></div>
+      </div>
+      <div className="h-2 bg-gray-200 rounded-full mb-3"></div>
+      <div className="flex items-center justify-between">
+        <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+        <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+      </div>
+    </div>
+  );
+
   const renderTabContent = () => {
+    const filteredProjects = selectedFilter === "all" ? projects : projects.filter(p => p.status === selectedFilter);
+    
     switch (activeTab) {
       case "Home":
         return (
           <div className="p-5">
-            {/* Welcome Header */}
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
-              <p className="text-gray-500">Manage announcements, projects, and team communications</p>
-            </div>
-
             {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-400 text-white rounded-2xl p-4 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold">{projects.length}</div>
-                    <div className="text-sm opacity-90">Active Projects</div>
-                  </div>
-                  <MdDashboard size={24} className="opacity-80" />
+              {isLoadingProjects || isLoadingAnnouncements ? (
+          <>
+            <ShimmerStatsCard />
+            <ShimmerStatsCard />
+          </>
+              ) : (
+          <>
+            <div className="bg-gradient-to-br from-blue-500 to-blue-400 text-white rounded-2xl p-4 shadow-lg">
+              <div className="flex items-center justify-between"><div>
+            <div className="text-2xl font-bold">{projects.length}</div>
+            <div className="text-sm opacity-90">Active Projects</div>
                 </div>
+                <MdDashboard size={24} className="opacity-80" />
               </div>
-              <div className="bg-gradient-to-br from-blue-500 to-blue-400 text-white rounded-2xl p-4 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold">{announcements.length}</div>
-                    <div className="text-sm opacity-90">Announcements</div>
-                  </div>
-                  <IoMdMegaphone size={24} className="opacity-80" />
+            </div>
+            <div className="bg-gradient-to-br from-blue-500 to-blue-400 text-white rounded-2xl p-4 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+            <div className="text-2xl font-bold">{announcements.length}</div>
+            <div className="text-sm opacity-90">Announcements</div>
                 </div>
+                <IoMdMegaphone size={24} className="opacity-80" />
               </div>
+            </div>
+          </>
+              )}
             </div>
 
             {/* Recent Announcements */}
             <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-800">Announcements</h3>
-                <button 
-                  className="text-blue-500 text-sm font-medium flex items-center"
-                  onClick={markAllAsRead}
-                >
-                  <MdCheckCircle className="mr-1" size={16} />
-                  Mark all as read
-                </button>
+          <h3 className="text-lg font-bold text-gray-800">Announcements</h3>
+          {!isLoadingAnnouncements && (
+            <button 
+              className="text-blue-500 text-sm font-medium flex items-center"
+              onClick={markAllAsRead}
+            >
+              <MdCheckCircle className="mr-1" size={16} />
+              Mark all as read
+            </button>
+          )}
               </div>
-              {announcements.slice(0, 4).map(renderAnnouncementCard)}
-              {announcements.length > 4 && (
-                <button 
-                  className="w-full py-3 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50"
-                  onClick={() => setSelectedFilter("all")}
-                >
-                  View all announcements
-                </button>
+              {isLoadingAnnouncements ? (
+          <>
+            <ShimmerCard />
+            <ShimmerCard />
+            <ShimmerCard />
+            <ShimmerCard />
+          </>
+              ) : (
+          <>
+            {selectedFilter === "all" ? announcements.map(renderAnnouncementCard) : announcements.slice(0, 4).map(renderAnnouncementCard)}
+            {announcements.length > 4 && (
+              <button 
+                className="w-full py-3 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50"
+                onClick={() => setSelectedFilter(selectedFilter === "all" ? "unread" : "all")}
+              >
+                {selectedFilter === "all" ? "Show less" : "View all announcements"}
+              </button>
+            )}
+          </>
               )}
             </div>
           </div>
@@ -2279,34 +2358,74 @@ useEffect(() => {
       case "Projects":
         return (
           <div className="p-5">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800">All Projects</h1>
-              <p className="text-gray-500">View and manage all ongoing projects</p>
-            </div>
-
             {/* Project Stats */}
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-white rounded-2xl p-4 shadow">
-                <div className="text-lg font-bold text-gray-800">{projects.length}</div>
-                <div className="text-xs text-gray-500">Total Projects</div>
-              </div>
-              <div className="bg-white rounded-2xl p-4 shadow">
-                <div className="text-lg font-bold text-gray-800">
-                  {projects.filter(p => p.status === "ongoing").length}
-                </div>
-                <div className="text-xs text-gray-500">Active Projects</div>
-              </div>
+              {isLoadingProjects ? (
+                <>
+                  <div className="bg-gray-200 rounded-2xl p-4 shadow animate-pulse h-20"></div>
+                  <div className="bg-gray-200 rounded-2xl p-4 shadow animate-pulse h-20"></div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-white rounded-2xl p-4 shadow">
+                    <div className="text-2xl font-bold text-gray-800">{projects.length}</div>
+                    <div className="text-sm text-gray-500">Total Projects</div>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 shadow">
+                    <div className="text-2xl font-bold text-gray-800">
+                      {projects.filter(p => p.status === "ongoing").length}
+                    </div>
+                    <div className="text-sm text-gray-500">Ongoing Projects</div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Filter Buttons */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+              {["all", "pending", "ongoing", "scheduled", "completed"].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setSelectedFilter(status)}
+                  className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
+                    selectedFilter === status
+                      ? "bg-blue-500 text-white shadow-lg"
+                      : "bg-white text-gray-700 border border-gray-300 hover:border-blue-500"
+                  }`}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
             </div>
 
             {/* Projects List */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-800">Tasks List</h3>
-                <button className="text-blue-500 text-sm font-medium">
-                  Filter by status
-                </button>
+                <h3 className="text-lg font-bold text-gray-800">
+                  {selectedFilter === "all" ? "Tasks List" : `${selectedFilter.charAt(0).toUpperCase() + selectedFilter.slice(1)} Tasks`}
+                </h3>
+                {!isLoadingProjects && (
+                  <span className="text-sm text-gray-500">
+                    {filteredProjects.length} task{filteredProjects.length !== 1 ? "s" : ""}
+                  </span>
+                )}
               </div>
-              {projects.map(renderProjectCard)}
+              {isLoadingProjects ? (
+                <>
+                  <ShimmerProjectCard />
+                  <ShimmerProjectCard />
+                  <ShimmerProjectCard />
+                  <ShimmerProjectCard />
+                </>
+              ) : filteredProjects.length > 0 ? (
+                filteredProjects.map(renderProjectCard)
+              ) : (
+                <div className="text-center py-10">
+                  <MdDashboard size={40} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-gray-600 font-medium">No {selectedFilter !== "all" ? selectedFilter : ""} projects found</p>
+                  <p className="text-sm text-gray-400 mt-1">Create a new task to get started</p>
+                </div>
+              )}
             </div>
           </div>
         );

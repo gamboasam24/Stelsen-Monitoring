@@ -15,11 +15,15 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $account_type = $_SESSION['account_type'];
-// Ensure is_pinned column exists
-$colCheck = $conn->query("SHOW COLUMNS FROM announcements LIKE 'is_pinned'");
-if ($colCheck && $colCheck->num_rows === 0) {
-    $conn->query("ALTER TABLE announcements ADD COLUMN is_pinned TINYINT(1) NOT NULL DEFAULT 0");
-}
+
+// Ensure user_pins table exists for user-specific pinning
+$conn->query("CREATE TABLE IF NOT EXISTS user_pins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    announcement_id INT NOT NULL,
+    pinned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_pin (user_id, announcement_id)
+)");
 
 /* =========================
    📥 GET ANNOUNCEMENTS
@@ -34,7 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             a.type,
             a.priority,
             a.created_at,
-            a.is_pinned,
+            CASE 
+                WHEN up.id IS NOT NULL THEN 1
+                ELSE 0
+            END AS is_pinned,
             l.email AS author,
             CASE 
                 WHEN ar.id IS NULL THEN 1
@@ -42,14 +49,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             END AS unread
         FROM announcements a
         JOIN login l ON a.created_by = l.login_id
+        LEFT JOIN user_pins up 
+            ON up.announcement_id = a.announcement_id 
+            AND up.user_id = ?
         LEFT JOIN announcement_reads ar 
             ON ar.announcement_id = a.announcement_id 
             AND ar.user_id = ?
         WHERE a.is_active = 1
-        ORDER BY a.is_pinned DESC, a.created_at DESC
+        ORDER BY (up.id IS NOT NULL) DESC, a.created_at DESC
     ");
 
-    $stmt->bind_param("i", $user_id);
+    $stmt->bind_param("ii", $user_id, $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -71,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
     $action = $input['action'] ?? null;
 
-    // Toggle pin (any logged-in user)
+    // Toggle pin (user-specific)
     if ($action === 'pin') {
         $announcement_id = isset($input['id']) ? (int)$input['id'] : 0;
         $pinned = isset($input['pinned']) ? (int)!!$input['pinned'] : null;
@@ -79,9 +89,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['status' => 'error', 'message' => 'Missing parameters']);
             exit;
         }
-        $stmt = $conn->prepare("UPDATE announcements SET is_pinned = ? WHERE announcement_id = ?");
-        $stmt->bind_param('ii', $pinned, $announcement_id);
-        $stmt->execute();
+        
+        if ($pinned) {
+            // Insert pin record for this user
+            $stmt = $conn->prepare("INSERT IGNORE INTO user_pins (user_id, announcement_id) VALUES (?, ?)");
+            $stmt->bind_param('ii', $user_id, $announcement_id);
+            $stmt->execute();
+        } else {
+            // Remove pin record for this user
+            $stmt = $conn->prepare("DELETE FROM user_pins WHERE user_id = ? AND announcement_id = ?");
+            $stmt->bind_param('ii', $user_id, $announcement_id);
+            $stmt->execute();
+        }
         echo json_encode(['status' => 'success', 'message' => 'Pin state updated', 'pinned' => $pinned]);
         exit;
     }
