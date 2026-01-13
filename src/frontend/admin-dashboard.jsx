@@ -61,6 +61,7 @@ import {
   HiOutlineClipboardList,
   HiOutlineDocumentAdd
 } from "react-icons/hi";
+import Swal from "sweetalert2";
 
 const AdminDashboard = ({ user, logout }) => {
   const [currentUser, setCurrentUser] = useState(user);
@@ -75,6 +76,8 @@ const AdminDashboard = ({ user, logout }) => {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [showProjectUsersModal, setShowProjectUsersModal] = useState(false);
+  const [showAddUserToProjectModal, setShowAddUserToProjectModal] = useState(false);
   const [currentLocation, setCurrentLocation] = useState("Office");
   const [reportMessage, setReportMessage] = useState("");
   const [announcementTitle, setAnnouncementTitle] = useState("");
@@ -803,6 +806,160 @@ useEffect(() => {
     }
   };
 
+  const addUserToProject = async (userId, userName) => {
+    // Confirmation dialog
+    const result = await Swal.fire({
+      title: "Add User to Project",
+      text: `Are you sure you want to add ${userName} to this project?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, add user",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("project_id", selectedProject.id);
+      formData.append("user_id", userId);
+      formData.append("action", "add");
+
+      const response = await fetch("/backend/projects.php", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const responseText = await response.text();
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Invalid JSON response:", responseText);
+        throw new Error("Server returned invalid response. Please try again.");
+      }
+
+      if (data.status === "success") {
+        // Update UI
+        const updatedUsers = [...(selectedProject.assignedUsers || []), String(userId)];
+        setSelectedProject({
+          ...selectedProject,
+          assignedUsers: updatedUsers,
+          team_users: updatedUsers.length,
+        });
+
+        // Update projects list
+        setProjects(prev =>
+          prev.map(p =>
+            p.id === selectedProject.id
+              ? { ...p, assignedUsers: updatedUsers, team_users: updatedUsers.length }
+              : p
+          )
+        );
+
+        setShowAddUserToProjectModal(false);
+
+        Swal.fire({
+          title: "Success",
+          text: `${userName} has been added to the project`,
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        throw new Error(data.message || "Failed to add user");
+      }
+    } catch (error) {
+      console.error("Error adding user:", error);
+      Swal.fire({
+        title: "Error",
+        text: error.message || "Failed to add user to project",
+        icon: "error",
+      });
+    }
+  };
+
+  const removeUserFromProject = async (userId, userName) => {
+    // Confirmation dialog
+    const result = await Swal.fire({
+      title: "Remove User from Project",
+      text: `Are you sure you want to remove ${userName} from this project?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, remove user",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("project_id", selectedProject.id);
+      formData.append("user_id", userId);
+      formData.append("action", "remove");
+
+      const response = await fetch("/backend/projects.php", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const responseText = await response.text();
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Invalid JSON response:", responseText);
+        throw new Error("Server returned invalid response. Please try again.");
+      }
+
+      if (data.status === "success") {
+        // Update UI
+        const updatedUsers = selectedProject.assignedUsers.filter(
+          (u) => String(u) !== String(userId)
+        );
+        setSelectedProject({
+          ...selectedProject,
+          assignedUsers: updatedUsers,
+          team_users: updatedUsers.length,
+        });
+
+        // Update projects list
+        setProjects(prev =>
+          prev.map(p =>
+            p.id === selectedProject.id
+              ? { ...p, assignedUsers: updatedUsers, team_users: updatedUsers.length }
+              : p
+          )
+        );
+
+        Swal.fire({
+          title: "Removed",
+          text: `${userName} has been removed from the project`,
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        throw new Error(data.message || "Failed to remove user");
+      }
+    } catch (error) {
+      console.error("Error removing user:", error);
+      Swal.fire({
+        title: "Error",
+        text: error.message || "Failed to remove user from project",
+        icon: "error",
+      });
+    }
+  };
+
   const handleCommentFileChange = (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -1183,44 +1340,193 @@ useEffect(() => {
 const renderCommentsModal = () => (
   <div className="fixed inset-0 bg-white z-[60] flex flex-col">
     {/* Messenger-style Header */}
-    <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
-      <button 
+      <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
+        <button 
         onClick={() => setShowCommentsModal(false)}
         className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
-      >
+        >
         <FiChevronLeft size={24} className="text-gray-700" />
-      </button>
-      
-      <Avatar 
+        </button>
+        
+        <Avatar 
         user={currentUser}
         size={40}
         className="flex-shrink-0 mr-2"
-      />
-      
-       <div className="flex-1 min-w-0 ml-2">
+        />
+        
+         <div className="flex-1 min-w-0 ml-2">
         <h3 className="text-base font-bold text-gray-900 truncate">{selectedProject?.title}</h3>
         <p className="text-xs text-gray-500 truncate flex items-center gap-1">
           <span className="w-2 h-2 bg-green-500 rounded-full"></span>
           Active now
         </p>
         </div>
-      
-      <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+        
+        <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
         <FiSearch size={20} className="text-gray-600" />
-      </button>
-      
-      <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+        </button>
+        
+        <button 
+        onClick={() => setShowProjectUsersModal(true)}
+        className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2"
+        title="View and manage project users"
+        >
         <MdPeople size={20} className="text-gray-600" />
-      </button>
-    </div>
+        </button>
+      </div>
 
-    {/* Messenger Chat Area */}
+      {/* Project Users Modal */}
+      {showProjectUsersModal && (
+        <div className="fixed inset-0 bg-black/50 z-40 flex justify-center items-end">
+        <div className="bg-white rounded-t-3xl w-full max-h-[90%] overflow-auto">
+          <div className="sticky top-0 bg-white px-5 py-4 border-b border-gray-200 flex items-center">
+          <button 
+            onClick={() => setShowProjectUsersModal(false)}
+            className="p-2 rounded-full hover:bg-gray-100 mr-3"
+          >
+            <FiChevronLeft size={24} className="text-gray-700" />
+          </button>
+          <h3 className="text-lg font-bold text-gray-800">Project Team</h3>
+          </div>
+
+          <div className="p-5">
+          {/* Add User Button */}
+          <button
+            onClick={() => setShowAddUserToProjectModal(true)}
+            className="w-full mb-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium flex items-center justify-center hover:from-blue-600 hover:to-blue-700 transition-all"
+          >
+            <MdAdd size={20} className="mr-2" />
+            Add User to Project
+          </button>
+
+          {/* Current Team Members */}
+          <h4 className="font-bold text-gray-800 mb-4">Team Members</h4>
+          <div className="space-y-3">
+            {selectedProject?.assignedUsers && selectedProject.assignedUsers.length > 0 ? (
+            selectedProject.assignedUsers.map(userId => {
+              const user = users.find(u => String(u.id) === String(userId));
+              return user ? (
+              <div key={userId} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="flex items-center flex-1">
+                <Avatar user={user} size={40} />
+                <div className="ml-3 flex-1">
+                  <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
+                </div>
+                </div>
+                <button
+                onClick={() => removeUserFromProject(user.id, formatAuthorName(user.email || user.name))}
+                className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                title="Remove user"
+                >
+                <IoMdClose size={20} />
+                </button>
+              </div>
+              ) : null;
+            })
+            ) : (
+            <div className="text-center py-8">
+              <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
+              <p className="text-gray-600 font-medium">No users assigned</p>
+              <p className="text-sm text-gray-400">Add users to this project</p>
+            </div>
+            )}
+          </div>
+          </div>
+        </div>
+        </div>
+      )}
+
+      {/* Add User to Project Modal */}
+      {showAddUserToProjectModal && (
+        <div className="fixed inset-0 bg-black/50 z-40 flex justify-center items-end">
+        <div className="bg-white rounded-t-3xl w-full max-h-[90%] overflow-auto">
+          <div className="sticky top-0 bg-white px-5 py-4 border-b border-gray-200 flex items-center">
+          <button 
+            onClick={() => setShowAddUserToProjectModal(false)}
+            className="p-2 rounded-full hover:bg-gray-100 mr-3"
+          >
+            <FiChevronLeft size={24} className="text-gray-700" />
+          </button>
+          <h3 className="text-lg font-bold text-gray-800">Add Users to Project</h3>
+          </div>
+
+          <div className="p-5">
+          <div className="space-y-3">
+            {users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).length > 0 ? (
+            users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).map(user => (
+              <button
+              key={user.id}
+              onClick={() => addUserToProject(user.id, formatAuthorName(user.email || user.name))}
+              className="w-full flex items-center p-4 bg-gray-50 hover:bg-blue-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all"
+              >
+              <Avatar user={user} size={40} />
+              <div className="ml-3 flex-1 text-left">
+                <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
+                <p className="text-xs text-gray-500">{user.email}</p>
+              </div>
+              <div className="w-6 h-6 border-2 border-gray-300 rounded-full flex items-center justify-center">
+                <MdAdd size={16} className="text-blue-500" />
+              </div>
+              </button>
+            ))
+            ) : (
+            <div className="text-center py-8">
+              <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
+              <p className="text-gray-600 font-medium">All users are already assigned</p>
+            </div>
+            )}
+          </div>
+          </div>
+        </div>
+        </div>
+      )}
+
+      {/* Messenger Chat Area */}
     <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4">
       <div className="max-w-3xl mx-auto space-y-1">
         {/* Date Separator */}
         <div className="flex justify-center my-6">
           <div className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
-            Today
+            {(() => {
+              if (!selectedProject?.comments || selectedProject.comments.length === 0) {
+                return "Today";
+              }
+              
+              // Get the earliest comment date
+              const oldestComment = selectedProject.comments.reduce((oldest, current) => {
+                const oldestDate = new Date(oldest.created_at);
+                const currentDate = new Date(current.created_at);
+                return currentDate < oldestDate ? current : oldest;
+              });
+              
+              const commentDate = new Date(oldestComment.created_at);
+              const today = new Date();
+              
+              // Reset times to compare dates only
+              today.setHours(0, 0, 0, 0);
+              commentDate.setHours(0, 0, 0, 0);
+              
+              const diffTime = today - commentDate;
+              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays === 0) {
+                return "Today";
+              } else if (diffDays === 1) {
+                return "Yesterday";
+              } else if (diffDays < 7) {
+                return `${diffDays} days ago`;
+              } else if (diffDays < 30) {
+                const weeks = Math.floor(diffDays / 7);
+                return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
+              } else if (diffDays < 365) {
+                const months = Math.floor(diffDays / 30);
+                return `${months} month${months !== 1 ? 's' : ''} ago`;
+              } else {
+                const years = Math.floor(diffDays / 365);
+                return `${years} year${years !== 1 ? 's' : ''} ago`;
+              }
+            })()}
           </div>
         </div>
         

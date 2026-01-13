@@ -1112,48 +1112,86 @@ const renderAnnouncementCard = (announcement) => (
  
  const renderCommentsModal = () => (
    <div className="fixed inset-0 bg-white z-[60] flex flex-col">
-    {/* Messenger-style Header */}
-      <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
-         <button 
-        onClick={() => setShowCommentsModal(false)}
-        className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
-         >
-        <FiChevronLeft size={24} className="text-gray-700" />
-         </button>
-         
-         <Avatar 
-        userObj={user}
-        size={40}
-        className="flex-shrink-0 mr-3"
-         />
-         
-         <div className="flex-1 min-w-0 ml-2">
+     {/* Messenger-style Header */}
+     <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
+       <button 
+         onClick={() => setShowCommentsModal(false)}
+         className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
+       >
+         <FiChevronLeft size={24} className="text-gray-700" />
+       </button>
+       
+       <Avatar 
+         userObj={user}
+         size={40}
+         className="flex-shrink-0 mr-4"
+       />
+       
+       <div className="flex-1 min-w-0 ml-2">
         <h3 className="text-base font-bold text-gray-900 truncate">{selectedProject?.title}</h3>
         <p className="text-xs text-gray-500 truncate flex items-center gap-1">
           <span className="w-2 h-2 bg-green-500 rounded-full"></span>
           Active now
         </p>
-         </div>
-         
-         <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
-        <FiSearch size={20} className="text-gray-600" />
-         </button>
-         
-         <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
-        <MdPeople size={20} className="text-gray-600" />
-         </button>
-       </div>
-      
-       {/* Messenger Chat Area */}
-         <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4">
-         <div className="max-w-3xl mx-auto space-y-1">
+        </div>
+       
+       <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+         <FiSearch size={20} className="text-gray-600" />
+       </button>
+       
+       <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+         <MdPeople size={20} className="text-gray-600" />
+       </button>
+     </div>
+
+     {/* Messenger Chat Area */}
+     <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4">
+       <div className="max-w-3xl mx-auto space-y-1">
          {/* Date Separator */}
          <div className="flex justify-center my-6">
            <div className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
-             Today
+             {(() => {
+               if (!selectedProject?.comments || selectedProject.comments.length === 0) {
+                 return "Today";
+               }
+               
+               // Get the earliest comment date
+               const oldestComment = selectedProject.comments.reduce((oldest, current) => {
+                 const oldestDate = new Date(oldest.created_at);
+                 const currentDate = new Date(current.created_at);
+                 return currentDate < oldestDate ? current : oldest;
+               });
+               
+               const commentDate = new Date(oldestComment.created_at);
+               const today = new Date();
+               
+               // Reset times to compare dates only
+               today.setHours(0, 0, 0, 0);
+               commentDate.setHours(0, 0, 0, 0);
+               
+               const diffTime = today - commentDate;
+               const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+               
+               if (diffDays === 0) {
+                 return "Today";
+               } else if (diffDays === 1) {
+                 return "Yesterday";
+               } else if (diffDays < 7) {
+                 return `${diffDays} days ago`;
+               } else if (diffDays < 30) {
+                 const weeks = Math.floor(diffDays / 7);
+                 return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
+               } else if (diffDays < 365) {
+                 const months = Math.floor(diffDays / 30);
+                 return `${months} month${months !== 1 ? 's' : ''} ago`;
+               } else {
+                 const years = Math.floor(diffDays / 365);
+                 return `${years} year${years !== 1 ? 's' : ''} ago`;
+               }
+             })()}
            </div>
          </div>
-         
+
          {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
            <>
              {/* Previous comments indicator */}
@@ -1162,7 +1200,7 @@ const renderAnnouncementCard = (announcement) => (
                  ↑ View previous comments
                </button>
              </div>
- 
+
              {/* Comments */}
              {selectedProject.comments.map(comment => {
                const isCurrentUser = comment.email === user?.email;

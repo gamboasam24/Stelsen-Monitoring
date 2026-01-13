@@ -63,6 +63,115 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
    ========================= */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
+    // Check if this is FormData (add/remove user request)
+    if (!empty($_POST['action'])) {
+        if ($account_type !== 'admin') {
+            echo json_encode(['status' => 'error', 'message' => 'Admin only']);
+            exit;
+        }
+
+        $project_id = intval($_POST['project_id'] ?? 0);
+        $user_id = intval($_POST['user_id'] ?? 0);
+        $action = $_POST['action'];
+
+        if (!$project_id || !$user_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid project or user ID']);
+            exit;
+        }
+
+        try {
+            // Get current assigned users
+            $stmt = $conn->prepare("SELECT assigned_users FROM projects WHERE id = ?");
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+            
+            $stmt->bind_param("i", $project_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows === 0) {
+                echo json_encode(['status' => 'error', 'message' => 'Project not found']);
+                exit;
+            }
+
+            $project = $result->fetch_assoc();
+            $assigned_users = json_decode($project['assigned_users'] ?? '[]', true);
+
+            if ($action === 'add') {
+                if (!in_array($user_id, $assigned_users)) {
+                    $assigned_users[] = $user_id;
+                }
+            } elseif ($action === 'remove') {
+                $assigned_users = array_filter($assigned_users, function($id) use ($user_id) {
+                    return $id !== $user_id;
+                });
+                $assigned_users = array_values($assigned_users); // Re-index
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
+                exit;
+            }
+
+            $team_users = count($assigned_users);
+            $assigned_users_json = json_encode($assigned_users);
+
+            // Update project
+            $stmt = $conn->prepare("UPDATE projects SET assigned_users = ?, team_users = ? WHERE id = ?");
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+            
+            $stmt->bind_param("sii", $assigned_users_json, $team_users, $project_id);
+            $stmt->execute();
+
+            // Get user info for notification (just email, since 'name' column doesn't exist)
+            $stmt = $conn->prepare("SELECT email FROM login WHERE login_id = ?");
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+            
+            $stmt->bind_param("i", $user_id);
+            $stmt->execute();
+            $user_result = $stmt->get_result();
+            $user_info = $user_result->fetch_assoc();
+
+            // Get project info
+            $stmt = $conn->prepare("SELECT title FROM projects WHERE id = ?");
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+            
+            $stmt->bind_param("i", $project_id);
+            $stmt->execute();
+            $proj_result = $stmt->get_result();
+            $proj_info = $proj_result->fetch_assoc();
+
+            // Send notification email (optional - don't fail if email fails)
+            if ($action === 'add' && $user_info && !empty($user_info['email'])) {
+                $email = $user_info['email'];
+                $project_title = $proj_info['title'] ?? 'Your Project';
+
+                $subject = "New Project Assignment: " . $project_title;
+                $message = "Hello,\n\nYou have been assigned to a new project: $project_title\n\nPlease check your dashboard for more details.\n\nBest regards,\nMonitoring System";
+                $headers = "Content-Type: text/plain; charset=UTF-8";
+                
+                // Silently attempt to send email
+                @mail($email, $subject, $message, $headers);
+            }
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => $action === 'add' ? 'User added to project' : 'User removed from project'
+            ]);
+            exit;
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Server error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+
+    // JSON POST (create project)
     if ($account_type !== 'admin') {
         echo json_encode(['status' => 'error', 'message' => 'Admin only']);
         exit;
