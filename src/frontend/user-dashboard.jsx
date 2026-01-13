@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  IoMdHome, 
-  IoMdClose, 
-  IoMdNotifications, 
+import {
+  IoMdHome,
+  IoMdClose,
+  IoMdNotifications,
   IoMdMegaphone,
   IoMdCheckmarkCircle,
   IoMdTime,
   IoMdSend
 } from "react-icons/io";
-import { 
-  MdDashboard, 
-  MdLocationOn, 
-  MdReportProblem, 
-  MdMenu, 
-  MdAdd, 
-  MdEvent, 
+import {
+  MdDashboard,
+  MdLocationOn,
+  MdReportProblem,
+  MdMenu,
+  MdAdd,
+  MdEvent,
   MdAnnouncement,
   MdPushPin,
   MdChat,
@@ -23,28 +23,29 @@ import {
   MdWork,
   MdChatBubble,
   MdCalendarToday,
-  MdComment
+  MdComment,
+  MdPeople
 } from "react-icons/md";
-import { 
-  FaUser, 
-  FaSignOutAlt, 
-  FaRegCalendarAlt, 
+import {
+  FaUser,
+  FaSignOutAlt,
+  FaRegCalendarAlt,
   FaRegNewspaper,
   FaRegBell,
   FaMapMarkerAlt
 } from "react-icons/fa";
-import { 
-  FiSettings, 
-  FiChevronRight, 
-  FiPlus, 
-  FiChevronLeft, 
+import {
+  FiSettings,
+  FiChevronRight,
+  FiPlus,
+  FiChevronLeft,
   FiCamera,
   FiPaperclip,
   FiBell,
   FiSearch,
   FiFilter
 } from "react-icons/fi";
-import { 
+import {
   HiOutlineChatAlt2,
   HiOutlineClipboardList
 } from "react-icons/hi";
@@ -73,6 +74,7 @@ const UserDashboard = ({ user, logout }) => {
   const [commentAttachments, setCommentAttachments] = useState([]);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [users, setUsers] = useState([]);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
@@ -567,29 +569,69 @@ const getPriorityBadge = (priority) => {
 
   const addComment = async (projectId) => {
     if (!commentText.trim() && commentAttachments.length === 0) return;
+    if (isSending) return; // Prevent double submission
+
+    // Store values before clearing
+    const messageText = commentText.trim();
+    const attachments = [...commentAttachments];
+
+    // Optimistic update: Create temporary comment immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimisticComment = {
+      id: tempId,
+      user: formatAuthorName(user?.email),
+      text: messageText,
+      time: "Sending...",
+      created_at: new Date().toISOString(),
+      profile_image: getCurrentUserProfileImage(),
+      email: user?.email,
+      attachments: attachments.length > 0 ? attachments.map(a => ({
+        name: a.name,
+        type: a.type,
+        size: a.size,
+        path: a.preview || null
+      })) : null,
+      _sending: true, // Flag to show sending state
+    };
+
+    // Clear input immediately for instant feedback
+    setCommentText("");
+    setCommentAttachments([]);
+    setIsSending(true);
+
+    // Add optimistic comment to UI
+    setSelectedProject(prev => prev && prev.id === projectId
+      ? { ...prev, comments: [...(prev.comments || []), optimisticComment] }
+      : prev
+    );
+    setProjects(prev => prev.map(p => p.id === projectId 
+      ? { ...p, comments: [...(p.comments || []), optimisticComment] } 
+      : p
+    ));
 
     try {
       const formData = new FormData();
       formData.append("project_id", projectId);
-      formData.append("text", commentText);
+      formData.append("text", messageText);
       
       // Append actual file objects for multipart upload
-      commentAttachments.forEach((attachment) => {
+      attachments.forEach((attachment) => {
         formData.append("attachments[]", attachment.rawFile);
       });
 
       const response = await fetch("/backend/comments.php", {
         method: "POST",
         credentials: "include",
-        body: formData, // FormData automatically sets multipart/form-data
+        body: formData,
       });
 
       const data = await response.json();
       if (data.status === "success") {
-        const newCommentObj = {
+        // Replace optimistic comment with real one
+        const realComment = {
           id: data.comment_id || Date.now(),
           user: data.user || formatAuthorName(user?.email),
-          text: commentText,
+          text: messageText,
           time: "Just now",
           created_at: new Date().toISOString(),
           profile_image: data.profile_image || getCurrentUserProfileImage(),
@@ -597,19 +639,37 @@ const getPriorityBadge = (priority) => {
           attachments: data.attachments || null,
         };
 
-        setProjects(prev => prev.map(p => p.id === projectId ? { ...p, comments: [...(p.comments || []), newCommentObj] } : p));
-
+        // Replace temp comment with real one
         setSelectedProject(prev => prev && prev.id === projectId
-          ? { ...prev, comments: [...(prev.comments || []), newCommentObj] }
+          ? { ...prev, comments: prev.comments.map(c => c.id === tempId ? realComment : c) }
           : prev
         );
-
-        setCommentText("");
-        setCommentAttachments([]);
+        setProjects(prev => prev.map(p => p.id === projectId 
+          ? { ...p, comments: p.comments.map(c => c.id === tempId ? realComment : c) } 
+          : p
+        ));
+      } else {
+        throw new Error(data.message || "Failed to send");
       }
     } catch (error) {
       console.error("Error adding comment:", error);
-      alert("Failed to add comment. Please try again.");
+      
+      // Remove optimistic comment on error
+      setSelectedProject(prev => prev && prev.id === projectId
+        ? { ...prev, comments: prev.comments.filter(c => c.id !== tempId) }
+        : prev
+      );
+      setProjects(prev => prev.map(p => p.id === projectId 
+        ? { ...p, comments: p.comments.filter(c => c.id !== tempId) } 
+        : p
+      ));
+
+      // Restore the text and attachments so user can retry
+      setCommentText(messageText);
+      setCommentAttachments(attachments);
+      alert("Failed to send message. Please try again.");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -1049,199 +1109,370 @@ const renderAnnouncementCard = (announcement) => (
     </div>
   );
 
-  const renderCommentsModal = () => {
-    return (
-      <div className="fixed inset-0 bg-white z-[60] flex flex-col md:rounded-2xl md:w-[90%] md:h-[90%] md:left-[5%] md:top-[5%] md:bottom-auto md:mx-auto">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 md:px-5 py-3 md:py-4 flex items-center text-white shadow-lg rounded-t-none md:rounded-t-2xl">
-          <button 
-            onClick={() => setShowCommentsModal(false)}
-            className="p-2 rounded-full hover:bg-white/20 mr-3 transition-colors flex-shrink-0"
-          >
-            <FiChevronLeft size={24} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-base md:text-lg font-bold truncate">Comments & Clarifications</h3>
-            <p className="text-xs opacity-90 truncate">{selectedProject?.title}</p>
-          </div>
-        </div>
-
-        {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-gray-50">
-          {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
-            <div className="space-y-3">
-              {selectedProject.comments.map(comment => {
-                const isCurrentUser = comment.email === user?.email;
-                const commentUser = isCurrentUser ? user : users.find(u => u.email === comment.email);
-                
-                return (
-                  <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`flex items-start gap-2 max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                      <Avatar 
-                        userObj={{
-                          ...commentUser,
-                          profile_image: comment.profile_image || commentUser?.profile_image
-                        }} 
-                        size={36} 
-                      />
-                      <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
-                        <div className={`${
-                          isCurrentUser 
-                            ? (comment.text ? 'bg-blue-500 text-white' : 'bg-transparent')
-                            : 'bg-white text-gray-800 border border-gray-200'
-                        } rounded-2xl px-4 py-3 shadow-sm`}>
-                          {comment.text && <p className="text-sm leading-relaxed">{comment.text}</p>}
-                          {comment.attachments && comment.attachments.length > 0 && (
-                            <div className={`space-y-2 ${
-                              comment.text ? 'mt-3 border-t pt-2 border-opacity-30' : ''
-                            }`}>
-                              {comment.attachments.map((att, idx) => {
-                                const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
-                                return isImage ? (
-                                  <div key={idx} className="mt-2">
-                                    <img
-                                      src={att.path}
-                                      alt={att.name}
-                                      className={`rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity ${
-                                        comment.text ? 'w-full max-w-[280px] max-h-56' : 'w-full max-h-96'
-                                      }`}
-                                      onClick={() => window.open(att.path, '_blank')}
-                                    />
-                                    <a
-                                      href={att.path}
-                                      download={att.name}
-                                      className="block text-xs mt-1 text-blue-400 hover:underline"
-                                    >
-                                      Download: {att.name}
-                                    </a>
-                                  </div>
-                                ) : (
-                                  <a
-                                    key={idx}
-                                    href={att.path || att.data}
-                                    download={att.name}
-                                    className={`flex items-center text-xs px-2 py-1 rounded hover:opacity-80 transition-opacity ${
-                                      isCurrentUser ? 'bg-blue-400' : 'bg-gray-200'
-                                    }`}
-                                    target={att.path ? '_blank' : undefined}
-                                    rel={att.path ? 'noopener noreferrer' : undefined}
-                                  >
-                                    <FiPaperclip size={14} className="mr-1" />
-                                    {att.name}
-                                  </a>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1 px-2">{comment.time}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <MdComment size={64} className="opacity-30 mb-3" />
-              <p className="text-lg font-medium">No comments yet</p>
-              <p className="text-sm">Start the conversation below</p>
-            </div>
-          )}
-        </div>
-
-        {/* Input Area - Fixed at Bottom */}
-        <div className="bg-white border-t border-gray-200 p-3 md:p-4 flex-shrink-0">
-          {/* Attachments Preview */}
-          {commentAttachments.length > 0 && (
-            <div className="mb-2 p-2 bg-blue-50 rounded border border-blue-200">
-              <div className="text-xs font-medium text-blue-700 mb-2">{commentAttachments.length} file(s) attached</div>
-              <div className="flex flex-wrap gap-2 max-h-[60px] overflow-y-auto">
-                {commentAttachments.map((att, idx) => (
-                  <div key={idx} className="flex items-center gap-1 bg-white border border-blue-200 rounded px-2 py-1 text-xs flex-shrink-0 hover:bg-blue-100">
-                    <FiPaperclip size={12} className="text-blue-600 flex-shrink-0" />
-                    <span className="truncate max-w-[100px]">{att.name}</span>
-                    <button
-                      onClick={() => removeAttachment(idx)}
-                      className="text-gray-400 hover:text-red-500 ml-1"
-                      title="Remove file"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <Avatar userObj={user} size={32} className="flex-shrink-0" />
-            <div className="flex-1 flex items-center bg-gray-100 rounded-full pl-2 pr-1.5 py-1.5">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && (commentText.trim() || commentAttachments.length > 0)) {
-                    addComment(selectedProject.id);
-                  }
-                }}
-                placeholder="Message..."
-                className="flex-1 bg-transparent outline-none text-sm md:text-base"
-                autoComplete="off"
-                data-lpignore="true"
-                data-1p-ignore
-                data-form-type="other"
-                autoCorrect="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                inputMode="text"
-                enterKeyHint="send"
-                autoFocus
-              />
-              <button 
-                onClick={() => commentFileInputRef.current?.click()}
-                className={`text-gray-400 hover:text-blue-600 ml-1 flex-shrink-0 transition-colors ${
-                  commentAttachments.length > 0 ? 'text-blue-600' : ''
-                }`}
-                title="Attach files"
-              >
-                <FiPaperclip size={20} />
-              </button>
-              <button 
-                onClick={startCamera}
-                className="text-gray-400 hover:text-green-600 ml-1 flex-shrink-0 transition-colors"
-                title="Take photo"
-              >
-                <FiCamera size={20} />
-              </button>
-              <input
-                ref={commentFileInputRef}
-                type="file"
-                multiple
-                onChange={handleCommentFileChange}
-                style={{ display: 'none' }}
-              />
-            </div>
-            <button
-              onClick={() => {
-                if (commentText.trim() || commentAttachments.length > 0) {
-                  addComment(selectedProject.id);
-                }
-              }}
-              disabled={!commentText.trim() && commentAttachments.length === 0}
-              className={`p-2 md:p-3 rounded-full transition-all flex-shrink-0 ${
-                (commentText.trim() || commentAttachments.length > 0)
-                  ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <IoMdSend size={20} />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
+ 
+ const renderCommentsModal = () => (
+   <div className="fixed inset-0 bg-white z-[60] flex flex-col">
+    {/* Messenger-style Header */}
+      <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
+         <button 
+        onClick={() => setShowCommentsModal(false)}
+        className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
+         >
+        <FiChevronLeft size={24} className="text-gray-700" />
+         </button>
+         
+         <Avatar 
+        userObj={user}
+        size={40}
+        className="flex-shrink-0 mr-3"
+         />
+         
+         <div className="flex-1 min-w-0 ml-2">
+        <h3 className="text-base font-bold text-gray-900 truncate">{selectedProject?.title}</h3>
+        <p className="text-xs text-gray-500 truncate flex items-center gap-1">
+          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+          Active now
+        </p>
+         </div>
+         
+         <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+        <FiSearch size={20} className="text-gray-600" />
+         </button>
+         
+         <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+        <MdPeople size={20} className="text-gray-600" />
+         </button>
+       </div>
+      
+       {/* Messenger Chat Area */}
+         <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4">
+         <div className="max-w-3xl mx-auto space-y-1">
+         {/* Date Separator */}
+         <div className="flex justify-center my-6">
+           <div className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
+             Today
+           </div>
+         </div>
+         
+         {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
+           <>
+             {/* Previous comments indicator */}
+             <div className="text-center my-4">
+               <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                 ↑ View previous comments
+               </button>
+             </div>
+ 
+             {/* Comments */}
+             {selectedProject.comments.map(comment => {
+               const isCurrentUser = comment.email === user?.email;
+               const commentUser = isCurrentUser ? user : users.find(u => u.email === comment.email);
+               
+               return (
+                 <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-1`}>
+                   <div className={`flex max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                     {!isCurrentUser && (
+                       <div className="flex-shrink-0 mr-2 self-end">
+                         <Avatar 
+                           userObj={{
+                             ...commentUser,
+                             profile_image: comment.profile_image || commentUser?.profile_image
+                           }} 
+                           size={28} 
+                         />
+                       </div>
+                     )}
+                     
+                     <div className={`flex flex-col ${isCurrentUser ? 'items-end' : ''}`}>
+                       {!isCurrentUser && (
+                         <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
+                           {comment.user || "User"}
+                         </span>
+                       )}
+                       
+                       <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
+                         isCurrentUser 
+                           ? 'bg-blue-500 text-white rounded-br-sm' 
+                           : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
+                       }`}>
+                         {/* Messenger-style tail */}
+                         {!isCurrentUser ? (
+                           <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                             <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
+                           </div>
+                         ) : (
+                           <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                             <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
+                           </div>
+                         )}
+                         
+                         {comment.text && (
+                           <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                             {comment.text}
+                           </p>
+                         )}
+                         
+                         {comment.attachments && comment.attachments.length > 0 && (
+                           <div className={`space-y-2 mt-2 ${comment.text ? 'pt-2 border-t border-opacity-20' : ''} ${
+                             isCurrentUser ? 'border-white/30' : 'border-gray-200'
+                           }`}>
+                             {comment.attachments.map((att, idx) => {
+                               const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
+                               
+                               return isImage ? (
+                                 <div key={idx} className="rounded-lg overflow-hidden border border-opacity-20">
+                                   <img
+                                     src={att.path}
+                                     alt={att.name}
+                                     className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                     onClick={() => window.open(att.path, '_blank')}
+                                   />
+                                   {comment.text && (
+                                     <a
+                                       href={att.path}
+                                       download={att.name}
+                                       className={`block text-xs mt-1 px-2 py-1 ${
+                                         isCurrentUser 
+                                           ? 'text-blue-200 hover:text-white' 
+                                           : 'text-gray-500 hover:text-gray-700'
+                                       }`}
+                                     >
+                                       📎 {att.name}
+                                     </a>
+                                   )}
+                                 </div>
+                               ) : (
+                                 <a
+                                   key={idx}
+                                   href={att.path || att.data}
+                                   download={att.name}
+                                   className={`flex items-center text-sm px-3 py-2 rounded-lg transition-colors ${
+                                     isCurrentUser 
+                                       ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                       : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                   }`}
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                 >
+                                   <FiPaperclip size={16} className="mr-2 flex-shrink-0" />
+                                   <span className="truncate flex-1">{att.name}</span>
+                                   <span className="text-xs opacity-75 ml-2">
+                                     {(att.size / 1024).toFixed(1)}KB
+                                   </span>
+                                 </a>
+                               );
+                             })}
+                           </div>
+                         )}
+                       </div>
+                       
+                       <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                         <span className="text-[10px] text-gray-400 mr-2">
+                           {comment.time}
+                         </span>
+                         {isCurrentUser && (
+                           <div className="text-blue-500">
+                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                               <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
+                             </svg>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               );
+             })}
+           </>
+         ) : (
+           // Empty state with Messenger-style design
+           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
+             <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+               <svg className="w-10 h-10 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12h-8v-2h8v2zm0-4h-8V8h8v2z"/>
+               </svg>
+             </div>
+             <p className="text-lg font-medium text-gray-600">No comments yet</p>
+             <p className="text-sm text-gray-400 mt-1">Be the first to comment</p>
+             <div className="mt-6 text-xs text-gray-400 flex items-center">
+               <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
+               Messages are end-to-end encrypted
+               <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
+             </div>
+           </div>
+         )}
+       </div>
+     </div>
+ 
+     {/* Messenger Input Area */}
+     <div className="bg-white border-t border-gray-200 px-4 py-3">
+       {/* Typing indicator */}
+       {false && ( // You can conditionally show this
+         <div className="flex items-center mb-2 ml-2">
+           <div className="flex space-x-1">
+             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+           </div>
+           <span className="text-xs text-gray-500 ml-2">Someone is typing...</span>
+         </div>
+       )}
+       
+       {/* Attachments Preview */}
+       {commentAttachments.length > 0 && (
+         <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+           <div className="flex items-center justify-between mb-2">
+             <div className="text-sm font-medium text-blue-700">
+               {commentAttachments.length} attachment{commentAttachments.length !== 1 ? 's' : ''}
+             </div>
+             <button
+               onClick={() => setCommentAttachments([])}
+               className="text-sm text-blue-600 hover:text-blue-800"
+             >
+               Clear all
+             </button>
+           </div>
+           <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
+             {commentAttachments.map((att, idx) => (
+               <div key={idx} className="relative group">
+                 <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-lg px-3 py-2 text-sm flex-shrink-0">
+                   <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                   </svg>
+                   <span className="truncate max-w-[120px] text-gray-700">{att.name}</span>
+                   <button
+                     onClick={() => removeAttachment(idx)}
+                     className="text-gray-400 hover:text-red-500 flex-shrink-0 ml-1"
+                     title="Remove"
+                   >
+                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                       <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/>
+                     </svg>
+                   </button>
+                 </div>
+               </div>
+             ))}
+           </div>
+         </div>
+       )}
+       
+ {/* Input Form - Mobile Optimized */}
+ <div className="flex items-center gap-1">
+   {/* Left side buttons */}
+   <div className="flex items-center flex-shrink-0">
+     <button 
+       type="button"
+       onClick={() => commentFileInputRef.current?.click()}
+       className="p-2 text-gray-500 hover:text-blue-600 active:bg-gray-100 rounded-full transition-colors touch-manipulation"
+       title="Attach files"
+     >
+       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
+       </svg>
+     </button>
+     
+     <button 
+       type="button"
+       onClick={startCamera}
+       className="p-2 text-gray-500 hover:text-green-600 active:bg-gray-100 rounded-full transition-colors touch-manipulation ml-0.5"
+       title="Take photo"
+     >
+       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+         <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+         <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+       </svg>
+     </button>
+   </div>
+   
+   {/* Input field with form */}
+   <form
+     autoComplete="off"
+     className="flex-1 min-w-0"
+     onSubmit={(e) => {
+       e.preventDefault();
+       if (commentText.trim() || commentAttachments.length > 0) {
+         addComment(selectedProject.id);
+       }
+     }}
+   >
+     <div className="flex items-center bg-gray-100 rounded-full pl-3 pr-1 py-1">
+       <input
+         type="text"
+         name="message"
+         id="messenger-input"
+         value={commentText}
+         onChange={(e) => setCommentText(e.target.value)}
+         placeholder="Message..."
+         className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-gray-400 placeholder:font-normal focus:outline-none w-full"
+         autoComplete="off"
+         autoFocus
+         style={{ 
+           fontSize: '16px', // Prevents iOS zoom
+           WebkitAppearance: 'none',
+           WebkitTapHighlightColor: 'transparent'
+         }}
+       />
+       
+       {/* Emoji button */}
+       {commentText.trim() && (
+         <button 
+           type="button"
+           className="p-2 text-gray-500 hover:text-yellow-500 active:bg-gray-200 rounded-full transition-colors touch-manipulation ml-1"
+           title="Emoji"
+         >
+           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+           </svg>
+         </button>
+       )}
+     </div>
+   </form>
+   
+   {/* Send button */}
+   <button
+     type="button"
+     onClick={() => {
+       if ((commentText.trim() || commentAttachments.length > 0) && !isSending) {
+         addComment(selectedProject.id);
+       }
+     }}
+     disabled={(!commentText.trim() && commentAttachments.length === 0) || isSending}
+     className={`p-2.5 rounded-full transition-all ml-1 flex-shrink-0 touch-manipulation ${
+       (commentText.trim() || commentAttachments.length > 0) && !isSending
+         ? 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white shadow'
+         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+     }`}
+     title="Send message"
+     style={{ 
+       minWidth: '44px',
+       minHeight: '44px',
+       WebkitTapHighlightColor: 'transparent',
+     }}
+   >
+     {isSending ? (
+       <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+       </svg>
+     ) : (
+       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+         <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16151495 C3.34915502,0.9 2.40734225,0.9 1.77946707,1.4429026 C0.994623095,2.0766019 0.837654326,3.16592693 1.15159189,3.95141385 L3.03521743,10.3924068 C3.03521743,10.5495042 3.19218622,10.7066015 3.50612381,10.7066015 L16.6915026,11.4920884 C16.6915026,11.4920884 17.1624089,11.4920884 17.1624089,11.0051895 L17.1624089,12.4744748 C17.1624089,12.4744748 17.1624089,12.4744748 16.6915026,12.4744748 Z"/>
+       </svg>
+     )}
+   </button>
+ </div>
+       
+       <input
+         ref={commentFileInputRef}
+         type="file"
+         multiple
+         onChange={handleCommentFileChange}
+         style={{ display: 'none' }}
+       />
+     </div>
+     
+   </div>
+ );
 
   const renderLocationHistory = (item) => (
     <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center">
@@ -1379,7 +1610,7 @@ const renderAnnouncementCard = (announcement) => (
         {/* Menu Items */}
         <div className="space-y-3 mb-6">
           <h4 className="font-bold text-gray-700 mb-2 px-2">Quick Actions</h4>
-          
+
           <button className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
             <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
               <FiSettings size={22} className="text-blue-500" />
@@ -1392,8 +1623,8 @@ const renderAnnouncementCard = (announcement) => (
           </button>
 
           <button className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mr-4">
-              <MdDashboard size={22} className="text-green-500" />
+            <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mr-4">
+              <MdDashboard size={22} className="text-purple-500" />
             </div>
             <div className="flex-1 text-left">
               <div className="font-medium">My Projects</div>
@@ -1403,8 +1634,8 @@ const renderAnnouncementCard = (announcement) => (
           </button>
 
           <button className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
-            <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mr-4">
-              <MdLocationOn size={22} className="text-purple-500" />
+            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mr-4">
+              <MdLocationOn size={22} className="text-green-500" />
             </div>
             <div className="flex-1 text-left">
               <div className="font-medium">Location History</div>
