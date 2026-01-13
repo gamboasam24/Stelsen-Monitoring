@@ -74,7 +74,6 @@ const AdminDashboard = ({ user, logout }) => {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
-  const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   // Navigation stack for screen-based navigation (replaces modals)
   const [navigationStack, setNavigationStack] = useState([]);
@@ -733,7 +732,7 @@ useEffect(() => {
   const viewProjectDetails = async (project) => {
     // Prime selected project immediately
     setSelectedProject({ ...project, comments: project.comments || [] });
-    setShowProjectDetailsModal(true);
+    pushScreen("projectDetails", { project });
 
     // Fetch fresh comments for this project
     try {
@@ -1235,17 +1234,20 @@ useEffect(() => {
   };
 
   const renderProjectDetailsModal = () => (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-50">
-      <div className="bg-white rounded-t-3xl p-5 w-full max-h-[90%] overflow-auto">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="text-xl font-bold text-gray-800">Tasks Details</h3>
-          <button 
-            onClick={() => setShowProjectDetailsModal(false)}
-            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
-          >
-            <IoMdClose size={24} className="text-gray-600" />
-          </button>
-        </div>
+    <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
+      {/* Header with Back Button */}
+      <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+        <button 
+          onClick={popScreen}
+          className="p-2 rounded-full hover:bg-gray-100 mr-3"
+        >
+          <FiChevronLeft size={24} className="text-gray-700" />
+        </button>
+        <h3 className="flex-1 text-lg font-bold text-gray-800">Tasks Details</h3>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-5">
         
         {selectedProject && (
           <>
@@ -1325,6 +1327,8 @@ useEffect(() => {
               <button
                 onClick={() => {
                   setShowCommentsModal(true);
+                  // Reset navigation stack when opening comments
+                  setNavigationStack([]);
                   // Mark all comments as read for this project
                   if (selectedProject && selectedProject.comments) {
                     const commentIds = selectedProject.comments.map(c => c.id);
@@ -1363,9 +1367,7 @@ useEffect(() => {
         )}
       </div>
     </div>
-  );
-
-const renderCommentsModal = () => (
+  );const renderCommentsModal = () => (
   <div className="fixed inset-0 bg-white z-[60] flex flex-col">
     {/* Messenger-style Header */}
       <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
@@ -2787,8 +2789,8 @@ const renderCommentsModal = () => (
       {/* Project Creation Modal */}
       {showProjectModal && renderProjectModal()}
 
-      {/* Project Details Modal */}
-      {showProjectDetailsModal && renderProjectDetailsModal()}
+      {/* Project Details - Stack Navigation */}
+      {getCurrentScreen()?.screen === "projectDetails" && renderProjectDetailsModal()}
 
       {/* Comments Modal - Stack Navigation */}
       {showCommentsModal && renderCommentsModal()}
