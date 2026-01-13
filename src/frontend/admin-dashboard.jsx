@@ -2040,7 +2040,7 @@ const renderCommentsModal = () => (
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Deadline
+                  Deadline *
                 </label>
                 <input
                   type="date"
@@ -2056,7 +2056,7 @@ const renderCommentsModal = () => (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Manager
+                  Manager *
                 </label>
                 <input
                   type="text"
@@ -2070,7 +2070,7 @@ const renderCommentsModal = () => (
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Budget
+                  Budget *
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 font-medium">₱</span>
@@ -2088,7 +2088,7 @@ const renderCommentsModal = () => (
 
           <div className="bg-white rounded-xl p-4 shadow-sm">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Assign Users
+              Assign Users *
             </label>
             <select
               multiple
@@ -2120,13 +2120,56 @@ const renderCommentsModal = () => (
       {/* Fixed Bottom Button */}
       <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
         <button
-          onClick={createProject}
+          onClick={() => {
+            // Strict validation
+            const errors = [];
+            
+            if (!projectTitle.trim()) {
+              errors.push("Task name is required");
+            }
+            if (!projectDeadline.trim()) {
+              errors.push("Deadline is required");
+            }
+            if (!projectManager.trim()) {
+              errors.push("Manager is required");
+            }
+            if (!projectBudget.trim()) {
+              errors.push("Budget is required");
+            }
+            if (selectedUsers.length === 0) {
+              errors.push("At least one employee must be assigned");
+            }
+
+            if (errors.length > 0) {
+              Swal.fire({
+                title: "Missing Required Fields",
+                html: errors.map(e => `<div>• ${e}</div>`).join(""),
+                icon: "warning",
+                confirmButtonColor: "#3085d6",
+                confirmButtonText: "OK",
+              });
+              return;
+            }
+
+            // All fields are filled, proceed with creation
+            createProject();
+          }}
           className={`w-full py-4 rounded-xl font-bold text-white ${
-            projectTitle.trim()
-              ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-              : "bg-gray-400 cursor-not-allowed"
+            projectTitle.trim() && 
+            projectDeadline.trim() && 
+            projectManager.trim() && 
+            projectBudget.trim() && 
+            selectedUsers.length > 0
+              ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 cursor-pointer"
+              : "bg-gray-400 cursor-not-allowed opacity-60"
           }`}
-          disabled={!projectTitle.trim()}
+          disabled={
+            !projectTitle.trim() || 
+            !projectDeadline.trim() || 
+            !projectManager.trim() || 
+            !projectBudget.trim() || 
+            selectedUsers.length === 0
+          }
         >
           <div className="flex items-center justify-center">
             <MdAddTask className="mr-2" />
