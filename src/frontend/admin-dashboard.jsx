@@ -76,8 +76,8 @@ const AdminDashboard = ({ user, logout }) => {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showProjectDetailsModal, setShowProjectDetailsModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
-  const [showProjectUsersModal, setShowProjectUsersModal] = useState(false);
-  const [showAddUserToProjectModal, setShowAddUserToProjectModal] = useState(false);
+  // Navigation stack for screen-based navigation (replaces modals)
+  const [navigationStack, setNavigationStack] = useState([]);
   const [currentLocation, setCurrentLocation] = useState("Office");
   const [reportMessage, setReportMessage] = useState("");
   const [announcementTitle, setAnnouncementTitle] = useState("");
@@ -117,6 +117,23 @@ const AdminDashboard = ({ user, logout }) => {
     lat: 14.5995,
     lng: 120.9842,
   });
+
+  // Navigation Stack Functions
+  const pushScreen = (screenName, data = {}) => {
+    setNavigationStack(prev => [...prev, { screen: screenName, data }]);
+  };
+
+  const popScreen = () => {
+    setNavigationStack(prev => prev.slice(0, -1));
+  };
+
+  const getCurrentScreen = () => {
+    return navigationStack.length > 0 ? navigationStack[navigationStack.length - 1] : null;
+  };
+
+  const isScreenOpen = (screenName) => {
+    return navigationStack.some(item => item.screen === screenName);
+  };
   
 // Format author name from email
 const formatAuthorName = (email) => {
@@ -1378,7 +1395,7 @@ const renderCommentsModal = () => (
         </button>
         
         <button 
-        onClick={() => setShowProjectUsersModal(true)}
+        onClick={() => pushScreen("projectUsers")}
         className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2"
         title="View and manage project users"
         >
@@ -1386,110 +1403,103 @@ const renderCommentsModal = () => (
         </button>
       </div>
 
-      {/* Project Users Modal */}
-      {showProjectUsersModal && (
-        <div className="fixed inset-0 bg-black/50 z-40 flex justify-center items-end">
-        <div className="bg-white rounded-t-3xl w-full max-h-[90%] overflow-auto">
-          <div className="sticky top-0 bg-white px-5 py-4 border-b border-gray-200 flex items-center">
-          <button 
-            onClick={() => setShowProjectUsersModal(false)}
-            className="p-2 rounded-full hover:bg-gray-100 mr-3"
-          >
-            <FiChevronLeft size={24} className="text-gray-700" />
-          </button>
-          <h3 className="text-lg font-bold text-gray-800">Project Team</h3>
+      {/* Navigation Stack - Screen-based Navigation */}
+      {navigationStack.length > 0 && (
+        <div className="fixed inset-0 bg-white z-40 flex flex-col animate-slide-in-right">
+          {/* Dynamic Header */}
+          <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 flex items-center">
+            <button 
+              onClick={popScreen}
+              className="p-2 rounded-full hover:bg-gray-100 mr-3"
+            >
+              <FiChevronLeft size={24} className="text-gray-700" />
+            </button>
+            <h3 className="text-lg font-bold text-gray-800">
+              {getCurrentScreen()?.screen === "projectUsers" ? "Project Team" : "Add Users to Project"}
+            </h3>
           </div>
 
-          <div className="p-5">
-          {/* Add User Button */}
-          <button
-            onClick={() => setShowAddUserToProjectModal(true)}
-            className="w-full mb-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium flex items-center justify-center hover:from-blue-600 hover:to-blue-700 transition-all"
-          >
-            <MdAdd size={20} className="mr-2" />
-            Add User to Project
-          </button>
-
-          {/* Current Team Members */}
-          <h4 className="font-bold text-gray-800 mb-4">Team Members</h4>
-          <div className="space-y-3">
-            {selectedProject?.assignedUsers && selectedProject.assignedUsers.length > 0 ? (
-            selectedProject.assignedUsers.map(userId => {
-              const user = users.find(u => String(u.id) === String(userId));
-              return user ? (
-              <div key={userId} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <div className="flex items-center flex-1">
-                <Avatar user={user} size={40} />
-                <div className="ml-3 flex-1">
-                  <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
-                </div>
-                </div>
+          {/* Dynamic Content */}
+          <div className="flex-1 overflow-y-auto p-5">
+            {/* Project Users Screen */}
+            {getCurrentScreen()?.screen === "projectUsers" && (
+              <div className="space-y-4">
+                {/* Add User Button */}
                 <button
-                onClick={() => removeUserFromProject(user.id, formatAuthorName(user.email || user.name))}
-                className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                title="Remove user"
+                  onClick={() => pushScreen("addUserToProject")}
+                  className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium flex items-center justify-center hover:from-blue-600 hover:to-blue-700 transition-all"
                 >
-                <IoMdClose size={20} />
+                  <MdAdd size={20} className="mr-2" />
+                  Add User to Project
                 </button>
+
+                {/* Current Team Members */}
+                <div>
+                  <h4 className="font-bold text-gray-800 mb-4">Team Members</h4>
+                  <div className="space-y-3">
+                    {selectedProject?.assignedUsers && selectedProject.assignedUsers.length > 0 ? (
+                      selectedProject.assignedUsers.map(userId => {
+                        const user = users.find(u => String(u.id) === String(userId));
+                        return user ? (
+                          <div key={userId} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <div className="flex items-center flex-1">
+                              <Avatar user={user} size={40} />
+                              <div className="ml-3 flex-1">
+                                <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
+                                <p className="text-xs text-gray-500">{user.email}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => removeUserFromProject(user.id, formatAuthorName(user.email || user.name))}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                              title="Remove user"
+                            >
+                              <IoMdClose size={20} />
+                            </button>
+                          </div>
+                        ) : null;
+                      })
+                    ) : (
+                      <div className="text-center py-8">
+                        <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
+                        <p className="text-gray-600 font-medium">No users assigned</p>
+                        <p className="text-sm text-gray-400">Add users to this project</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              ) : null;
-            })
-            ) : (
-            <div className="text-center py-8">
-              <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-gray-600 font-medium">No users assigned</p>
-              <p className="text-sm text-gray-400">Add users to this project</p>
-            </div>
+            )}
+
+            {/* Add User to Project Screen */}
+            {getCurrentScreen()?.screen === "addUserToProject" && (
+              <div className="space-y-3">
+                {users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).length > 0 ? (
+                  users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).map(user => (
+                    <button
+                      key={user.id}
+                      onClick={() => addUserToProject(user.id, formatAuthorName(user.email || user.name))}
+                      className="w-full flex items-center p-4 bg-gray-50 hover:bg-blue-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all"
+                    >
+                      <Avatar user={user} size={40} />
+                      <div className="ml-3 flex-1 text-left">
+                        <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                      <div className="w-6 h-6 border-2 border-gray-300 rounded-full flex items-center justify-center">
+                        <MdAdd size={16} className="text-blue-500" />
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
+                    <p className="text-gray-600 font-medium">All users are already assigned</p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
-          </div>
-        </div>
-        </div>
-      )}
-
-      {/* Add User to Project Modal */}
-      {showAddUserToProjectModal && (
-        <div className="fixed inset-0 bg-black/50 z-40 flex justify-center items-end">
-        <div className="bg-white rounded-t-3xl w-full max-h-[90%] overflow-auto">
-          <div className="sticky top-0 bg-white px-5 py-4 border-b border-gray-200 flex items-center">
-          <button 
-            onClick={() => setShowAddUserToProjectModal(false)}
-            className="p-2 rounded-full hover:bg-gray-100 mr-3"
-          >
-            <FiChevronLeft size={24} className="text-gray-700" />
-          </button>
-          <h3 className="text-lg font-bold text-gray-800">Add Users to Project</h3>
-          </div>
-
-          <div className="p-5">
-          <div className="space-y-3">
-            {users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).length > 0 ? (
-            users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).map(user => (
-              <button
-              key={user.id}
-              onClick={() => addUserToProject(user.id, formatAuthorName(user.email || user.name))}
-              className="w-full flex items-center p-4 bg-gray-50 hover:bg-blue-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all"
-              >
-              <Avatar user={user} size={40} />
-              <div className="ml-3 flex-1 text-left">
-                <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
-                <p className="text-xs text-gray-500">{user.email}</p>
-              </div>
-              <div className="w-6 h-6 border-2 border-gray-300 rounded-full flex items-center justify-center">
-                <MdAdd size={16} className="text-blue-500" />
-              </div>
-              </button>
-            ))
-            ) : (
-            <div className="text-center py-8">
-              <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-gray-600 font-medium">All users are already assigned</p>
-            </div>
-            )}
-          </div>
-          </div>
-        </div>
         </div>
       )}
 
