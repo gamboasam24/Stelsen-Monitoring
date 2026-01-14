@@ -93,6 +93,7 @@ const UserDashboard = ({ user, logout }) => {
       return {};
     }
   });
+  const [otherUsersLocations, setOtherUsersLocations] = useState([]);
 
   // Pin state is provided by backend (persisted like admin)
 
@@ -104,6 +105,35 @@ const UserDashboard = ({ user, logout }) => {
       console.error('Error saving read comments:', err);
     }
   }, [readComments]);
+
+  // Fetch other users' locations when in My Location tab
+  useEffect(() => {
+    if (activeTab === 'My Location') {
+      fetchOtherUsersLocations();
+      // Disabled interval for now - only fetch once when tab changes
+      // const interval = setInterval(fetchOtherUsersLocations, 5000);
+      // return () => clearInterval(interval);
+    }
+  }, [activeTab]);
+
+  const fetchOtherUsersLocations = async () => {
+    try {
+      const response = await fetch('/backend/location.php?user_id=all', {
+        credentials: 'include'
+      });
+      const text = await response.text();
+      console.log('Response from location.php:', text.substring(0, 100));
+      
+      const data = JSON.parse(text);
+      if (data.status === 'success' && data.locations) {
+        // Filter out current user's location
+        const others = data.locations.filter(loc => loc.user_id !== user?.id);
+        setOtherUsersLocations(others);
+      }
+    } catch (err) {
+      console.error('Error fetching other users locations:', err);
+    }
+  };
 
   const [viewState, setViewState] = useState({
     longitude: 120.9842,
@@ -2006,6 +2036,37 @@ const renderAnnouncementCard = (announcement) => (
                 mapStyle="mapbox://styles/mapbox/streets-v12"
                 mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}
               >
+                {/* Other Users' Location Markers with Profile Images */}
+                {otherUsersLocations.map((location) => (
+                  <Marker
+                    key={`user-${location.user_id}`}
+                    longitude={location.longitude}
+                    latitude={location.latitude}
+                    anchor="bottom"
+                  >
+                    <div className="relative">
+                      {location.profile_image ? (
+                        <img
+                          src={location.profile_image}
+                          alt={location.email}
+                          className="w-10 h-10 rounded-full border-3 border-white shadow-md object-cover"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                          title={location.email}
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-gray-400 rounded-full border-3 border-white shadow-md flex items-center justify-center" title={location.email}>
+                          <span className="text-white font-bold text-sm">
+                            {location.email?.charAt(0).toUpperCase() || '?'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </Marker>
+                ))}
+
                 {/* User Location Marker with Profile Image */}
                 <Marker 
                   longitude={viewState.longitude} 
