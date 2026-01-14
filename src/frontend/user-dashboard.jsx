@@ -2211,8 +2211,8 @@ const renderAnnouncementCard = (announcement) => (
               </div>
               <div className="flex items-center mt-1 text-xs">
                 <div
-                  className={`w-4 h-4 rounded-full mr-2`}
-                  style={{ backgroundColor: userStatus === "Active" ? "#4CAF50" : "#F44336" }}
+                  className={`w-2 h-2 rounded-full mr-2`}
+                  style={{ backgroundColor: userStatus === "Active" ? "#44eb4a" : "#F44336" }}
                 ></div>
                 Status: {userStatus}
               </div>
