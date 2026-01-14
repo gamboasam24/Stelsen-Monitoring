@@ -2051,7 +2051,7 @@ const renderAnnouncementCard = (announcement) => (
                       longitude,
                       latitude,
                       zoom: 15
-                    });
+                      });
                     // Save updated location to backend
                     saveLocationToBackend(longitude, latitude, currentLocation);
                   }}
