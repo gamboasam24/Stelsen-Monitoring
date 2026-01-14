@@ -1809,75 +1809,77 @@ useEffect(() => {
     </button>
   </div>
   
-  {/* Input field with form */}
-  <form
-    autoComplete="off"
-    className="flex-1 min-w-0"
-    onSubmit={(e) => {
-      e.preventDefault();
-      if (commentText.trim() || commentAttachments.length > 0) {
-        addComment(selectedProject.id);
-      }
-    }}
-  >
-    <div className="flex items-center bg-gray-100 rounded-full pl-3 pr-1 py-1">
-      <input
-        type="text"
-        name="message"
-        id="messenger-input"
-        value={commentText}
-        onChange={(e) => setCommentText(e.target.value)}
-        placeholder="Message..."
-        className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-gray-400 placeholder:font-normal focus:outline-none w-full"
-        autoComplete="off"
-        autoFocus
-        style={{ 
-          fontSize: '16px', // Prevents iOS zoom
-          WebkitAppearance: 'none',
-          WebkitTapHighlightColor: 'transparent'
-        }}
-      />
-      
-      {/* Emoji button */}
-      {commentText.trim() && (
-        <button 
-          type="button"
-          className="p-2 text-gray-500 hover:text-yellow-500 active:bg-gray-200 rounded-full transition-colors touch-manipulation ml-1"
-          title="Emoji"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
-          </svg>
-        </button>
-      )}
-    </div>
-  </form>
-  
-  {/* Send button */}
-  <button
-    type="button"
-    onClick={() => {
-      if (commentText.trim() || commentAttachments.length > 0) {
-        addComment(selectedProject.id);
-      }
-    }}
-    disabled={!commentText.trim() && commentAttachments.length === 0}
-    className={`p-2.5 rounded-full transition-all ml-1 flex-shrink-0 touch-manipulation ${
-      (commentText.trim() || commentAttachments.length > 0)
-        ? 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white shadow'
-        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-    }`}
-    title="Send message"
-    style={{ 
-      minWidth: '44px',
-      minHeight: '44px', // Better touch target
-    }}
-  >
-    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16151495 C3.34915502,0.9 2.40734225,0.9 1.77946707,1.4429026 C0.994623095,2.0766019 0.837654326,3.16592693 1.15159189,3.95141385 L3.03521743,10.3924068 C3.03521743,10.5495042 3.19218622,10.7066015 3.50612381,10.7066015 L16.6915026,11.4920884 C16.6915026,11.4920884 17.1624089,11.4920884 17.1624089,11.0051895 L17.1624089,12.4744748 C17.1624089,12.4744748 17.1624089,12.4744748 16.6915026,12.4744748 Z"/>
-    </svg>
-  </button>
-</div>
+     {/* Oval input */}
+  <div className="flex items-center flex-1 bg-gray-100 rounded-full px-3 py-2 shadow-sm">
+
+    {/* Textarea */}
+    <textarea
+      value={commentText}
+      onChange={(e) => setCommentText(e.target.value)}
+      placeholder="Message"
+      rows={1}
+      name="msg"
+
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="sentences"
+      spellCheck={false}
+
+      inputMode="text"
+      enterKeyHint="send"
+
+      className="flex-1 resize-none bg-transparent outline-none text-sm placeholder:text-gray-400 leading-5"
+
+      style={{
+        fontSize: "16px",
+        WebkitAppearance: "none",
+      }}
+
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          if (commentText.trim() || commentAttachments.length > 0) {
+            addComment(selectedProject.id);
+          }
+        }
+      }}
+    />
+  </div>
+   
+   {/* Send button */}
+   <button
+     type="button"
+     onClick={() => {
+       if ((commentText.trim() || commentAttachments.length > 0) && !isSending) {
+         addComment(selectedProject.id);
+       }
+     }}
+     disabled={(!commentText.trim() && commentAttachments.length === 0) || isSending}
+     className={`p-3 rounded-full transition-all ml-1 flex-shrink-0 touch-manipulation ${
+       (commentText.trim() || commentAttachments.length > 0) && !isSending
+         ? 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white shadow'
+         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+     }`}
+     title="Send message"
+     style={{ 
+       minWidth: '44px',
+       minHeight: '44px',
+       WebkitTapHighlightColor: 'transparent',
+     }}
+   >
+     {isSending ? (
+       <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+       </svg>
+     ) : (
+       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+         <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16151495 C3.34915502,0.9 2.40734225,0.9 1.77946707,1.4429026 C0.994623095,2.0766019 0.837654326,3.16592693 1.15159189,3.95141385 L3.03521743,10.3924068 C3.03521743,10.5495042 3.19218622,10.7066015 3.50612381,10.7066015 L16.6915026,11.4920884 C16.6915026,11.4920884 17.1624089,11.4920884 17.1624089,11.0051895 L17.1624089,12.4744748 C17.1624089,12.4744748 17.1624089,12.4744748 16.6915026,12.4744748 Z"/>
+       </svg>
+     )}
+   </button>
+ </div>
+       
       
       <input
         ref={commentFileInputRef}
