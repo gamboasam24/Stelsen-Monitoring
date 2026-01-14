@@ -1541,6 +1541,13 @@ const renderAnnouncementCard = (announcement) => (
          placeholder="Message..."
          className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-gray-400 placeholder:font-normal focus:outline-none w-full"
          autoComplete="off"
+         autoCapitalize="none"
+         autoCorrect="off"
+         spellCheck={false}
+         inputMode="text"
+         enterKeyHint="send"
+         data-lpignore="true"
+         data-1p-ignore="true"
          autoFocus
          style={{ 
            fontSize: '16px', // Prevents iOS zoom
@@ -1548,7 +1555,7 @@ const renderAnnouncementCard = (announcement) => (
            WebkitTapHighlightColor: 'transparent'
          }}
        />
-       
+       ''
        {/* Emoji button */}
        {commentText.trim() && (
          <button 
