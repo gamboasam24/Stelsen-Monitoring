@@ -57,7 +57,7 @@ const UserDashboard = ({ user, logout }) => {
   const [activeTab, setActiveTab] = useState("Home");
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState("Office");
+  const [currentLocation, setCurrentLocation] = useState("Fetching location...");
   const [reportMessage, setReportMessage] = useState("");
   const [userStatus, setUserStatus] = useState("Active");
   const [profileOpen, setProfileOpen] = useState(false);
@@ -426,6 +426,45 @@ const getPriorityBadge = (priority) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Reverse geocode to get location name from coordinates
+  const getLocationName = async (longitude, latitude) => {
+    try {
+      const accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${accessToken}&types=address,poi,place,locality,neighborhood`
+      );
+      const data = await response.json();
+      
+      if (data.features && data.features.length > 0) {
+        const feature = data.features[0];
+        // Extract meaningful location name
+        const placeName = feature.place_name;
+        const text = feature.text;
+        
+        // Get context for better name construction
+        const context = feature.context || [];
+        const neighborhood = context.find(c => c.id.startsWith('neighborhood'))?.text;
+        const place = context.find(c => c.id.startsWith('place'))?.text;
+        
+        // Return most relevant name
+        if (feature.place_type.includes('poi')) {
+          return text; // Return POI name (e.g., "SM Mall", "Coffee Shop")
+        } else if (neighborhood && place) {
+          return `${neighborhood}, ${place}`;
+        } else if (place) {
+          return place;
+        } else {
+          // Extract first part of place_name for brevity
+          return placeName.split(',').slice(0, 2).join(',');
+        }
+      }
+      return 'Unknown Location';
+    } catch (error) {
+      console.error('Error fetching location name:', error);
+      return 'Unknown Location';
+    }
+  };
+
   // Save location to backend
   const saveLocationToBackend = async (longitude, latitude, locationName = null) => {
     try {
@@ -448,7 +487,7 @@ const getPriorityBadge = (priority) => {
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const longitude = pos.coords.longitude;
         const latitude = pos.coords.latitude;
         setViewState({
@@ -456,10 +495,18 @@ const getPriorityBadge = (priority) => {
           latitude,
           zoom: 15
         });
-        // Save initial location to backend
-        saveLocationToBackend(longitude, latitude, currentLocation);
+        
+        // Get actual location name from coordinates
+        const locationName = await getLocationName(longitude, latitude);
+        setCurrentLocation(locationName);
+        
+        // Save initial location to backend with actual name
+        saveLocationToBackend(longitude, latitude, locationName);
       },
-      () => alert("Location access denied")
+      () => {
+        alert("Location access denied");
+        setCurrentLocation("Location access denied");
+      }
     );
   }, []);
 
@@ -2038,7 +2085,7 @@ const renderAnnouncementCard = (announcement) => (
             <div className="absolute inset-0">
               <Map
                 {...viewState}
-                onMove={evt => setViewState(evt.viewState)}
+                onMove={evt => setViewState(evt.viewState)} 
                 style={{ width: "100%", height: "100%" }}
                 mapStyle="mapbox://styles/mapbox/streets-v12"
                 mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}
@@ -2112,16 +2159,21 @@ const renderAnnouncementCard = (announcement) => (
                 <GeolocateControl 
                   position="top-right"
                   trackUserLocation
-                  onGeolocate={(e) => {
+                  onGeolocate={async (e) => {
                     const longitude = e.coords.longitude;
                     const latitude = e.coords.latitude;
                     setViewState({
                       longitude,
                       latitude,
                       zoom: 15
-                      });
-                    // Save updated location to backend
-                    saveLocationToBackend(longitude, latitude, currentLocation);
+                    });
+                    
+                    // Get actual location name from new coordinates
+                    const locationName = await getLocationName(longitude, latitude);
+                    setCurrentLocation(locationName);
+                    
+                    // Save updated location to backend with actual name
+                    saveLocationToBackend(longitude, latitude, locationName);
                   }}
                 />
               </Map>
