@@ -2080,9 +2080,9 @@ const renderAnnouncementCard = (announcement) => (
 
        case "My Location":
         return (
-          <div className="relative h-screen w-full overflow-hidden">
+          <div className="relative h-screen w-full overflow-hidden" style={{ overscrollBehavior: 'none' }}>
             {/* MAP */}
-            <div className="absolute inset-0">
+            <div className="absolute inset-0 overflow-hidden">
               <Map
                 {...viewState}
                 onMove={evt => setViewState(evt.viewState)} 
@@ -2096,7 +2096,7 @@ const renderAnnouncementCard = (announcement) => (
                     key={`user-${location.user_id}`}
                     longitude={location.longitude}
                     latitude={location.latitude}
-                    anchor="bottom"
+                    anchor="center"
                   >
                     <div className="relative">
                       {location.profile_image ? (
@@ -2125,7 +2125,7 @@ const renderAnnouncementCard = (announcement) => (
                 <Marker 
                   longitude={viewState.longitude} 
                   latitude={viewState.latitude}
-                  anchor="bottom"
+                  anchor="center"
                 >
                   <div className="relative">
                     {getCurrentUserProfileImage() ? (
@@ -2140,42 +2140,47 @@ const renderAnnouncementCard = (announcement) => (
                           }}
                         />
                         {/* Pulsing radar effect */}
-                        <div className="absolute inset-0 w-12 h-12 rounded-full bg-blue-500 opacity-30 animate-ping"></div>
+                      <div className="absolute inset-0 w-12 h-12 rounded-full bg-blue-500 opacity-30 animate-ping"></div>
                       </div>
                     ) : (
                       <div className="relative">
-                        <div className="w-12 h-12 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                          <span className="text-white font-bold text-lg">
-                            {user?.email?.charAt(0).toUpperCase() || '?'}
-                          </span>
-                        </div>
-                        <div className="absolute inset-0 w-12 h-12 rounded-full bg-blue-500 opacity-30 animate-ping"></div>
+                      <div className="w-12 h-12 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">
+                        {user?.email?.charAt(0).toUpperCase() || '?'}
+                        </span>
+                      </div>
+                      <div className="absolute inset-0 w-12 h-12 rounded-full bg-blue-500 opacity-30 animate-ping"></div>
                       </div>
                     )}
+                    </div>
+                  </Marker>
+                  
+                  {/* Map Controls - custom positioned */}
+                  <div style={{ position: 'absolute', top: '80px', left: '16px', zIndex: 10 }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <NavigationControl />
+                    </div>
+                    <GeolocateControl 
+                      trackUserLocation
+                      showUserHeading={true}
+                      onGeolocate={async (e) => {
+                        const longitude = e.coords.longitude;
+                        const latitude = e.coords.latitude;
+                        setViewState({
+                          longitude,
+                          latitude,
+                          zoom: 15
+                        });
+                        
+                        // Get actual location name from new coordinates
+                        const locationName = await getLocationName(longitude, latitude);
+                        setCurrentLocation(locationName);
+                        
+                        // Save updated location to backend with actual name
+                        saveLocationToBackend(longitude, latitude, locationName);
+                      }}
+                    />
                   </div>
-                </Marker>
-                
-                <NavigationControl position="top-right" />
-                <GeolocateControl 
-                  position="top-right"
-                  trackUserLocation
-                  onGeolocate={async (e) => {
-                    const longitude = e.coords.longitude;
-                    const latitude = e.coords.latitude;
-                    setViewState({
-                      longitude,
-                      latitude,
-                      zoom: 15
-                    });
-                    
-                    // Get actual location name from new coordinates
-                    const locationName = await getLocationName(longitude, latitude);
-                    setCurrentLocation(locationName);
-                    
-                    // Save updated location to backend with actual name
-                    saveLocationToBackend(longitude, latitude, locationName);
-                  }}
-                />
               </Map>
 
               {/* Top Bar */}
@@ -2201,13 +2206,15 @@ const renderAnnouncementCard = (announcement) => (
               </div>
 
               {/* Location History */}
-              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 shadow-2xl h-[45%]">
-                <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-gray-800">Recent Locations</h3>
-                  <button className="text-blue-500 text-sm font-medium">View All</button>
+              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-[45%] flex flex-col" style={{ overscrollBehavior: 'contain' }}>
+                <div className="px-5 pt-5 pb-0 flex-shrink-0">
+                  <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-gray-800">Recent Locations</h3>
+                    <button className="text-blue-500 text-sm font-medium">View All</button>
+                  </div>
                 </div>
-                <div className="overflow-auto h-[calc(100%-4rem)]">
+                <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ WebkitOverflowScrolling: 'touch' }}>
                   {locationHistory.length > 0 ? (
                     locationHistory.map(renderLocationHistory)
                   ) : (
