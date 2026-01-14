@@ -1150,21 +1150,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
 
   // Main render
   return (
-    <div className={`${darkMode ? "dark" : ""}`}>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-6 transition-all duration-500">
-        
-        {/* Dark Mode Toggle */}
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="fixed top-6 right-6 p-3 rounded-2xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg shadow-lg hover:scale-110 transition-all duration-300 z-50 border border-gray-200 dark:border-gray-700 hover:shadow-xl"
-          aria-label="Toggle dark mode"
-        >
-          {darkMode ? (
-            <SunMedium size={22} className="text-yellow-400" />
-          ) : (
-            <Moon size={22} className="text-gray-900" />
-          )}
-        </button>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-8">
 
         {/* Mobile App Card */}
         <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden transition-all duration-500 hover:shadow-3xl">
@@ -1209,34 +1195,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
             {currentView === AUTH_VIEWS.VERIFICATION && renderVerificationView()}
             {currentView === AUTH_VIEWS.RESET_PASSWORD && renderResetPasswordView()}
 
-            {/* App Download Links */}
-            {currentView === AUTH_VIEWS.LOGIN && (
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-3">
-                  Get the mobile app
-                </p>
-                <div className="flex gap-2">
-                  <a
-                    href="#"
-                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-900 hover:bg-black text-white rounded-lg text-xs transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                    </svg>
-                    App Store
-                  </a>
-                  <a
-                    href="#"
-                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M3 20.5v-17c0-.59.34-1.11.84-1.35L15.65 12 3.84 21.85c-.5-.25-.84-.77-.84-1.35zm17.07-8.62c.39-.26.62-.68.62-1.12 0-.44-.23-.86-.62-1.12l-14-8.96c-.35-.22-.78-.22-1.13 0-.35.23-.57.63-.57 1.07v17.93c0 .44.22.84.57 1.07.18.12.38.18.57.18.19 0 .39-.06.56-.18l14-8.96z"/>
-                    </svg>
-                    Play Store
-                  </a>
-                </div>
-              </div>
-            )}
+          
 
             {/* Footer */}
             <div className="mt-6 text-center">
@@ -1257,7 +1216,6 @@ const handleGoogleLoginSuccess = (googleUser) => {
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
