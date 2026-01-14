@@ -50,7 +50,8 @@ import {
   HiOutlineChatAlt2,
   HiOutlineClipboardList
 } from "react-icons/hi";
-import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
+import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 const UserDashboard = ({ user, logout }) => {
   const [activeTab, setActiveTab] = useState("Home");
@@ -104,9 +105,10 @@ const UserDashboard = ({ user, logout }) => {
     }
   }, [readComments]);
 
-  const [center, setCenter] = useState({
-    lat: 14.5995,
-    lng: 120.9842,
+  const [viewState, setViewState] = useState({
+    longitude: 120.9842,
+    latitude: 14.5995,
+    zoom: 15
   });
 
   // Enhanced announcements data
@@ -394,13 +396,38 @@ const getPriorityBadge = (priority) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Save location to backend
+  const saveLocationToBackend = async (longitude, latitude, locationName = null) => {
+    try {
+      const response = await fetch('/backend/location.php', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          longitude,
+          latitude,
+          location_name: locationName
+        })
+      });
+      const data = await response.json();
+      console.log('Location saved:', data);
+    } catch (error) {
+      console.error('Error saving location:', error);
+    }
+  };
+
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setCenter({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
+        const longitude = pos.coords.longitude;
+        const latitude = pos.coords.latitude;
+        setViewState({
+          longitude,
+          latitude,
+          zoom: 15
         });
+        // Save initial location to backend
+        saveLocationToBackend(longitude, latitude, currentLocation);
       },
       () => alert("Location access denied")
     );
@@ -1972,37 +1999,64 @@ const renderAnnouncementCard = (announcement) => (
           <div className="relative h-screen w-full overflow-hidden">
             {/* MAP */}
             <div className="absolute inset-0">
-              <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
-                <div style={{ width: "100%", height: "100%" }}>
-                  <GoogleMap
-                    mapContainerStyle={{
-                      width: "100%",
-                      height: "100%",
-                    }}
-                    center={center}
-                    zoom={15}
-                    options={{
-                      disableDefaultUI: true,
-                      zoomControl: true,
-                      clickableIcons: false,
-                      styles: [
-                        {
-                          featureType: "poi",
-                          elementType: "labels",
-                          stylers: [{ visibility: "off" }]
-                        }
-                      ]
-                    }}
-                  >
-                    <Marker 
-                      position={center}
-                      icon={{
-                        url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-                      }}
-                    />
-                  </GoogleMap>
-                </div>
-              </LoadScript>
+              <Map
+                {...viewState}
+                onMove={evt => setViewState(evt.viewState)}
+                style={{ width: "100%", height: "100%" }}
+                mapStyle="mapbox://styles/mapbox/streets-v12"
+                mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}
+              >
+                {/* User Location Marker with Profile Image */}
+                <Marker 
+                  longitude={viewState.longitude} 
+                  latitude={viewState.latitude}
+                  anchor="bottom"
+                >
+                  <div className="relative">
+                    {getCurrentUserProfileImage() ? (
+                      <div className="relative">
+                        <img 
+                          src={getCurrentUserProfileImage()}
+                          alt="Your location"
+                          className="w-12 h-12 rounded-full border-4 border-white shadow-lg object-cover"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                        {/* Pulsing radar effect */}
+                        <div className="absolute inset-0 w-12 h-12 rounded-full bg-blue-500 opacity-30 animate-ping"></div>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="w-12 h-12 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                          <span className="text-white font-bold text-lg">
+                            {user?.email?.charAt(0).toUpperCase() || '?'}
+                          </span>
+                        </div>
+                        <div className="absolute inset-0 w-12 h-12 rounded-full bg-blue-500 opacity-30 animate-ping"></div>
+                      </div>
+                    )}
+                  </div>
+                </Marker>
+                
+                <NavigationControl position="top-right" />
+                <GeolocateControl 
+                  position="top-right"
+                  trackUserLocation
+                  onGeolocate={(e) => {
+                    const longitude = e.coords.longitude;
+                    const latitude = e.coords.latitude;
+                    setViewState({
+                      longitude,
+                      latitude,
+                      zoom: 15
+                    });
+                    // Save updated location to backend
+                    saveLocationToBackend(longitude, latitude, currentLocation);
+                  }}
+                />
+              </Map>
 
               {/* Top Bar */}
               <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/20 to-transparent pt-4 px-4">
