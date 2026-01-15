@@ -1210,9 +1210,9 @@ function App() {
 
   // Main render
   return (
-    <div className="min-h-screen w-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col overflow-hidden" style={{ overscrollBehavior: 'none' }}>
+    <div className="min-h-[85vh] w-full bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col overflow-hidden" style={{ overscrollBehavior: 'none' }}>
       {/* Full Screen Mobile App Container */}
-      <div className="w-full h-screen flex flex-col overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      <div className="w-full h-screen flex flex-col overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
         
         {/* App Header with Logo - Mobile Optimized */}
         <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 pt-10 pb-8 px-4 flex-shrink-0">
@@ -1224,7 +1224,7 @@ function App() {
 
 
           {/* App Logo/Image */}
-          <div className="relative z-10 flex flex-col items-center">
+          <div className="relative z-8 flex flex-col items-center">
             {/* App Icon - PNG Image */}
             <div className="mb-4">
               <img 
@@ -1248,10 +1248,10 @@ function App() {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 pb-20">
-          <div className="w-full max-w-md mx-auto">
+        <div className="flex-1 overflow-y-auto px-4 pt-6 md:px-8 pb-32 rounded-t-3xl bg-white shadow-lg">
+          <div className="w-full max-w-md mx-auto min-h-full">
             {/* Auth Card */}
-            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 transform transition-all duration-300 hover:shadow-2xl">
+            <div className="rounded-3xl shadow-xl border border-gray-100 p-6 transform transition-all duration-300 hover:shadow-2xl">
               {/* Auth View Router */}
               {currentView === AUTH_VIEWS.LOGIN && renderLoginView()}
               {currentView === AUTH_VIEWS.REGISTER && renderRegisterView()}
@@ -1259,24 +1259,24 @@ function App() {
               {currentView === AUTH_VIEWS.VERIFICATION && renderVerificationView()}
               {currentView === AUTH_VIEWS.RESET_PASSWORD && renderResetPasswordView()}
             </div>
+            
+            {/* Footer - Inside scrollable area */}
+            <div className="py-8 text-center mt-8">
+              <p className="text-xs text-gray-500">
+                By continuing, you agree to our{" "}
+                <a href="#" className="text-blue-600 hover:underline font-medium">
+                  Terms
+                </a>{" "}
+                and{" "}
+                <a href="#" className="text-blue-600 hover:underline font-medium">
+                  Privacy Policy
+                </a>
+              </p>
+              <p className="mt-2 text-xs text-gray-400">
+                Stelsen Monitoring v2.0 • © 2026
+              </p>
+            </div>
           </div>
-        </div>
-
-        {/* Footer - Sticky at bottom with safe area for mobile */}
-        <div className="px-4 py-6 text-center border-t border-gray-200/50 flex-shrink-0 bg-white/80 backdrop-blur-sm pb-8">
-          <p className="text-xs text-gray-500">
-            By continuing, you agree to our{" "}
-            <a href="#" className="text-blue-600 hover:underline font-medium">
-              Terms
-            </a>{" "}
-            and{" "}
-            <a href="#" className="text-blue-600 hover:underline font-medium">
-              Privacy Policy
-            </a>
-          </p>
-          <p className="mt-2 text-xs text-gray-400">
-            Stelsen Monitoring v2.0 • © 2026
-          </p>
         </div>
       </div>
     </div>
