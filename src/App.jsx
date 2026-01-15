@@ -1210,12 +1210,12 @@ function App() {
 
   // Main render
   return (
-    <div className="min-h-[85vh] w-full bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col overflow-hidden" style={{ overscrollBehavior: 'none' }}>
+    <div className="min-h-screen w-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex flex-col overflow-x-hidden" style={{ overscrollBehavior: 'none', touchAction: 'pan-y' }}>
       {/* Full Screen Mobile App Container */}
-      <div className="w-full h-screen flex flex-col overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      <div className="w-full min-h-screen flex flex-col overflow-x-hidden">
         
         {/* App Header with Logo - Mobile Optimized */}
-        <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 pt-10 pb-8 px-4 flex-shrink-0">
+        <div className="relative pt-10 pb-8 px-4 flex-shrink-0">
           <div className="absolute top-0 left-0 w-32 h-32 bg-white/20 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute top-2 left-80 w-32 h-32 bg-white/20 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
@@ -1248,8 +1248,8 @@ function App() {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto px-4 pt-6 md:px-8 pb-32 rounded-t-3xl bg-white shadow-lg">
-          <div className="w-full max-w-md mx-auto min-h-full">
+        <div className="flex-1 px-4 pt-6 md:px-8 pb-32 rounded-t-[2rem] bg-white shadow-lg">
+          <div className="w-full max-w-md mx-auto">
             {/* Auth Card */}
             <div className="rounded-3xl shadow-xl border border-gray-100 p-6 transform transition-all duration-300 hover:shadow-2xl">
               {/* Auth View Router */}
