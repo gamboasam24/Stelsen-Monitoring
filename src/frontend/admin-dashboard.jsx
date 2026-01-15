@@ -2294,33 +2294,68 @@ useEffect(() => {
       case "Home":
         return (
           <div className="p-5">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            {/* Stats Cards - Mobile Optimized */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-6">
               {isLoadingProjects || isLoadingAnnouncements ? (
-          <>
-            <ShimmerStatsCard />
-            <ShimmerStatsCard />
-          </>
+                <>
+                  <ShimmerStatsCard />
+                  <ShimmerStatsCard />
+                </>
               ) : (
-          <>
-            <div className="bg-gradient-to-br from-blue-500 to-blue-400 text-white rounded-2xl p-4 shadow-lg">
-              <div className="flex items-center justify-between"><div>
-            <div className="text-2xl font-bold">{projects.length}</div>
-            <div className="text-sm opacity-90">Active Projects</div>
-                </div>
-                <MdDashboard size={24} className="opacity-80" />
-              </div>
-            </div>
-            <div className="bg-gradient-to-br from-blue-500 to-blue-400 text-white rounded-2xl p-4 shadow-lg">
-              <div className="flex items-center justify-between">
-                <div>
-            <div className="text-2xl font-bold">{announcements.length}</div>
-            <div className="text-sm opacity-90">Announcements</div>
-                </div>
-                <IoMdMegaphone size={24} className="opacity-80" />
-              </div>
-            </div>
-          </>
+                <>
+                  {/* Active Projects Card */}
+                  <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 text-white rounded-2xl p-4 sm:p-5 shadow-lg hover:shadow-xl transition-all active:scale-95 touch-manipulation">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="text-3xl sm:text-4xl font-bold leading-none mb-1">{projects.length}</div>
+                        <div className="text-xs sm:text-sm opacity-90 font-medium">Active Tasks</div>
+                      </div>
+                      <div className="p-3 bg-white/20 rounded-full">
+                        <MdDashboard size={24} className="text-white" />
+                      </div>
+                    </div>
+                    
+                    {/* Progress Indicator */}
+                    <div className="mt-3 pt-3 border-t border-white/20">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="opacity-80">Progress</span>
+                        <span className="font-semibold">{Math.round(projects.filter(p => p.status === 'completed').length / Math.max(projects.length, 1) * 100)}%</span>
+                      </div>
+                      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-white rounded-full transition-all duration-500"
+                          style={{ width: `${Math.round(projects.filter(p => p.status === 'completed').length / Math.max(projects.length, 1) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Announcements Card */}
+                 <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 text-white rounded-2xl p-4 sm:p-5 shadow-lg hover:shadow-xl transition-all active:scale-95 touch-manipulation">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="text-3xl sm:text-4xl font-bold leading-none mb-1">{announcements.length}</div>
+                        <div className="text-xs sm:text-sm opacity-90 font-medium">Announcements</div>
+                      </div>
+                      <div className="p-3 bg-white/20 rounded-full relative">
+                        <IoMdMegaphone size={24} className="text-white" />
+                        {unreadCount > 0 && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center font-bold shadow-lg">
+                            {unreadCount}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Status Indicator */}
+                    <div className="mt-3 pt-3 border-t border-white/20">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="opacity-80">Unread:</span>
+                        <span className="font-semibold">{unreadCount} new</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 
