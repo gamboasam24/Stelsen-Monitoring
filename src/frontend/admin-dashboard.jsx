@@ -84,6 +84,7 @@ const AdminDashboard = ({ user, logout }) => {
   const [announcementType, setAnnouncementType] = useState("general");
   const [announcementPriority, setAnnouncementPriority] = useState("medium");
   const [commentText, setCommentText] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [userStatus, setUserStatus] = useState("Active");
   const [profileOpen, setProfileOpen] = useState(false);
@@ -403,7 +404,7 @@ const handleBudgetChange = (e) => {
   setProjectBudget(formatted);
 };
   
- const Avatar = ({ user, size = 32 }) => {
+ const Avatar = ({ user, size = 32, className = "" }) => {
   const initial =
     user?.name?.charAt(0) ||
     user?.email?.charAt(0) ||
@@ -420,7 +421,7 @@ const handleBudgetChange = (e) => {
   if (!imageSrc || imgError) {
     return (
       <div
-        className="bg-blue-500 text-white font-bold flex items-center justify-center rounded-full"
+        className={`bg-blue-500 text-white font-bold flex items-center justify-center rounded-full ${className}`.trim()}
         style={{ width: size, height: size }}
       >
         {initial.toUpperCase()}
@@ -434,7 +435,7 @@ const handleBudgetChange = (e) => {
       alt="Profile"
       onError={() => setImgError(true)}
       referrerPolicy="no-referrer" // 🔥 REQUIRED FOR GOOGLE
-      className="rounded-full object-cover"
+      className={`rounded-full object-cover ${className}`.trim()}
       style={{ width: size, height: size }}
     />
   );
@@ -773,6 +774,8 @@ useEffect(() => {
   const addComment = async (projectId) => {
     if (!commentText.trim() && commentAttachments.length === 0) return;
 
+    setIsSending(true);
+
     const formData = new FormData();
     formData.append("project_id", projectId);
     formData.append("text", commentText);
@@ -830,6 +833,8 @@ useEffect(() => {
     } catch (error) {
       console.error("Error adding comment:", error);
       alert("Failed to add comment. Please try again.");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -2358,30 +2363,48 @@ useEffect(() => {
         );
 
       case "Projects":
+        const totalProjects = projects.length;
+        const ongoingProjects = projects.filter(p => p.status === "ongoing").length;
+        const completedProjects = projects.filter(p => p.status === "completed").length;
+        const pendingProjects = projects.filter(p => p.status === "pending").length;
+        
         return (
           <div className="p-5">
-            {/* Project Stats */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {isLoadingProjects ? (
-                <>
-                  <div className="bg-gray-200 rounded-2xl p-4 shadow animate-pulse h-20"></div>
-                  <div className="bg-gray-200 rounded-2xl p-4 shadow animate-pulse h-20"></div>
-                </>
-              ) : (
-                <>
-                  <div className="bg-white rounded-2xl p-4 shadow">
-                    <div className="text-2xl font-bold text-gray-800">{projects.length}</div>
-                    <div className="text-sm text-gray-500">Total Projects</div>
-                  </div>
-                  <div className="bg-white rounded-2xl p-4 shadow">
-                    <div className="text-2xl font-bold text-gray-800">
-                      {projects.filter(p => p.status === "ongoing").length}
+            {/* My Tasks Overview - Enhanced Stats Card */}
+            {isLoadingProjects ? (
+              <div className="bg-gradient-to-br from-gray-300 to-gray-200 rounded-2xl p-5 mb-6 shadow-lg animate-pulse h-40"></div>
+            ) : (
+              <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 text-white rounded-3xl p-6 mb-6 shadow-xl relative overflow-hidden">
+                {/* Background pattern */}
+                <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
+                
+                <div className="relative z-10">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <MdDashboard size={24} />
+                    My Tasks Overview
+                  </h3>
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20 hover:bg-white/20 transition-all">
+                      <div className="text-3xl font-bold leading-none mb-1">{totalProjects}</div>
+                      <div className="text-xs opacity-90 font-medium">Total</div>
                     </div>
-                    <div className="text-sm text-gray-500">Ongoing Projects</div>
+                    <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20 hover:bg-white/20 transition-all">
+                      <div className="text-3xl font-bold leading-none mb-1">{ongoingProjects}</div>
+                      <div className="text-xs opacity-90 font-medium">Ongoing</div>
+                    </div>
+                    <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20 hover:bg-white/20 transition-all">
+                      <div className="text-3xl font-bold leading-none mb-1">{completedProjects}</div>
+                      <div className="text-xs opacity-90 font-medium">Done</div>
+                    </div>
+                    <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20 hover:bg-white/20 transition-all">
+                      <div className="text-3xl font-bold leading-none mb-1">{pendingProjects}</div>
+                      <div className="text-xs opacity-90 font-medium">Pending</div>
+                    </div>
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
 
             {/* Filter Buttons */}
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
@@ -2402,16 +2425,6 @@ useEffect(() => {
 
             {/* Projects List */}
             <div className="mb-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-800">
-                  {selectedFilter === "all" ? "Tasks List" : `${selectedFilter.charAt(0).toUpperCase() + selectedFilter.slice(1)} Tasks`}
-                </h3>
-                {!isLoadingProjects && (
-                  <span className="text-sm text-gray-500">
-                    {filteredProjects.length} task{filteredProjects.length !== 1 ? "s" : ""}
-                  </span>
-                )}
-              </div>
               {isLoadingProjects ? (
                 <>
                   <ShimmerProjectCard />
@@ -2559,11 +2572,16 @@ useEffect(() => {
     {/* Profile Header */}
     <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex justify-between items-center text-white">
       <div className="flex items-center">
-        <img 
-          src={selectedFile || currentUser?.profile_image} 
-          className="w-10 h-10 rounded-full border-2 border-white mr-3"
-          alt="User"
-        />
+        <div className="w-10 h-10 rounded-full border-2 border-white mr-3 overflow-hidden">
+          <Avatar
+            user={{
+              ...currentUser,
+              uploaded_profile_image: selectedFile || currentUser?.uploaded_profile_image,
+              profile_image: selectedFile || currentUser?.uploaded_profile_image || currentUser?.profile_image,
+            }}
+            size={40}
+          />
+        </div>
         <div>
           <div className="text-xl font-bold">Admin Profile</div>
           <div className="flex items-center mt-1 text-xs">
@@ -2584,27 +2602,32 @@ useEffect(() => {
     <div className="flex-1 overflow-auto p-5 bg-gray-50">
       {/* User Info Card */}
       <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
-        <div className="flex flex-col items-center mb-6">
-          <div className="relative mb-4">
-            <img 
-              src={selectedFile || user?.profile_image} 
-              className="w-28 h-28 rounded-full border-4 border-blue-100" 
-              alt="Profile"
-            />
-            <button 
-              className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full border-4 border-white hover:bg-blue-600"
-              onClick={() => fileInputRef.current.click()}
-            >
-              <FiCamera size={16} />
-            </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              accept="image/*" 
-              style={{display: 'none'}} 
-            />
-          </div>
+          <div className="flex flex-col items-center mb-6">
+            <div className="relative mb-4">
+              <div className="w-28 h-28 rounded-full border-4 border-blue-100 overflow-hidden">
+                <Avatar
+                  user={{
+                    ...currentUser,
+                    uploaded_profile_image: selectedFile || currentUser?.uploaded_profile_image,
+                    profile_image: selectedFile || currentUser?.uploaded_profile_image || currentUser?.profile_image,
+                  }}
+                  size={112}
+                />
+              </div>
+              <button 
+                className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full border-4 border-white hover:bg-blue-600"
+                onClick={() => fileInputRef.current.click()}
+              >
+                <FiCamera size={16} />
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept="image/*" 
+                style={{display: 'none'}} 
+              />
+            </div>
           <h3 className="text-xl font-bold mb-1"> {currentUser?.email ? currentUser.email.split("@")[0].replace(/\b\w/g, c => c.toUpperCase()) : "N/A"}</h3> 
           <p className="text-gray-500 mb-2">HR Department</p>
           <p className="text-sm text-gray-600 mb-1">{currentUser?.email || "admin@company.com"}</p>
@@ -2831,12 +2854,19 @@ useEffect(() => {
             </div>
           </div>
           <div className="relative">
-            <img 
-              src={selectedFile || currentUser?.profile_image} 
-              className="w-10 h-10 rounded-full border-2 border-white cursor-pointer shadow"
+            <div
+              className="w-10 h-10 rounded-full border-2 border-white cursor-pointer shadow overflow-hidden"
               onClick={handleProfileClick}
-              alt="Admin Avatar"
-            />
+            >
+              <Avatar
+                user={{
+                  ...currentUser,
+                  uploaded_profile_image: selectedFile || currentUser?.uploaded_profile_image,
+                  profile_image: selectedFile || currentUser?.uploaded_profile_image || currentUser?.profile_image,
+                }}
+                size={40}
+              />
+            </div>
           </div>
         </div>
       )}

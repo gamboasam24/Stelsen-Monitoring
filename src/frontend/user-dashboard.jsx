@@ -928,7 +928,7 @@ const getPriorityBadge = (priority) => {
   };
 
   // Avatar component for consistent profile display
-  const Avatar = ({ userObj, size = 32 }) => {
+  const Avatar = ({ userObj, size = 32, className = "" }) => {
     const initial =
       userObj?.name?.charAt(0) ||
       userObj?.email?.charAt(0) ||
@@ -945,7 +945,7 @@ const getPriorityBadge = (priority) => {
     if (!imageSrc || imgError) {
       return (
         <div
-          className="bg-blue-500 text-white font-bold flex items-center justify-center rounded-full"
+          className={`bg-blue-500 text-white font-bold flex items-center justify-center rounded-full ${className}`.trim()}
           style={{ width: size, height: size }}
         >
           {initial.toUpperCase()}
@@ -959,7 +959,7 @@ const getPriorityBadge = (priority) => {
         alt="Profile"
         onError={() => setImgError(true)}
         referrerPolicy="no-referrer"
-        className="rounded-full object-cover"
+        className={`rounded-full object-cover ${className}`.trim()}
         style={{ width: size, height: size }}
       />
     );
@@ -1704,15 +1704,16 @@ const renderAnnouncementCard = (announcement) => (
       {/* Profile Header */}
       <div className="bg-blue-500 px-5 py-4 flex justify-between items-center text-white">
         <div className="flex items-center">
-          <img 
-            src={selectedFile || user?.uploaded_profile_image || user?.profile_image} 
-            className="w-12 h-12 rounded-full border-2 border-white mr-3"
-            alt="User"
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
-          />
+          <div className="w-12 h-12 rounded-full border-2 border-white mr-3 overflow-hidden">
+            <Avatar
+              userObj={{
+                ...user,
+                uploaded_profile_image: selectedFile || user?.uploaded_profile_image,
+                profile_image: selectedFile || user?.uploaded_profile_image || user?.profile_image,
+              }}
+              size={48}
+            />
+          </div>
           <div>
             <div className="text-xl font-bold">My Profile</div>
             <div className="flex items-center mt-1 text-xs">
@@ -1738,15 +1739,16 @@ const renderAnnouncementCard = (announcement) => (
         <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
           <div className="flex flex-col items-center mb-6">
             <div className="relative mb-4">
-              <img 
-                src={selectedFile || user?.uploaded_profile_image || user?.profile_image} 
-                className="w-28 h-28 rounded-full border-4 border-blue-100" 
-                alt="Profile"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
+              <div className="w-28 h-28 rounded-full border-4 border-blue-100 overflow-hidden">
+                <Avatar
+                  userObj={{
+                    ...user,
+                    uploaded_profile_image: selectedFile || user?.uploaded_profile_image,
+                    profile_image: selectedFile || user?.uploaded_profile_image || user?.profile_image,
+                  }}
+                  size={112}
+                />
+              </div>
               <button 
                 className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full border-4 border-white hover:bg-blue-600"
                 onClick={() => fileInputRef.current.click()}
@@ -1934,6 +1936,8 @@ const renderAnnouncementCard = (announcement) => (
   );
 
   const renderTabContent = () => {
+    const filteredProjects = selectedFilter === "all" ? projects : projects.filter(p => p.status === selectedFilter);
+    
     switch (activeTab) {
       case "Home":
         return (
@@ -2224,49 +2228,95 @@ const renderAnnouncementCard = (announcement) => (
         const pendingProjects = projects.filter(p => p.status === "pending").length;
         
         return (
-          <div className="p-5">
+          <div className="p-4 pb-24">
+            {/* Stats Cards - More Compact Mobile Layout */}
             {isLoadingProjects ? (
-              <div className="bg-gray-300 rounded-2xl p-5 mb-5 shadow-lg animate-pulse h-32"></div>
+              <div className="bg-gradient-to-br from-gray-300 to-gray-200 rounded-2xl p-5 mb-6 shadow-lg animate-pulse h-40"></div>
             ) : (
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl p-5 mb-5 shadow-lg">
-                <h3 className="text-lg font-bold mb-4">My Tasks Overview</h3>
-                <div className="grid grid-cols-4 gap-2">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{totalProjects}</div>
-                    <div className="text-xs opacity-90">Total</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{ongoingProjects}</div>
-                    <div className="text-xs opacity-90">Ongoing</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{completedProjects}</div>
-                    <div className="text-xs opacity-90">Done</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{pendingProjects}</div>
-                    <div className="text-xs opacity-90">Pending</div>
-                  </div>
+              <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 text-white rounded-3xl p-6 mb-6 shadow-xl relative overflow-hidden">
+          {/* Background pattern */}
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
+          
+          <div className="relative z-10">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <MdDashboard size={24} />
+              My Tasks Overview
+            </h3>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20 hover:bg-white/20 transition-all">
+                <div className="text-3xl font-bold leading-none mb-1">{totalProjects}</div>
+                <div className="text-xs opacity-90 font-medium">Total</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20 hover:bg-white/20 transition-all">
+                <div className="text-3xl font-bold leading-none mb-1">{ongoingProjects}</div>
+                <div className="text-xs opacity-90 font-medium">Ongoing</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20 hover:bg-white/20 transition-all">
+                <div className="text-3xl font-bold leading-none mb-1">{completedProjects}</div>
+                <div className="text-xs opacity-90 font-medium">Done</div>
+              </div>
+              <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20 hover:bg-white/20 transition-all">
+                <div className="text-3xl font-bold leading-none mb-1">{pendingProjects}</div>
+                <div className="text-xs opacity-90 font-medium">Pending</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+            {/* Filter Buttons */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+              {["all", "pending", "ongoing", "scheduled", "completed"].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setSelectedFilter(status)}
+                  className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
+                    selectedFilter === status
+                      ? "bg-blue-500 text-white shadow-lg"
+                      : "bg-white text-gray-700 border border-gray-300 hover:border-blue-500"
+                  }`}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Projects List */}
+            <div className="mb-6">
+              {isLoadingProjects ? (
+                <div className="space-y-4">
+                  <ShimmerProjectCard />
+                  <ShimmerProjectCard />
+                  <ShimmerProjectCard />
+                  <ShimmerProjectCard />
                 </div>
+              ) : filteredProjects.length > 0 ? (
+                <div className="space-y-3">
+                  {filteredProjects.map(renderProjectCard)}
+                </div>
+              ) : selectedFilter !== "all" ? (
+                <div className="text-center py-10">
+                  <MdDashboard size={40} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-gray-600 font-medium">No {selectedFilter} tasks found</p>
+                  <p className="text-sm text-gray-400 mt-1">Try selecting a different filter</p>
+                </div>
+              ) : (
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 text-center shadow-sm border border-gray-200">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MdDashboard size={40} className="text-blue-400" />
+          </div>
+          <p className="text-gray-700 font-semibold text-lg">No Tasks Assigned Yet</p>
+          <p className="text-sm text-gray-500 mt-2 leading-relaxed">Tasks will appear here when your manager assigns them to you. Check back soon!</p>
+          <div className="mt-6 flex justify-center">
+            <div className="text-xs text-gray-400 flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+              Awaiting assignments
+            </div>
+          </div>
               </div>
             )}
-            
-            {isLoadingProjects ? (
-              <>
-                <ShimmerProjectCard />
-                <ShimmerProjectCard />
-                <ShimmerProjectCard />
-                <ShimmerProjectCard />
-              </>
-            ) : projects.length > 0 ? (
-              projects.map(renderProjectCard)
-            ) : (
-              <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
-                <MdDashboard size={48} className="text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No tasks assigned yet</p>
-                <p className="text-sm text-gray-400 mt-1">Tasks will appear here when assigned by admin</p>
-              </div>
-            )}
+            </div>
           </div>
         );
 
@@ -2386,16 +2436,19 @@ const renderAnnouncementCard = (announcement) => (
             </div>
           </div>
           <div className="relative">
-            <img 
-              src={selectedFile || user?.uploaded_profile_image || user?.profile_image} 
-              className="w-10 h-10 rounded-full border-2 border-white cursor-pointer"
+            <div
+              className="w-10 h-10 rounded-full border-2 border-white cursor-pointer overflow-hidden"
               onClick={handleProfileClick}
-              alt="User Avatar"
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
+            >
+              <Avatar
+                userObj={{
+                  ...user,
+                  uploaded_profile_image: selectedFile || user?.uploaded_profile_image,
+                  profile_image: selectedFile || user?.uploaded_profile_image || user?.profile_image,
+                }}
+                size={40}
+              />
+            </div>
             {unreadCount > 0 && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
             )}

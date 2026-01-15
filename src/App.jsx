@@ -390,21 +390,21 @@ function App() {
   if (isValidatingSession) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-blue-50 to-white flex items-center justify-center z-50">
-        <div className="flex flex-col items-center">
-          <div className="relative mb-8">
-            <div className="w-24 h-24 rounded-3xl bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-              <Shield className="text-white" size={40} />
-            </div>
-            <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full flex items-center justify-center">
-              <Sparkles className="text-white" size={14} />
-            </div>
-          </div>
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-800 text-lg font-semibold">Loading Stelsen...</p>
-            <p className="text-gray-500 text-sm mt-2">Securing your session</p>
-          </div>
+      <div className="flex flex-col items-center">
+        <div className="relative mb-8">
+        <img 
+          src="public/img/stelsenlogo.png" 
+          alt="Stelsen Logo" 
+          className="h-24 w-24 object-contain bg-white rounded-3xl p-2 shadow-lg"
+        />
+      
         </div>
+        <div className="flex flex-col items-center">
+        <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-800 text-lg font-semibold">Loading Stelsen...</p>
+        <p className="text-gray-500 text-sm mt-2">Securing your session</p>
+        </div>
+      </div>
       </div>
     );
   }
