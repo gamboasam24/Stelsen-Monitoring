@@ -1976,7 +1976,7 @@ useEffect(() => {
 
         <button
           onClick={createAnnouncement}
-          className={`w-full py-4 rounded-xl font-bold text-white ${
+          className={`w-full py-4 rounded-full font-bold text-white ${
             announcementTitle.trim() && announcementContent.trim()
               ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
               : "bg-gray-400 cursor-not-allowed"
@@ -1984,7 +1984,6 @@ useEffect(() => {
           disabled={!announcementTitle.trim() || !announcementContent.trim()}
         >
           <div className="flex items-center justify-center">
-            <IoMdCreate className="mr-2" />
             Publish Announcement
           </div>
         </button>
