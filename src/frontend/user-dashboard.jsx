@@ -443,19 +443,27 @@ const getPriorityBadge = (priority) => {
         
         // Get context for better name construction
         const context = feature.context || [];
+        const address = context.find(c => c.id.startsWith('address'))?.text;
         const neighborhood = context.find(c => c.id.startsWith('neighborhood'))?.text;
         const place = context.find(c => c.id.startsWith('place'))?.text;
+        const region = context.find(c => c.id.startsWith('region'))?.text;
         
-        // Return most relevant name
+        // Return most relevant name with full hierarchy
         if (feature.place_type.includes('poi')) {
           return text; // Return POI name (e.g., "SM Mall", "Coffee Shop")
+        } else if (address && place && region) {
+          return `${address}, ${place}, ${region}`;
+        } else if (neighborhood && place && region) {
+          return `${neighborhood}, ${place}, ${region}`;
         } else if (neighborhood && place) {
           return `${neighborhood}, ${place}`;
+        } else if (place && region) {
+          return `${place}, ${region}`;
         } else if (place) {
           return place;
         } else {
-          // Extract first part of place_name for brevity
-          return placeName.split(',').slice(0, 2).join(',');
+          // Return full place_name for detailed location
+          return placeName;
         }
       }
       return 'Unknown Location';
@@ -2174,10 +2182,10 @@ const renderAnnouncementCard = (announcement) => (
               </Map>
 
               {/* Top Bar */}
-              <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/20 to-transparent pt-4 px-4">
-                <div className="flex items-center justify-between">
+              <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/20 to-transparent pt-4 px-4 z-20">
+                <div className="flex items-center justify-center relative">
                   <button
-                    className="bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                    className="absolute left-0 bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
                     onClick={() => handleTabChange("Home")}
                   >
                     <FiChevronLeft size={24} />
@@ -2186,17 +2194,11 @@ const renderAnnouncementCard = (announcement) => (
                     <div className="text-sm text-gray-500">Current Location</div>
                     <div className="font-bold text-gray-800">{currentLocation}</div>
                   </div>
-                  <button
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
-                    onClick={() => setShowLocationModal(true)}
-                  >
-                    <MdLocationOn size={24} />
-                  </button>
                 </div>
               </div>
 
               {/* Location History */}
-              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-[45%] flex flex-col" style={{ overscrollBehavior: 'contain' }}>
+              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-[45%] flex flex-col z-30" style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
                 <div className="px-5 pt-5 pb-0 flex-shrink-0">
                   <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
                   <div className="flex justify-between items-center mb-4">
@@ -2204,7 +2206,7 @@ const renderAnnouncementCard = (announcement) => (
                     <button className="text-blue-500 text-sm font-medium">View All</button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', touchAction: 'pan-y' }}>
                   {locationHistory.length > 0 ? (
                     locationHistory.map(renderLocationHistory)
                   ) : (
