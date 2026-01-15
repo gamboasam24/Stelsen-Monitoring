@@ -44,7 +44,8 @@ import {
   FiPaperclip,
   FiBell,
   FiSearch,
-  FiFilter
+  FiFilter,
+  FiRefreshCw
 } from "react-icons/fi";
 import {
   HiOutlineChatAlt2,
@@ -94,6 +95,7 @@ const UserDashboard = ({ user, logout }) => {
     }
   });
   const [otherUsersLocations, setOtherUsersLocations] = useState([]);
+  const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
 
   // Pin state is provided by backend (persisted like admin)
 
@@ -110,6 +112,12 @@ const UserDashboard = ({ user, logout }) => {
   useEffect(() => {
     if (activeTab === 'My Location') {
       fetchOtherUsersLocations();
+      // Auto-center map on user's current location
+      setViewState({
+        longitude: userCoordinates.longitude,
+        latitude: userCoordinates.latitude,
+        zoom: 15
+      });
       // Disabled interval for now - only fetch once when tab changes
       // const interval = setInterval(fetchOtherUsersLocations, 5000);
       // return () => clearInterval(interval);
@@ -139,6 +147,12 @@ const UserDashboard = ({ user, logout }) => {
     longitude: 120.9842,
     latitude: 14.5995,
     zoom: 15
+  });
+
+  // Actual user GPS coordinates (separate from map view state)
+  const [userCoordinates, setUserCoordinates] = useState({
+    longitude: 120.9842,
+    latitude: 14.5995
   });
 
   // Enhanced announcements data
@@ -437,34 +451,49 @@ const getPriorityBadge = (priority) => {
       
       if (data.features && data.features.length > 0) {
         const feature = data.features[0];
-        // Extract meaningful location name
-        const placeName = feature.place_name;
         const text = feature.text;
         
         // Get context for better name construction
         const context = feature.context || [];
-        const address = context.find(c => c.id.startsWith('address'))?.text;
+        const addressNum = feature.address ? `${feature.address} ` : '';
+        const streetName = text;
         const neighborhood = context.find(c => c.id.startsWith('neighborhood'))?.text;
+        const locality = context.find(c => c.id.startsWith('locality'))?.text;
         const place = context.find(c => c.id.startsWith('place'))?.text;
         const region = context.find(c => c.id.startsWith('region'))?.text;
         
-        // Return most relevant name with full hierarchy
+        // Build hierarchical address from most specific to general
+        // Priority: Street Address > Neighborhood > Locality > Place > Region
+        if (feature.place_type.includes('address')) {
+          // Full street address
+          if (addressNum && streetName && place && region) {
+            return `${addressNum}${streetName}, ${place}, ${region}`;
+          } else if (streetName && place && region) {
+            return `${streetName}, ${place}, ${region}`;
+          } else if (streetName && place) {
+            return `${streetName}, ${place}`;
+          }
+        }
+        
         if (feature.place_type.includes('poi')) {
           return text; // Return POI name (e.g., "SM Mall", "Coffee Shop")
-        } else if (address && place && region) {
-          return `${address}, ${place}, ${region}`;
-        } else if (neighborhood && place && region) {
+        }
+        
+        // Build from neighborhood/locality
+        if (neighborhood && place && region) {
           return `${neighborhood}, ${place}, ${region}`;
+        } else if (locality && place && region) {
+          return `${locality}, ${place}, ${region}`;
         } else if (neighborhood && place) {
           return `${neighborhood}, ${place}`;
         } else if (place && region) {
           return `${place}, ${region}`;
         } else if (place) {
           return place;
-        } else {
-          // Return full place_name for detailed location
-          return placeName;
         }
+        
+        // Fallback to full place_name for detailed location
+        return feature.place_name;
       }
       return 'Unknown Location';
     } catch (error) {
@@ -488,16 +517,90 @@ const getPriorityBadge = (priority) => {
       });
       const data = await response.json();
       console.log('Location saved:', data);
+
+      // Add to location history with actual timestamp
+      if (locationName) {
+        const now = new Date();
+        const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const date = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        
+        setLocationHistory(prev => [{ 
+          id: Date.now().toString(), 
+          location: locationName, 
+          time, 
+          date,
+          longitude,
+          latitude,
+          timestamp: now.toISOString()
+        }, ...prev.slice(0, 19)]);
+      }
     } catch (error) {
       console.error('Error saving location:', error);
     }
   };
 
+  // Manual refresh location function
+  const refreshLocation = async () => {
+    setIsRefreshingLocation(true);
+    try {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const longitude = pos.coords.longitude;
+          const latitude = pos.coords.latitude;
+          
+          // Update actual user coordinates for marker
+          setUserCoordinates({
+            longitude,
+            latitude
+          });
+          
+          // Center map on new location
+          setViewState({
+            longitude,
+            latitude,
+            zoom: 15
+          });
+          
+          // Get updated location name
+          const locationName = await getLocationName(longitude, latitude);
+          setCurrentLocation(locationName);
+          
+          // Save updated location to backend
+          await saveLocationToBackend(longitude, latitude, locationName);
+          
+          setIsRefreshingLocation(false);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          alert("Unable to get your location. Please check your location permissions.");
+          setIsRefreshingLocation(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0 // Don't use cached position
+        }
+      );
+    } catch (error) {
+      console.error('Error refreshing location:', error);
+      setIsRefreshingLocation(false);
+    }
+  };
+
   useEffect(() => {
+    // Get initial position
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const longitude = pos.coords.longitude;
         const latitude = pos.coords.latitude;
+        
+        // Update actual user coordinates for marker
+        setUserCoordinates({
+          longitude,
+          latitude
+        });
+        
+        // Update map view to show user location
         setViewState({
           longitude,
           latitude,
@@ -516,6 +619,38 @@ const getPriorityBadge = (priority) => {
         setCurrentLocation("Location access denied");
       }
     );
+
+    // Watch for continuous location updates
+    const watchId = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const longitude = pos.coords.longitude;
+        const latitude = pos.coords.latitude;
+        
+        // Update actual user coordinates for marker
+        setUserCoordinates({
+          longitude,
+          latitude
+        });
+        
+        // Get updated location name
+        const locationName = await getLocationName(longitude, latitude);
+        setCurrentLocation(locationName);
+        
+        // Save updated location to backend
+        saveLocationToBackend(longitude, latitude, locationName);
+      },
+      () => {
+        console.error("Error tracking location");
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10000, // 10 seconds
+        timeout: 5000 // 5 seconds
+      }
+    );
+
+    // Cleanup watch on unmount
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
   // Mark a specific announcement as read
@@ -561,12 +696,7 @@ const getPriorityBadge = (priority) => {
 
   const [projects, setProjects] = useState([]);
 
-  const [locationHistory, setLocationHistory] = useState([
-    { id: "1", location: "Main Office", time: "09:00 AM", date: "2024-12-10" },
-    { id: "2", location: "Site A", time: "10:30 AM", date: "2024-12-10" },
-    { id: "3", location: "Client Office", time: "02:00 PM", date: "2024-12-10" },
-    { id: "4", location: "Site B", time: "04:45 PM", date: "2024-12-10" },
-  ]);
+  const [locationHistory, setLocationHistory] = useState([]);
 
   const updateLocation = (location) => {
     const now = new Date();
@@ -1664,10 +1794,9 @@ const renderAnnouncementCard = (announcement) => (
         <MdLocationOn size={24} className="text-blue-500" />
       </div>
       <div className="flex-1">
-        <div className="font-medium mb-1">{item.location}</div>
-        <div className="flex items-center text-xs text-gray-500">
-          <span>{item.time}</span>
-          <span className="ml-3">{item.date}</span>
+        <div className="font-medium text-gray-800 mb-1">{item.location}</div>
+        <div className="text-xs text-gray-500">
+          <div>{item.date} at {item.time}</div>
         </div>
       </div>
     </div>
@@ -2078,7 +2207,7 @@ const renderAnnouncementCard = (announcement) => (
 
        case "My Location":
         return (
-          <div className="relative h-screen w-full overflow-hidden" style={{ overscrollBehavior: 'none' }}>
+          <div className="relative h-screen w-full overflow-hidden" style={{ overscrollBehavior: 'none', touchAction: 'pan-x pan-y' }}>
             {/* MAP */}
             <div className="absolute inset-0 overflow-hidden">
               <Map
@@ -2120,72 +2249,49 @@ const renderAnnouncementCard = (announcement) => (
                 ))}
 
                 {/* User Location Marker with Profile Image */}
-                <Marker 
-                  longitude={viewState.longitude} 
-                  latitude={viewState.latitude}
-                  anchor="center"
-                >
-                  <div className="relative">
-                    {getCurrentUserProfileImage() ? (
-                      <div className="relative">
-                        <img 
-                          src={getCurrentUserProfileImage()}
-                          alt="Your location"
-                          className="w-12 h-12 rounded-full border-4 border-white shadow-lg object-cover"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                        {/* Pulsing radar effect */}
-                      <div className="absolute inset-0 w-12 h-12 rounded-full bg-blue-500 opacity-30 animate-ping"></div>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                      <div className="w-12 h-12 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">
-                        {user?.email?.charAt(0).toUpperCase() || '?'}
-                        </span>
-                      </div>
-                      <div className="absolute inset-0 w-12 h-12 rounded-full bg-blue-500 opacity-30 animate-ping"></div>
-                      </div>
-                    )}
+                {userCoordinates.latitude && userCoordinates.longitude && (
+                  <Marker 
+                    longitude={userCoordinates.longitude} 
+                    latitude={userCoordinates.latitude}
+                    anchor="center"
+                  >
+                    <div className="relative flex flex-col items-center justify-center">
+                      {/* Radar pulse effect */}
+                      <div className="absolute w-14 h-14 rounded-full" style={{
+                        animation: 'radar-pulse 2s ease-out infinite'
+                      }}></div>
+
+                      {getCurrentUserProfileImage() ? (
+                        <div className="relative z-10">
+                          <img 
+                            src={getCurrentUserProfileImage()}
+                            alt="Your location"
+                            className="w-14 h-14 rounded-full border-4 border-white shadow-lg object-cover"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="relative z-10">
+                          <div className="w-14 h-14 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                            <span className="text-white font-bold text-lg">
+                              {user?.email?.charAt(0).toUpperCase() || '?'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </Marker>
-                  
-                  {/* Map Controls - custom positioned */}
-                  <div style={{ position: 'absolute', top: '80px', left: '16px', zIndex: 10 }}>
-                    <div style={{ marginBottom: '8px' }}>
-                      <NavigationControl />
-                    </div>
-                    <GeolocateControl 
-                      trackUserLocation
-                      showUserHeading={true}
-                      onGeolocate={async (e) => {
-                        const longitude = e.coords.longitude;
-                        const latitude = e.coords.latitude;
-                        setViewState({
-                          longitude,
-                          latitude,
-                          zoom: 15
-                        });
-                        
-                        // Get actual location name from new coordinates
-                        const locationName = await getLocationName(longitude, latitude);
-                        setCurrentLocation(locationName);
-                        
-                        // Save updated location to backend with actual name
-                        saveLocationToBackend(longitude, latitude, locationName);
-                      }}
-                    />
-                  </div>
+                )}
               </Map>
 
               {/* Top Bar */}
               <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/20 to-transparent pt-4 px-4 z-20">
-                <div className="flex items-center justify-center relative">
+                <div className="flex items-center justify-between relative">
                   <button
-                    className="absolute left-0 bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                    className="bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
                     onClick={() => handleTabChange("Home")}
                   >
                     <FiChevronLeft size={24} />
@@ -2194,11 +2300,19 @@ const renderAnnouncementCard = (announcement) => (
                     <div className="text-sm text-gray-500">Current Location</div>
                     <div className="font-bold text-gray-800">{currentLocation}</div>
                   </div>
+                  <button
+                    onClick={refreshLocation}
+                    disabled={isRefreshingLocation}
+                    className={`p-3 rounded-full shadow-lg ${isRefreshingLocation ? 'bg-white text-gray-400' : 'bg-white text-blue-500 hover:bg-blue-50'} transition-all`}
+                    title="Refresh location"
+                  >
+                    <FiRefreshCw size={24} className={isRefreshingLocation ? 'animate-spin' : ''} />
+                  </button>
                 </div>
               </div>
 
               {/* Location History */}
-              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-[45%] flex flex-col z-30" style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
+              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-[40%] flex flex-col z-30" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch', touchAction: 'none' }}>
                 <div className="px-5 pt-5 pb-0 flex-shrink-0">
                   <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
                   <div className="flex justify-between items-center mb-4">
@@ -2206,7 +2320,7 @@ const renderAnnouncementCard = (announcement) => (
                     <button className="text-blue-500 text-sm font-medium">View All</button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', touchAction: 'pan-y' }}>
+                <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'none', touchAction: 'pan-y', overscrollBehaviorY: 'none' }}>
                   {locationHistory.length > 0 ? (
                     locationHistory.map(renderLocationHistory)
                   ) : (
