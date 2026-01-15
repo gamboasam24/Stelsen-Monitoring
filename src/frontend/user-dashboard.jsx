@@ -270,9 +270,6 @@ const UserDashboard = ({ user, logout }) => {
   };
 
   fetchAnnouncements();
-  const interval = setInterval(fetchAnnouncements, 10000); // Poll every 10 seconds
-
-  return () => clearInterval(interval);
 }, []);
 
 // Fetch users for names/avatars
@@ -368,9 +365,6 @@ useEffect(() => {
 
   if (user?.id) {
     fetchProjects();
-    // Refresh projects every 10 seconds to stay in sync
-    const interval = setInterval(fetchProjects, 10000);
-    return () => clearInterval(interval);
   }
 }, [user]);
 
