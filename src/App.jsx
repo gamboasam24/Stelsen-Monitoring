@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { 
-  Mail, Lock, Moon, SunMedium, Eye, EyeOff,
-  AlertCircle, LogIn, Shield, UserPlus, ArrowLeft,
-  User, Phone, Building, Key, CheckCircle, X
+  Mail, Lock, Eye, EyeOff, AlertCircle, LogIn, 
+  UserPlus, ArrowLeft, Phone, Key, CheckCircle,
+  ChevronRight, Shield, Smartphone, Sparkles
 } from "lucide-react";
 
 import UserDashboard from "./frontend/user-dashboard.jsx";
@@ -31,7 +31,6 @@ function App() {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [darkMode, setDarkMode] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -56,20 +55,17 @@ function App() {
       
       if (storedUser && storedToken) {
         try {
-          // Verify session with backend
           const response = await fetch("/backend/login.php", {
             method: "GET",
             credentials: "include"
           });
           
           const data = await response.json();
-          
+
           if (data.status === "success" && data.user) {
-            // Session is valid, restore user state
             setCurrentUser(data.user);
             setLoggedIn(true);
           } else {
-            // Session expired, clear localStorage
             console.log("Backend session expired, clearing local storage");
             localStorage.removeItem("user");
             localStorage.removeItem("auth_token");
@@ -78,48 +74,38 @@ function App() {
           }
         } catch (error) {
           console.error("Failed to validate session:", error);
-          // On error, clear localStorage to be safe
           localStorage.removeItem("user");
           localStorage.removeItem("auth_token");
           setCurrentUser(null);
           setLoggedIn(false);
         }
       }
-      
-      // Add a small delay to prevent flash
       setTimeout(() => {
         setIsValidatingSession(false);
       }, 500);
-    };
+    } // Closing the function properly
     
     validateSession();
   }, []);
 
-//============================================ Handle Logout ============================================//
-const handleLogout = () => {
-  // Clear localStorage
-  localStorage.removeItem("user");
-  localStorage.removeItem("auth_token");
+  //============================================ Handle Logout ============================================//
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("auth_token");
+    setCurrentUser(null);
+    setLoggedIn(false);
+    setEmail("");
+    setPhone("");
+    setPassword("");
+    setConfirmPassword("");
+    setNewPassword("");
+    setVerificationCode("");
+    setError("");
+    setSuccess("");
+    setCurrentView(AUTH_VIEWS.LOGIN);
+  };
 
-  // Reset user states
-  setCurrentUser(null);
-  setLoggedIn(false);
-
-  // Reset auth forms & messages
-  setEmail("");
-  setPhone("");
-  setPassword("");
-  setConfirmPassword("");
-  setNewPassword("");
-  setVerificationCode("");
-  setError("");
-  setSuccess("");
-
-  // Go back to login view
-  setCurrentView(AUTH_VIEWS.LOGIN);
-};
-
-//============================================ Handle Login ============================================//
+  //============================================ Handle Login ============================================//
   const handleLogin = (e) => {
     e.preventDefault();
     setError("");
@@ -196,209 +182,204 @@ const handleLogout = () => {
       return setError("Please enter a valid phone number.");
     }
 
-//============================================ Send Registration Request ============================================//
-setIsLoading(true);
-fetch("/backend/register.php", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ email, phone, password }),
-})
-  .then(res => res.json())
-  .then(data => {
-    setIsLoading(false);
-    if (data.status === "success") {
-      setVerificationPurpose("register");
-      setCurrentView(AUTH_VIEWS.VERIFICATION);
-      setSuccess("Verification code sent to your email!");
-    } else {
-      setError(data.message);
-    }
-  })
-  .catch(() => {
-    setIsLoading(false);
-    setError("Network error. Try againnnn.");
-  });
+    setIsLoading(true);
+    fetch("/backend/register.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, phone, password }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        setIsLoading(false);
+        if (data.status === "success") {
+          setVerificationPurpose("register");
+          setCurrentView(AUTH_VIEWS.VERIFICATION);
+          setSuccess("Verification code sent to your email!");
+        } else {
+          setError(data.message);
+        }
+      })
+      .catch(() => {
+        setIsLoading(false);
+        setError("Network error. Try again.");
+      });
   };
 
-//============================================ Handle Forgot Password ============================================//
-const handleForgotPassword = (e) => {
-  e.preventDefault();
-  setError("");
-  setSuccess("");
-  setIsLoading(true);
+  //============================================ Handle Forgot Password ============================================//
+  const handleForgotPassword = (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setIsLoading(true);
 
-  fetch("/backend/forgot_password.php", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "send_code",
-      email
+    fetch("/backend/forgot_password.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "send_code",
+        email
+      })
     })
-  })
-    .then(res => res.json())
-    .then(data => {
-      setIsLoading(false);
-      if (data.status === "success") {
-        setSuccess("Verification code sent to your email");
-        setVerificationPurpose("forgot");
-        setCurrentView(AUTH_VIEWS.VERIFICATION); // 👈 IMPORTANT
-      } else {
-        setError(data.message);
-      }
-    })
-    .catch(() => {
-      setIsLoading(false);
-      setError("Server error. Try again.");
-    });
-};
-
-//============================================ Handle Verification ============================================//
-const handleVerification = (e) => {
-  e.preventDefault();
-
-  if (!verificationPurpose) {
-    setError("Invalid verification flow.");
-    return;
-  }
-
-  const purpose = verificationPurpose; // save the purpose before resetting
-  setError("");
-  setSuccess("");
-  setIsLoading(true);
-
-  // Decide which backend endpoint to call based on the purpose
-  const endpoint =
-    purpose === "register"
-      ? "/backend/verify.php"           // registration verification
-      : "/backend/forgot_password.php"; // forgot password verification
-
-  // Prepare payload
-  const payload =
-    purpose === "register"
-      ? { email, code: verificationCode } // registration code
-      : { action: "verify_code", email, code: verificationCode }; // forgot password code
-
-  fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  })
-    .then(res => res.json())
-    .then(data => {
-      setIsLoading(false);
-
-      if (data.status === "success") {
-        setVerificationCode(""); // clear input
-
-        if (purpose === "register") {
-          setSuccess("Account verified! You can now log in.");
-          setCurrentView(AUTH_VIEWS.LOGIN);
+      .then(res => res.json())
+      .then(data => {
+        setIsLoading(false);
+        if (data.status === "success") {
+          setSuccess("Verification code sent to your email");
+          setVerificationPurpose("forgot");
+          setCurrentView(AUTH_VIEWS.VERIFICATION);
         } else {
-          setSuccess("Code verified. Create a new password.");
-          setCurrentView(AUTH_VIEWS.RESET_PASSWORD);
+          setError(data.message);
         }
+      })
+      .catch(() => {
+        setIsLoading(false);
+        setError("Server error. Try again.");
+      });
+  };
 
-        setVerificationPurpose(null); // reset purpose after success
-      } else {
-        setError(data.message || "Verification failed.");
-      }
+  //============================================ Handle Verification ============================================//
+  const handleVerification = (e) => {
+    e.preventDefault();
+
+    if (!verificationPurpose) {
+      setError("Invalid verification flow.");
+      return;
+    }
+
+    const purpose = verificationPurpose;
+    setError("");
+    setSuccess("");
+    setIsLoading(true);
+
+    const endpoint =
+      purpose === "register"
+        ? "/backend/verify.php"
+        : "/backend/forgot_password.php";
+
+    const payload =
+      purpose === "register"
+        ? { email, code: verificationCode }
+        : { action: "verify_code", email, code: verificationCode };
+
+    fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     })
-    .catch(() => {
-      setIsLoading(false);
-      setError("Server error. Please try again.");
-    });
-};
+      .then(res => res.json())
+      .then(data => {
+        setIsLoading(false);
 
-//============================================ Handle Reset Password ============================================//
-const handleResetPassword = (e) => {
-  e.preventDefault();
-  setError("");
-  setSuccess("");
+        if (data.status === "success") {
+          setVerificationCode("");
 
-  if (!newPassword || newPassword.length < 8) {
-    return setError("Password must be at least 8 characters.");
-  }
+          if (purpose === "register") {
+            setSuccess("Account verified! You can now log in.");
+            setCurrentView(AUTH_VIEWS.LOGIN);
+          } else {
+            setSuccess("Code verified. Create a new password.");
+            setCurrentView(AUTH_VIEWS.RESET_PASSWORD);
+          }
 
-  if (newPassword !== confirmPassword) {
-    return setError("Passwords do not match.");
-  }
+          setVerificationPurpose(null);
+        } else {
+          setError(data.message || "Verification failed.");
+        }
+      })
+      .catch(() => {
+        setIsLoading(false);
+        setError("Server error. Please try again.");
+      });
+  };
 
-  setIsLoading(true);
+  //============================================ Handle Reset Password ============================================//
+  const handleResetPassword = (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
 
-  fetch("/backend/forgot_password.php", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "reset_password",
-      email,
-      password: newPassword
+    if (!newPassword || newPassword.length < 8) {
+      return setError("Password must be at least 8 characters.");
+    }
+
+    if (newPassword !== confirmPassword) {
+      return setError("Passwords do not match.");
+    }
+
+    setIsLoading(true);
+
+    fetch("/backend/forgot_password.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "reset_password",
+        email,
+        password: newPassword
+      })
     })
-  })
-    .then(res => res.json())
-    .then(data => {
-      setIsLoading(false);
+      .then(res => res.json())
+      .then(data => {
+        setIsLoading(false);
 
-      if (data.status === "success") {
-        setSuccess("Password reset successfully! You can now log in.");
-        setCurrentView(AUTH_VIEWS.LOGIN);
+        if (data.status === "success") {
+          setSuccess("Password reset successfully! You can now log in.");
+          setCurrentView(AUTH_VIEWS.LOGIN);
+          setNewPassword("");
+          setConfirmPassword("");
+          setVerificationCode("");
+        } else {
+          setError(data.message || "Reset failed");
+        }
+      })
+      .catch(() => {
+        setIsLoading(false);
+        setError("Server error. Please try again.");
+      });
+  };
 
-        // 🧼 clean state
-        setNewPassword("");
-        setConfirmPassword("");
-        setVerificationCode("");
-      } else {
-        setError(data.message || "Reset failed");
-      }
-    })
-    .catch(() => {
-      setIsLoading(false);
-      setError("Server error. Please try again.");
-    });
-};
-
-//=========================================== Handle Resend Code Email =================================================================
+  //=========================================== Handle Resend Code Email ============================================
   const handleResendCode = () => {
     setSuccess("New verification code sent to your email!");
     setVerificationStep(1);
     setTimeout(() => setVerificationStep(2), 1000);
   };
 
-  // =========================================== GOOGLE LOGIN ============================================================
-const handleGoogleLoginSuccess = (googleUser) => {
-  setError("");
-  setSuccess("");
-  setIsLoading(true);
+  // =========================================== GOOGLE LOGIN ========================================================
+  const handleGoogleLoginSuccess = (googleUser) => {
+    setError("");
+    setSuccess("");
+    setIsLoading(true);
 
-  fetch("/backend/google_login.php", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(googleUser),
-  })
-    .then(res => res.json())
-    .then(data => {
-      setIsLoading(false);
-
-      if (data.status === "success") {
-        localStorage.setItem("auth_token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        setCurrentUser(data.user);
-        setSuccess("Logged in with Google 🚀");
-
-        setTimeout(() => {
-          setLoggedIn(true);
-        }, 800);
-      } else {
-        setError(data.message || "Google login failed");
-      }
+    fetch("/backend/google_login.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(googleUser),
     })
-    .catch(() => {
-      setIsLoading(false);
-      setError("Google login error. Try again.");
-    });
-};
+      .then(res => res.json())
+      .then(data => {
+        setIsLoading(false);
 
-  //========================================= Quick login for demo ===================================================================
+        if (data.status === "success") {
+          localStorage.setItem("auth_token", data.token);
+          localStorage.setItem("user", JSON.stringify(data.user));
+
+          setCurrentUser(data.user);
+          setSuccess("Logged in with Google 🚀");
+
+          setTimeout(() => {
+            setLoggedIn(true);
+          }, 800);
+        } else {
+          setError(data.message || "Google login failed");
+        }
+      })
+      .catch(() => {
+        setIsLoading(false);
+        setError("Google login error. Try again.");
+      });
+  };
+
+  //========================================= Quick login for demo ===================================================
   const handleQuickLogin = (demoEmail, demoPassword) => {
     setEmail(demoEmail);
     setPassword(demoPassword);
@@ -408,10 +389,21 @@ const handleGoogleLoginSuccess = (googleUser) => {
   // Show loading screen while validating session
   if (isValidatingSession) {
     return (
-      <div className="fixed inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-50 to-white flex items-center justify-center z-50">
         <div className="flex flex-col items-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-800 text-2xl font-bold">Loading...</p>
+          <div className="relative mb-8">
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+              <Shield className="text-white" size={40} />
+            </div>
+            <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full flex items-center justify-center">
+              <Sparkles className="text-white" size={14} />
+            </div>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-800 text-lg font-semibold">Loading Stelsen...</p>
+            <p className="text-gray-500 text-sm mt-2">Securing your session</p>
+          </div>
         </div>
       </div>
     );
@@ -425,40 +417,45 @@ const handleGoogleLoginSuccess = (googleUser) => {
     );
   }
 
-  //===================================== Render different auth views ==================================================================
+  //===================================== Render different auth views ==============================================
   const renderLoginView = () => (
     <>
       <div className="space-y-6">
         {/* Success Message */}
         {success && (
-          <div className="mb-6 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-2">
-            <CheckCircle className="text-green-600 dark:text-green-400" size={18} />
-            <span className="text-sm text-green-700 dark:text-green-300">
-              {success}
-            </span>
+          <div className="mb-4 p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl flex items-center gap-3 animate-fadeIn">
+            <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="text-emerald-600" size={20} />
+            </div>
+            <div className="flex-1">
+              <span className="text-sm font-medium text-emerald-800">
+                {success}
+              </span>
+            </div>
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-5">
           {/* Email Input */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium text-gray-700 ml-1">
               Email Address
             </label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Mail className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Mail className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type="email"
-                className="pl-12 pr-4 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                placeholder="Enter your email"
+                className="pl-12 pr-4 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
                   setError("");
                 }}
                 required
+                autoComplete="email"
               />
             </div>
           </div>
@@ -466,17 +463,17 @@ const handleGoogleLoginSuccess = (googleUser) => {
           {/* Password Input */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-gray-700 ml-1">
                 Password
               </label>
             </div>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Lock className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Lock className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type={showPassword ? "text" : "password"}
-                className="pl-12 pr-12 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                className="pl-12 pr-12 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => {
@@ -484,14 +481,15 @@ const handleGoogleLoginSuccess = (googleUser) => {
                   setError("");
                 }}
                 required
+                autoComplete="current-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
@@ -506,12 +504,12 @@ const handleGoogleLoginSuccess = (googleUser) => {
                   onChange={(e) => setRemember(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-5 h-5 bg-gray-100 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded peer-checked:bg-blue-500 peer-checked:border-blue-500 transition-all duration-200"></div>
+                <div className="w-6 h-6 bg-gray-100 border-2 border-gray-300 rounded-lg peer-checked:bg-blue-500 peer-checked:border-blue-500 transition-all duration-200"></div>
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity">
-                  <div className="w-2.5 h-2.5 bg-white rounded"></div>
+                  <div className="w-3 h-3 bg-white rounded-sm"></div>
                 </div>
               </div>
-              <span className="ml-3 text-sm text-gray-600 dark:text-gray-300">
+              <span className="ml-3 text-sm text-gray-600">
                 Remember me
               </span>
             </label>
@@ -523,7 +521,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
                 setError("");
                 setSuccess("");
               }}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
             >
               Forgot password?
             </button>
@@ -531,9 +529,13 @@ const handleGoogleLoginSuccess = (googleUser) => {
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
-              <AlertCircle className="text-red-500 dark:text-red-400 flex-shrink-0" size={18} />
-              <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
+            <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-2xl flex items-start gap-3 animate-shake">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="text-red-500" size={20} />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-red-700">{error}</span>
+              </div>
             </div>
           )}
 
@@ -541,10 +543,10 @@ const handleGoogleLoginSuccess = (googleUser) => {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-4 px-4 font-medium rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+            className={`w-full py-4 px-4 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg ${
               isLoading 
                 ? "bg-blue-400 cursor-not-allowed" 
-                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg active:scale-[0.98] shadow-md"
+                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
             } text-white`}
           >
             {isLoading ? (
@@ -554,17 +556,20 @@ const handleGoogleLoginSuccess = (googleUser) => {
               </>
             ) : (
               <>
-                <LogIn size={18} />
-                <span>Sign In to Dashboard</span>
+                <div className="flex items-center gap-3">
+                  <LogIn size={20} />
+                  <span>Sign In to Dashboard</span>
+                </div>
+                <ChevronRight size={20} />
               </>
             )}
           </button>
 
           {/* Divider */}
-          <div className="relative flex items-center justify-center">
-            <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-            <span className="mx-4 text-sm text-gray-500 dark:text-gray-400">Or continue with</span>
-            <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+          <div className="relative flex items-center justify-center py-4">
+            <div className="flex-grow border-t border-gray-200"></div>
+            <span className="mx-4 text-sm text-gray-500 font-medium">Or continue with</span>
+            <div className="flex-grow border-t border-gray-200"></div>
           </div>
 
           {/* Social Login */}
@@ -574,8 +579,8 @@ const handleGoogleLoginSuccess = (googleUser) => {
         </form>
 
         {/* Register Link */}
-        <div className="text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+        <div className="text-center pt-2">
+          <p className="text-sm text-gray-600">
             Don't have an account?{" "}
             <button
               onClick={() => {
@@ -583,7 +588,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
                 setError("");
                 setSuccess("");
               }}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium hover:underline transition-colors"
+              className="text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-colors"
             >
               Create an account
             </button>
@@ -596,21 +601,21 @@ const handleGoogleLoginSuccess = (googleUser) => {
   const renderRegisterView = () => (
     <>
       <div className="space-y-6">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => {
               setCurrentView(AUTH_VIEWS.LOGIN);
               setError("");
               setSuccess("");
             }}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
           >
             <ArrowLeft size={20} />
           </button>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Create Account</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
         </div>
 
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+        <p className="text-sm text-gray-600 mb-6">
           Join Stelsen Monitoring and access your dashboard
         </p>
 
@@ -618,16 +623,16 @@ const handleGoogleLoginSuccess = (googleUser) => {
 
           {/* Email */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Email Address *
+            <label className="block text-sm font-medium text-gray-700 ml-1">
+              Email Address
             </label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Mail className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Mail className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type="email"
-                className="pl-12 pr-4 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                className="pl-12 pr-4 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
                 placeholder="john@example.com"
                 value={email}
                 onChange={(e) => {
@@ -635,22 +640,23 @@ const handleGoogleLoginSuccess = (googleUser) => {
                   setError("");
                 }}
                 required
+                autoComplete="email"
               />
             </div>
           </div>
 
           {/* Phone */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Phone Number *
+            <label className="block text-sm font-medium text-gray-700 ml-1">
+              Phone Number
             </label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Phone className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Phone className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type="tel"
-                className="pl-12 pr-4 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                className="pl-12 pr-4 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
                 placeholder="+1 (555) 123-4567"
                 value={phone}
                 onChange={(e) => {
@@ -658,22 +664,23 @@ const handleGoogleLoginSuccess = (googleUser) => {
                   setError("");
                 }}
                 required
+                autoComplete="tel"
               />
             </div>
           </div>
 
           {/* Password */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Password *
+            <label className="block text-sm font-medium text-gray-700 ml-1">
+              Password
             </label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Lock className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Lock className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type={showPassword ? "text" : "password"}
-                className="pl-12 pr-12 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                className="pl-12 pr-12 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
                 placeholder="At least 8 characters"
                 value={password}
                 onChange={(e) => {
@@ -681,29 +688,30 @@ const handleGoogleLoginSuccess = (googleUser) => {
                   setError("");
                 }}
                 required
+                autoComplete="new-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
 
           {/* Confirm Password */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Confirm Password *
+            <label className="block text-sm font-medium text-gray-700 ml-1">
+              Confirm Password
             </label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Lock className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Lock className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type={showConfirmPassword ? "text" : "password"}
-                className="pl-12 pr-12 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                className="pl-12 pr-12 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
                 placeholder="Confirm your password"
                 value={confirmPassword}
                 onChange={(e) => {
@@ -711,31 +719,38 @@ const handleGoogleLoginSuccess = (googleUser) => {
                   setError("");
                 }}
                 required
+                autoComplete="new-password"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
               >
-                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
 
           {/* Password Requirements */}
-          <div className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
-            <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">Password must contain:</p>
-            <ul className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
-              <li className={`flex items-center gap-1 ${password.length >= 8 ? 'text-green-600 dark:text-green-400' : ''}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${password.length >= 8 ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+            <p className="text-sm font-medium text-gray-700 mb-3">Password Requirements:</p>
+            <ul className="text-xs text-gray-600 space-y-2">
+              <li className={`flex items-center gap-3 ${password.length >= 8 ? 'text-green-600' : ''}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${password.length >= 8 ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  <div className={`w-2 h-2 rounded-full ${password.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                </div>
                 At least 8 characters
               </li>
-              <li className={`flex items-center gap-1 ${/[A-Z]/.test(password) ? 'text-green-600 dark:text-green-400' : ''}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${/[A-Z]/.test(password) ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+              <li className={`flex items-center gap-3 ${/[A-Z]/.test(password) ? 'text-green-600' : ''}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${/[A-Z]/.test(password) ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  <div className={`w-2 h-2 rounded-full ${/[A-Z]/.test(password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                </div>
                 One uppercase letter
               </li>
-              <li className={`flex items-center gap-1 ${/\d/.test(password) ? 'text-green-600 dark:text-green-400' : ''}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${/\d/.test(password) ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+              <li className={`flex items-center gap-3 ${/\d/.test(password) ? 'text-green-600' : ''}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${/\d/.test(password) ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  <div className={`w-2 h-2 rounded-full ${/\d/.test(password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                </div>
                 One number
               </li>
             </ul>
@@ -743,17 +758,25 @@ const handleGoogleLoginSuccess = (googleUser) => {
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
-              <AlertCircle className="text-red-500 dark:text-red-400 flex-shrink-0" size={18} />
-              <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
+            <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-2xl flex items-start gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="text-red-500" size={20} />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-red-700">{error}</span>
+              </div>
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-2">
-              <CheckCircle className="text-green-600 dark:text-green-400" size={18} />
-              <span className="text-sm text-green-700 dark:text-green-300">{success}</span>
+            <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="text-emerald-600" size={20} />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-emerald-800">{success}</span>
+              </div>
             </div>
           )}
 
@@ -761,10 +784,10 @@ const handleGoogleLoginSuccess = (googleUser) => {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-4 px-4 font-medium rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+            className={`w-full py-4 px-4 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg ${
               isLoading 
                 ? "bg-blue-400 cursor-not-allowed" 
-                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg active:scale-[0.98] shadow-md"
+                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
             } text-white`}
           >
             {isLoading ? (
@@ -774,7 +797,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
               </>
             ) : (
               <>
-                <UserPlus size={18} />
+                <UserPlus size={20} />
                 <span>Create Account</span>
               </>
             )}
@@ -783,7 +806,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
 
         {/* Login Link */}
         <div className="text-center pt-4">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-gray-600">
             Already have an account?{" "}
             <button
               onClick={() => {
@@ -791,7 +814,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
                 setError("");
                 setSuccess("");
               }}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium hover:underline transition-colors"
+              className="text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-colors"
             >
               Sign in here
             </button>
@@ -804,38 +827,47 @@ const handleGoogleLoginSuccess = (googleUser) => {
   const renderForgotPasswordView = () => (
     <>
       <div className="space-y-6">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => {
               setCurrentView(AUTH_VIEWS.LOGIN);
               setError("");
               setSuccess("");
             }}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
           >
             <ArrowLeft size={20} />
           </button>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Reset Password</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Reset Password</h2>
         </div>
 
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-          Enter your email address and we'll send you instructions to reset your password.
-        </p>
+        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Key className="text-blue-600" size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-700">
+                Enter your email address and we'll send you instructions to reset your password.
+              </p>
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handleForgotPassword} className="space-y-5">
           {/* Email Input */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium text-gray-700 ml-1">
               Email Address
             </label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Mail className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Mail className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type="email"
-                className="pl-12 pr-4 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                placeholder="Enter your email"
+                className="pl-12 pr-4 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -848,17 +880,25 @@ const handleGoogleLoginSuccess = (googleUser) => {
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
-              <AlertCircle className="text-red-500 dark:text-red-400 flex-shrink-0" size={18} />
-              <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
+            <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-2xl flex items-start gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="text-red-500" size={20} />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-red-700">{error}</span>
+              </div>
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-2">
-              <CheckCircle className="text-green-600 dark:text-green-400" size={18} />
-              <span className="text-sm text-green-700 dark:text-green-300">{success}</span>
+            <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="text-emerald-600" size={20} />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-emerald-800">{success}</span>
+              </div>
             </div>
           )}
 
@@ -866,10 +906,10 @@ const handleGoogleLoginSuccess = (googleUser) => {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-4 px-4 font-medium rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+            className={`w-full py-4 px-4 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg ${
               isLoading 
                 ? "bg-blue-400 cursor-not-allowed" 
-                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg active:scale-[0.98] shadow-md"
+                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
             } text-white`}
           >
             {isLoading ? (
@@ -879,8 +919,8 @@ const handleGoogleLoginSuccess = (googleUser) => {
               </>
             ) : (
               <>
-                <Key size={18} />
-                <span>Reset Password</span>
+                <Key size={20} />
+                <span>Send Reset Link</span>
               </>
             )}
           </button>
@@ -894,7 +934,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
               setError("");
               setSuccess("");
             }}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium hover:underline transition-colors"
+            className="text-sm text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-colors"
           >
             ← Back to Sign In
           </button>
@@ -906,50 +946,51 @@ const handleGoogleLoginSuccess = (googleUser) => {
   const renderVerificationView = () => (
     <>
       <div className="space-y-6">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => {
               setCurrentView(AUTH_VIEWS.REGISTER);
               setError("");
               setSuccess("");
             }}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
           >
             <ArrowLeft size={20} />
           </button>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Verify Your Email</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Verify Your Email</h2>
         </div>
 
         <div className="text-center">
-          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Mail className="text-blue-600 dark:text-blue-400" size={28} />
+          <div className="w-20 h-20 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+            <Mail className="text-blue-600" size={32} />
           </div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
             Check your email
           </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+          <p className="text-sm text-gray-600 mb-4">
             We've sent a 6-digit verification code to:
-            <br />
-            <span className="font-medium text-gray-800 dark:text-white">{email}</span>
           </p>
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 mb-6">
+            <p className="font-medium text-gray-900 text-base">{email}</p>
+          </div>
         </div>
 
         <form onSubmit={handleVerification} className="space-y-5">
           {/* Verification Code */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium text-gray-700 ml-1">
               Verification Code
             </label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Key className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Key className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type="text"
                 maxLength="6"
                 pattern="[0-9]*"
                 inputMode="numeric"
-                className="pl-12 pr-4 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                className="pl-12 pr-4 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 text-center text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
                 placeholder="000000"
                 value={verificationCode}
                 onChange={(e) => {
@@ -964,17 +1005,25 @@ const handleGoogleLoginSuccess = (googleUser) => {
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
-              <AlertCircle className="text-red-500 dark:text-red-400 flex-shrink-0" size={18} />
-              <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
+            <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-2xl flex items-start gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="text-red-500" size={20} />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-red-700">{error}</span>
+              </div>
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-2">
-              <CheckCircle className="text-green-600 dark:text-green-400" size={18} />
-              <span className="text-sm text-green-700 dark:text-green-300">{success}</span>
+            <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="text-emerald-600" size={20} />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-emerald-800">{success}</span>
+              </div>
             </div>
           )}
 
@@ -982,10 +1031,10 @@ const handleGoogleLoginSuccess = (googleUser) => {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-4 px-4 font-medium rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+            className={`w-full py-4 px-4 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg ${
               isLoading 
                 ? "bg-blue-400 cursor-not-allowed" 
-                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg active:scale-[0.98] shadow-md"
+                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
             } text-white`}
           >
             {isLoading ? (
@@ -995,7 +1044,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
               </>
             ) : (
               <>
-                <CheckCircle size={18} />
+                <CheckCircle size={20} />
                 <span>Verify Account</span>
               </>
             )}
@@ -1003,21 +1052,18 @@ const handleGoogleLoginSuccess = (googleUser) => {
         </form>
 
         {/* Resend Code */}
-        <div className="text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Didn't receive the code?{" "}
+        <div className="text-center pt-4">
+          <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200">
+            <p className="text-sm text-gray-600 mb-2">
+              Didn't receive the code?
+            </p>
             <button
               onClick={handleResendCode}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium hover:underline transition-colors"
+              className="text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-colors text-base"
             >
               Resend code
             </button>
-          </p>
-          {verificationSent && (
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-              New code sent! Check your email.
-            </p>
-          )}
+          </div>
         </div>
       </div>
     </>
@@ -1026,37 +1072,46 @@ const handleGoogleLoginSuccess = (googleUser) => {
   const renderResetPasswordView = () => (
     <>
       <div className="space-y-6">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => {
               setCurrentView(AUTH_VIEWS.LOGIN);
               setError("");
               setSuccess("");
             }}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
           >
             <ArrowLeft size={20} />
           </button>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Create New Password</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Create New Password</h2>
         </div>
 
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-          Enter your new password below.
-        </p>
+        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Lock className="text-blue-600" size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-700">
+                Create a strong, new password for your account.
+              </p>
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handleResetPassword} className="space-y-5">
           {/* New Password */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium text-gray-700 ml-1">
               New Password
             </label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Lock className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Lock className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type={showNewPassword ? "text" : "password"}
-                className="pl-12 pr-12 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                className="pl-12 pr-12 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
                 placeholder="Enter new password"
                 value={newPassword}
                 onChange={(e) => {
@@ -1068,25 +1123,25 @@ const handleGoogleLoginSuccess = (googleUser) => {
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
               >
-                {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
 
           {/* Confirm Password */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium text-gray-700 ml-1">
               Confirm New Password
             </label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <Lock className="text-gray-400 dark:text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <Lock className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               </div>
               <input
                 type={showConfirmPassword ? "text" : "password"}
-                className="pl-12 pr-12 py-3.5 w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                className="pl-12 pr-12 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
                 placeholder="Confirm new password"
                 value={confirmPassword}
                 onChange={(e) => {
@@ -1098,26 +1153,34 @@ const handleGoogleLoginSuccess = (googleUser) => {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
               >
-                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
-              <AlertCircle className="text-red-500 dark:text-red-400 flex-shrink-0" size={18} />
-              <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
+            <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-2xl flex items-start gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="text-red-500" size={20} />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-red-700">{error}</span>
+              </div>
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-2">
-              <CheckCircle className="text-green-600 dark:text-green-400" size={18} />
-              <span className="text-sm text-green-700 dark:text-green-300">{success}</span>
+            <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="text-emerald-600" size={20} />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-emerald-800">{success}</span>
+              </div>
             </div>
           )}
 
@@ -1125,10 +1188,10 @@ const handleGoogleLoginSuccess = (googleUser) => {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-4 px-4 font-medium rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+            className={`w-full py-4 px-4 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg ${
               isLoading 
                 ? "bg-blue-400 cursor-not-allowed" 
-                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg active:scale-[0.98] shadow-md"
+                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
             } text-white`}
           >
             {isLoading ? (
@@ -1138,7 +1201,7 @@ const handleGoogleLoginSuccess = (googleUser) => {
               </>
             ) : (
               <>
-                <Key size={18} />
+                <Key size={20} />
                 <span>Reset Password</span>
               </>
             )}
@@ -1150,69 +1213,67 @@ const handleGoogleLoginSuccess = (googleUser) => {
 
   // Main render
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-8">
-
-        {/* Mobile App Card */}
-        <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden transition-all duration-500 hover:shadow-3xl">
-          
-          {/* App Header with Logo */}
-          <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 p-8 pt-12">
-            {/* Decorative Elements */}
-            <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-            <div className="absolute bottom-0 right-0 w-24 h-24 bg-white/10 rounded-full translate-x-1/3 translate-y-1/3"></div>
-            
-            <div className="relative z-10 flex flex-col items-center">
-              {/* Logo */}
-              <div className="mb-4 bg-white rounded-2xl shadow-lg inline-block">
-                <img 
-                  src="/img/Stelsen%20Logo.png"
-                  alt="Stelsen Logo"
-                  className="w-80 h-24 object-contain p-2"
-                />
-              </div>
-              
-              <div className="text-center">
-                <h1 className="text-2xl font-bold text-white mb-2">
-                  Stelsen Monitoring
-                </h1>
-                <p className="text-white/80 text-sm">
-                  {currentView === AUTH_VIEWS.LOGIN && "Secure access to your monitoring dashboard"}
-                  {currentView === AUTH_VIEWS.REGISTER && "Create your monitoring account"}
-                  {currentView === AUTH_VIEWS.FORGOT_PASSWORD && "Reset your password"}
-                  {currentView === AUTH_VIEWS.VERIFICATION && "Verify your email"}
-                  {currentView === AUTH_VIEWS.RESET_PASSWORD && "Set new password"}
-                </p>
+    <div className="min-h-screen w-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col overflow-hidden" style={{ overscrollBehavior: 'none' }}>
+      {/* Full Screen Mobile App Container */}
+      <div className="w-full h-screen flex flex-col overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+        
+        {/* App Header with Logo - Mobile Optimized */}
+        <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 pt-10 pb-8 px-4 flex-shrink-0">
+          {/* App Logo/Image */}
+                <div className="relative z-10 flex flex-col items-center">
+                    {/* App Icon - PNG Image */}
+                              <div className="mb-4">
+                              <img 
+                                src="public/img/Stelsen Logo.png" 
+                                alt="Stelsen Logo" 
+                                className="h-32 w-auto object-contain bg-white rounded-2xl p-3"
+                              />
+                              </div>
+                              
+                              <div className="text-center">
+                              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
+                                <Smartphone className="text-white/90" size={16} />
+                                <p className="text-white/90 text-sm font-medium">
+                                {currentView === AUTH_VIEWS.LOGIN && "Welcome back! Sign in to continue"}
+                                {currentView === AUTH_VIEWS.REGISTER && "Join Stelsen Monitoring"}
+                                {currentView === AUTH_VIEWS.FORGOT_PASSWORD && "Reset your password"}
+                                {currentView === AUTH_VIEWS.VERIFICATION && "Verify your email"}
+                                {currentView === AUTH_VIEWS.RESET_PASSWORD && "Create new password"}
+                                </p>
+                              </div>
+                              </div>
+                              </div>
+                              </div>
+                            
+                            <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 pb-20">
+                            <div className="w-full max-w-md mx-auto">
+                              {/* Auth Card */}
+              <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 transform transition-all duration-300 hover:shadow-2xl">
+                {/* Auth View Router */}
+                {currentView === AUTH_VIEWS.LOGIN && renderLoginView()}
+                {currentView === AUTH_VIEWS.REGISTER && renderRegisterView()}
+                {currentView === AUTH_VIEWS.FORGOT_PASSWORD && renderForgotPasswordView()}
+                {currentView === AUTH_VIEWS.VERIFICATION && renderVerificationView()}
+                {currentView === AUTH_VIEWS.RESET_PASSWORD && renderResetPasswordView()}
               </div>
             </div>
           </div>
 
-          {/* Auth Content */}
-          <div className="p-8">
-            {/* Auth View Router */}
-            {currentView === AUTH_VIEWS.LOGIN && renderLoginView()}
-            {currentView === AUTH_VIEWS.REGISTER && renderRegisterView()}
-            {currentView === AUTH_VIEWS.FORGOT_PASSWORD && renderForgotPasswordView()}
-            {currentView === AUTH_VIEWS.VERIFICATION && renderVerificationView()}
-            {currentView === AUTH_VIEWS.RESET_PASSWORD && renderResetPasswordView()}
-
-          
-
-            {/* Footer */}
-            <div className="mt-6 text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                By continuing, you agree to our{" "}
-                <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">
-                  Terms
-                </a>{" "}
-                and{" "}
-                <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">
-                  Privacy Policy
-                </a>
-              </p>
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Stelsen Monitoring v1.0 • © 2026
-              </p>
-            </div>
+          {/* Footer - Sticky at bottom with safe area for mobile */}
+          <div className="px-4 py-6 text-center border-t border-gray-200/50 flex-shrink-0 bg-white/80 backdrop-blur-sm pb-8">
+            <p className="text-xs text-gray-500">
+              By continuing, you agree to our{" "}
+              <a href="#" className="text-blue-600 hover:underline font-medium">
+                Terms
+              </a>{" "}
+              and{" "}
+              <a href="#" className="text-blue-600 hover:underline font-medium">
+                Privacy Policy
+              </a>
+            </p>
+            <p className="mt-2 text-xs text-gray-400">
+              Stelsen Monitoring v2.0 • © 2026
+            </p>
           </div>
         </div>
       </div>
