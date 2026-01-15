@@ -1216,6 +1216,13 @@ function App() {
         
         {/* App Header with Logo - Mobile Optimized */}
         <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 pt-10 pb-8 px-4 flex-shrink-0">
+          <div className="absolute top-0 left-0 w-32 h-32 bg-white/20 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute top-2 left-80 w-32 h-32 bg-white/20 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute bottom-0 right-0 w-24 h-24 bg-white/20 rounded-full translate-x-1/3 translate-y-1/3"></div>
+          <div className="absolute bottom-0 right-80 w-24 h-24 bg-white/20 rounded-full translate-x-1/3 translate-y-1/3"></div>
+
+
           {/* App Logo/Image */}
           <div className="relative z-10 flex flex-col items-center">
             {/* App Icon - PNG Image */}
