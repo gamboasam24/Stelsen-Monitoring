@@ -540,32 +540,30 @@ function App() {
           )}
 
           {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`w-full py-4 px-4 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg ${
-              isLoading 
-                ? "bg-blue-400 cursor-not-allowed" 
-                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
-            } text-white`}
-          >
-            {isLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                <span>Signing in...</span>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <LogIn size={20} />
-                  <span>Sign In to Dashboard</span>
-                </div>
-                <ChevronRight size={20} />
-              </>
-            )}
-          </button>
+                <button
+                type="submit"
+                disabled={isLoading}
+                className={`w-full py-4 px-4 font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-3 shadow-lg ${
+                  isLoading 
+                  ? "bg-blue-400 cursor-not-allowed" 
+                  : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
+                } text-white`}
+                >
+                {isLoading ? (
+                  <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Signing in...</span>
+                  </>
+                ) : (
+                  <>
+                  <div className="flex items-center gap-3">
+                    <span>Sign In to Dashboard</span>
+                  </div>
+                  </>
+                )}
+                </button>
 
-          {/* Divider */}
+                {/* Divider */}
           <div className="relative flex items-center justify-center py-4">
             <div className="flex-grow border-t border-gray-200"></div>
             <span className="mx-4 text-sm text-gray-500 font-medium">Or continue with</span>
@@ -657,7 +655,7 @@ function App() {
               <input
                 type="tel"
                 className="pl-12 pr-4 py-4 w-full bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder:text-gray-400 text-base"
-                placeholder="+1 (555) 123-4567"
+                placeholder="0910 123 4567"
                 value={phone}
                 onChange={(e) => {
                   setPhone(e.target.value);
@@ -784,7 +782,7 @@ function App() {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-4 px-4 font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg ${
+            className={`w-full py-4 px-4 font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-3 shadow-lg ${
               isLoading 
                 ? "bg-blue-400 cursor-not-allowed" 
                 : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]"
@@ -797,7 +795,6 @@ function App() {
               </>
             ) : (
               <>
-                <UserPlus size={20} />
                 <span>Create Account</span>
               </>
             )}
@@ -936,7 +933,7 @@ function App() {
             }}
             className="text-sm text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-colors"
           >
-            ← Back to Sign In
+            Back to Sign In
           </button>
         </div>
       </div>
@@ -1220,63 +1217,62 @@ function App() {
         {/* App Header with Logo - Mobile Optimized */}
         <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 pt-10 pb-8 px-4 flex-shrink-0">
           {/* App Logo/Image */}
-                <div className="relative z-10 flex flex-col items-center">
-                    {/* App Icon - PNG Image */}
-                              <div className="mb-4">
-                              <img 
-                                src="public/img/Stelsen Logo.png" 
-                                alt="Stelsen Logo" 
-                                className="h-32 w-auto object-contain bg-white rounded-2xl p-3"
-                              />
-                              </div>
-                              
-                              <div className="text-center">
-                              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
-                                <Smartphone className="text-white/90" size={16} />
-                                <p className="text-white/90 text-sm font-medium">
-                                {currentView === AUTH_VIEWS.LOGIN && "Welcome back! Sign in to continue"}
-                                {currentView === AUTH_VIEWS.REGISTER && "Join Stelsen Monitoring"}
-                                {currentView === AUTH_VIEWS.FORGOT_PASSWORD && "Reset your password"}
-                                {currentView === AUTH_VIEWS.VERIFICATION && "Verify your email"}
-                                {currentView === AUTH_VIEWS.RESET_PASSWORD && "Create new password"}
-                                </p>
-                              </div>
-                              </div>
-                              </div>
-                              </div>
-                            
-                            <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 pb-20">
-                            <div className="w-full max-w-md mx-auto">
-                              {/* Auth Card */}
-              <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 transform transition-all duration-300 hover:shadow-2xl">
-                {/* Auth View Router */}
-                {currentView === AUTH_VIEWS.LOGIN && renderLoginView()}
-                {currentView === AUTH_VIEWS.REGISTER && renderRegisterView()}
-                {currentView === AUTH_VIEWS.FORGOT_PASSWORD && renderForgotPasswordView()}
-                {currentView === AUTH_VIEWS.VERIFICATION && renderVerificationView()}
-                {currentView === AUTH_VIEWS.RESET_PASSWORD && renderResetPasswordView()}
+          <div className="relative z-10 flex flex-col items-center">
+            {/* App Icon - PNG Image */}
+            <div className="mb-4">
+              <img 
+                src="public/img/Stelsen Logo.png" 
+                alt="Stelsen Logo" 
+                className="h-32 w-auto object-contain bg-white rounded-2xl p-3 shadow-lg"
+              />
+            </div>
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
+                <Smartphone className="text-white/90" size={16} />
+                <p className="text-white/90 text-sm font-medium">
+                  {currentView === AUTH_VIEWS.LOGIN && "Welcome back! Sign in to continue"}
+                  {currentView === AUTH_VIEWS.REGISTER && "Join Stelsen Monitoring"}
+                  {currentView === AUTH_VIEWS.FORGOT_PASSWORD && "Reset your password"}
+                  {currentView === AUTH_VIEWS.VERIFICATION && "Verify your email"}
+                  {currentView === AUTH_VIEWS.RESET_PASSWORD && "Create new password"}
+                </p>
               </div>
             </div>
           </div>
-
-          {/* Footer - Sticky at bottom with safe area for mobile */}
-          <div className="px-4 py-6 text-center border-t border-gray-200/50 flex-shrink-0 bg-white/80 backdrop-blur-sm pb-8">
-            <p className="text-xs text-gray-500">
-              By continuing, you agree to our{" "}
-              <a href="#" className="text-blue-600 hover:underline font-medium">
-                Terms
-              </a>{" "}
-              and{" "}
-              <a href="#" className="text-blue-600 hover:underline font-medium">
-                Privacy Policy
-              </a>
-            </p>
-            <p className="mt-2 text-xs text-gray-400">
-              Stelsen Monitoring v2.0 • © 2026
-            </p>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 pb-20">
+          <div className="w-full max-w-md mx-auto">
+            {/* Auth Card */}
+            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 transform transition-all duration-300 hover:shadow-2xl">
+              {/* Auth View Router */}
+              {currentView === AUTH_VIEWS.LOGIN && renderLoginView()}
+              {currentView === AUTH_VIEWS.REGISTER && renderRegisterView()}
+              {currentView === AUTH_VIEWS.FORGOT_PASSWORD && renderForgotPasswordView()}
+              {currentView === AUTH_VIEWS.VERIFICATION && renderVerificationView()}
+              {currentView === AUTH_VIEWS.RESET_PASSWORD && renderResetPasswordView()}
+            </div>
           </div>
         </div>
+
+        {/* Footer - Sticky at bottom with safe area for mobile */}
+        <div className="px-4 py-6 text-center border-t border-gray-200/50 flex-shrink-0 bg-white/80 backdrop-blur-sm pb-8">
+          <p className="text-xs text-gray-500">
+            By continuing, you agree to our{" "}
+            <a href="#" className="text-blue-600 hover:underline font-medium">
+              Terms
+            </a>{" "}
+            and{" "}
+            <a href="#" className="text-blue-600 hover:underline font-medium">
+              Privacy Policy
+            </a>
+          </p>
+          <p className="mt-2 text-xs text-gray-400">
+            Stelsen Monitoring v2.0 • © 2026
+          </p>
+        </div>
       </div>
+    </div>
   );
 }
 
