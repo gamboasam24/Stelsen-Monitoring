@@ -26,7 +26,9 @@ import {
   MdComment,
   MdPeople,
   MdNotifications,
-  MdMyLocation
+  MdMyLocation,
+  MdCamera,
+  MdCheck
 } from "react-icons/md";
 import {
   FaUser,
@@ -46,7 +48,8 @@ import {
   FiBell,
   FiSearch,
   FiFilter,
-  FiRefreshCw
+  FiRefreshCw,
+  FiX
 } from "react-icons/fi";
 import {
   HiOutlineChatAlt2,
@@ -749,6 +752,22 @@ const getPriorityBadge = (priority) => {
 
   const [locationHistory, setLocationHistory] = useState([]);
 
+  // Progress Update States
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [selectedTaskForProgress, setSelectedTaskForProgress] = useState(null);
+  const [progressPercentage, setProgressPercentage] = useState(0);
+  const [progressStatus, setProgressStatus] = useState("In Progress");
+  const [progressNotes, setProgressNotes] = useState("");
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const [taskLocation, setTaskLocation] = useState(null);
+  const [isCapturingLocation, setIsCapturingLocation] = useState(false);
+  const [locationValidationMsg, setLocationValidationMsg] = useState("");
+
+  // Refs for camera
+  const cameraVideoRef = useRef(null);
+  const cameraCanvasRef = useRef(null);
+
   const updateLocation = (location) => {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -1258,10 +1277,23 @@ const renderAnnouncementCard = (announcement) => (
       
       <div className="mb-4">
       <div className="flex justify-between text-sm text-gray-600 mb-1">
-        <span></span>
+        <span className="text-xs cursor-pointer hover:text-blue-600 transition-colors" onClick={() => {
+          setSelectedTaskForProgress(item);
+          setProgressPercentage(item.progress || 0);
+          setShowProgressModal(true);
+        }}>
+          📊 Update Progress
+        </span>
         <span className="font-bold">{item.progress}%</span>
       </div>
-      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div 
+        className="h-2 bg-gray-200 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={() => {
+          setSelectedTaskForProgress(item);
+          setProgressPercentage(item.progress || 0);
+          setShowProgressModal(true);
+        }}
+      >
         <div
         className={`h-full rounded-full ${getStatusColor(item.status)}`}
         style={{ width: `${item.progress}%` }}
@@ -2754,6 +2786,408 @@ const renderAnnouncementCard = (announcement) => (
     </div>
   );
 
+  // Progress Update Modal
+  const renderProgressUpdateModal = () => (
+    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-gray-900">Update Progress</h3>
+          <button 
+            onClick={() => {
+              setShowProgressModal(false);
+              setCapturedPhoto(null);
+            }}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <FiX size={24} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 p-6 space-y-6">
+          {/* Task Title */}
+          <div>
+            <p className="text-sm text-gray-600 font-medium mb-2">Task</p>
+            <p className="text-base font-semibold text-gray-900">{selectedTaskForProgress?.title}</p>
+          </div>
+
+          {/* Progress Percentage */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Progress: <span className="text-blue-600 font-bold">{progressPercentage}%</span>
+            </label>
+            <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              value={progressPercentage}
+              onChange={(e) => setProgressPercentage(Number(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${progressPercentage}%, #e5e7eb ${progressPercentage}%, #e5e7eb 100%)`
+              }}
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              <span>0%</span>
+              <span>50%</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          {/* Status Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <select 
+              value={progressStatus}
+              onChange={(e) => setProgressStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            >
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+            <textarea 
+              value={progressNotes}
+              onChange={(e) => setProgressNotes(e.target.value)}
+              placeholder="Add any notes about this progress update..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+              rows="3"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
+          <button 
+            onClick={() => {
+              setShowProgressModal(false);
+              setCapturedPhoto(null);
+            }}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={() => {
+              setShowProgressModal(false);
+              setShowPhotoModal(true);
+              setIsCapturingLocation(true);
+            }}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
+          >
+            <MdCamera size={18} className="mr-2" />
+            Confirm & Take Photo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Helper functions for photo modal (at top level)
+  const startCameraForModal = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+      setLocationValidationMsg("❌ Unable to access camera");
+    }
+  };
+
+  const takePhotoForModal = () => {
+    if (cameraCanvasRef.current && cameraVideoRef.current) {
+      const context = cameraCanvasRef.current.getContext('2d');
+      // Resize to max 1080p to reduce file size
+      const maxWidth = 1080;
+      const maxHeight = 1080;
+      let width = cameraVideoRef.current.videoWidth;
+      let height = cameraVideoRef.current.videoHeight;
+      
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = width * ratio;
+        height = height * ratio;
+      }
+      
+      cameraCanvasRef.current.width = width;
+      cameraCanvasRef.current.height = height;
+      context.drawImage(cameraVideoRef.current, 0, 0, width, height);
+      // Use lower quality (0.7) to reduce file size further
+      const photoData = cameraCanvasRef.current.toDataURL('image/jpeg', 0.7);
+      setCapturedPhoto(photoData);
+    }
+  };
+
+  const submitProgressUpdate = async () => {
+    if (!capturedPhoto) {
+      alert("Please capture a photo before submitting");
+      return;
+    }
+
+    // Allow submission without location, but warn user
+    if (!taskLocation) {
+      const confirmSubmit = window.confirm(
+        "⚠️ Location not available. Submit without geolocation data?\n\nNote: This evidence will be marked as location unverified."
+      );
+      if (!confirmSubmit) return;
+    }
+
+    try {
+      // Use FormData for better handling of large base64 image data
+      const formData = new FormData();
+      formData.append('action', 'update_progress');
+      formData.append('project_id', selectedTaskForProgress.id);
+      formData.append('progress_percentage', progressPercentage);
+      formData.append('status', progressStatus);
+      formData.append('notes', progressNotes);
+      formData.append('evidence_photo', capturedPhoto);
+      formData.append('location_latitude', taskLocation?.latitude || 0);
+      formData.append('location_longitude', taskLocation?.longitude || 0);
+      formData.append('location_accuracy', taskLocation?.accuracy || 0);
+
+      const response = await fetch('/backend/project_progress.php', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      // Get response text first to check for errors
+      const responseText = await response.text();
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers));
+      console.log('Response body:', responseText);
+      
+      if (!response.ok) {
+        console.error('Backend error response:', responseText);
+        alert("❌ Server error: " + (responseText || response.statusText));
+        return;
+      }
+
+      // Try to parse JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response:', responseText);
+        alert("❌ Server returned invalid response. Please check server logs.");
+        return;
+      }
+
+      if (data.status === 'success') {
+        alert("✅ Progress update submitted successfully!");
+        setShowPhotoModal(false);
+        setCapturedPhoto(null);
+        setTaskLocation(null);
+        setProgressPercentage(0);
+        setProgressStatus("In Progress");
+        setProgressNotes("");
+        setSelectedTaskForProgress(null);
+        setLocationValidationMsg("");
+        // Stop camera
+        if (cameraVideoRef.current && cameraVideoRef.current.srcObject) {
+          cameraVideoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        }
+      } else {
+        alert("❌ " + (data.message || "Failed to submit progress"));
+      }
+    } catch (error) {
+      console.error('Error submitting progress:', error);
+      alert("Error submitting progress: " + error.message);
+    }
+  };
+
+  // Start camera when modal opens
+  useEffect(() => {
+    if (showPhotoModal && !capturedPhoto) {
+      startCameraForModal();
+    }
+    return () => {
+      if (cameraVideoRef.current && cameraVideoRef.current.srcObject) {
+        cameraVideoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [showPhotoModal, capturedPhoto]);
+
+  // Capture location when modal opens
+  useEffect(() => {
+    if (showPhotoModal && isCapturingLocation) {
+      // Check if geolocation is available
+      if (!navigator.geolocation) {
+        setLocationValidationMsg("❌ Geolocation not supported on this device");
+        setIsCapturingLocation(false);
+        return;
+      }
+
+      setLocationValidationMsg("📍 Requesting location...");
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setTaskLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          });
+          setLocationValidationMsg("✅ Location captured successfully");
+          setIsCapturingLocation(false);
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          let errorMsg = "⚠️ Unable to get location. ";
+          
+          if (error.code === error.PERMISSION_DENIED) {
+            errorMsg += "Permission denied. Enable location in settings.";
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            errorMsg += "Position unavailable.";
+          } else if (error.code === error.TIMEOUT) {
+            errorMsg += "Location request timed out.";
+          } else {
+            errorMsg += "Please check location settings and try again.";
+          }
+          
+          setLocationValidationMsg(errorMsg);
+          setIsCapturingLocation(false);
+        },
+        { 
+          enableHighAccuracy: true, 
+          timeout: 30000,
+          maximumAge: 0
+        }
+      );
+    }
+  }, [showPhotoModal, isCapturingLocation]);
+
+  // Photo Evidence Modal - Pure render function
+  const renderPhotoEvidenceModal = () => {
+    return (
+      <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl">
+          {/* Header */}
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-900">Photo Evidence</h3>
+            <button 
+              onClick={() => {
+                setShowPhotoModal(false);
+                setCapturedPhoto(null);
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <FiX size={24} />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 p-6 space-y-4">
+            {/* Location Status */}
+            <div className={`p-3 rounded-lg text-sm flex items-center justify-between ${
+              locationValidationMsg.includes("✅") ? 'bg-green-50 text-green-700' : 
+              locationValidationMsg.includes("❌") ? 'bg-red-50 text-red-700' :
+              'bg-yellow-50 text-yellow-700'
+            }`}>
+              <div className="flex items-center flex-1">
+                {isCapturingLocation ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-r-transparent rounded-full animate-spin mr-2"></div>
+                    <span>Capturing location...</span>
+                  </>
+                ) : (
+                  <span>{locationValidationMsg || "Initializing GPS..."}</span>
+                )}
+              </div>
+              {locationValidationMsg.includes("❌") && !isCapturingLocation && (
+                <button
+                  onClick={() => setIsCapturingLocation(true)}
+                  className="ml-2 px-2 py-1 text-xs font-medium bg-white rounded hover:bg-gray-100 transition-colors"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+
+            {/* Camera Preview or Photo */}
+            <div className="bg-black rounded-lg overflow-hidden aspect-square relative">
+              {!capturedPhoto ? (
+                <>
+                  <video 
+                    ref={cameraVideoRef}
+                    autoPlay 
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  <canvas ref={cameraCanvasRef} style={{ display: 'none' }} />
+                </>
+              ) : (
+                <img src={capturedPhoto} alt="Captured" className="w-full h-full object-cover" />
+              )}
+            </div>
+
+            {/* Progress Info */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-600">Progress</p>
+                  <p className="font-bold text-gray-900">{progressPercentage}%</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Status</p>
+                  <p className="font-bold text-gray-900">{progressStatus}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
+            {!capturedPhoto ? (
+              <>
+                <button 
+                  onClick={() => {
+                    setShowPhotoModal(false);
+                    setCapturedPhoto(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={takePhotoForModal}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
+                >
+                  <MdCamera size={18} className="mr-2" />
+                  Capture
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={() => setCapturedPhoto(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Retake
+                </button>
+                <button 
+                  onClick={submitProgressUpdate}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
+                >
+                  <MdCheck size={18} className="mr-2" />
+                  Submit
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const unreadCount = announcements.filter(a => a.unread).length;
 
   return (
@@ -2994,6 +3428,12 @@ const renderAnnouncementCard = (announcement) => (
           </div>
         </div>
       )}
+
+      {/* Progress Update Modal */}
+      {showProgressModal && renderProgressUpdateModal()}
+
+      {/* Photo Evidence Modal */}
+      {showPhotoModal && renderPhotoEvidenceModal()}
     </div>
   );
 };
