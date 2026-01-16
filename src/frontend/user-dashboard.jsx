@@ -25,7 +25,8 @@ import {
   MdCalendarToday,
   MdComment,
   MdPeople,
-  MdNotifications
+  MdNotifications,
+  MdMyLocation
 } from "react-icons/md";
 import {
   FaUser,
@@ -2510,24 +2511,47 @@ const renderAnnouncementCard = (announcement) => (
 
               {/* Top Bar */}
               <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/20 to-transparent pt-4 px-4 z-20">
-                <div className="flex items-center justify-between relative">
+                <div className="flex items-center justify-between relative gap-3 mb-2">
                   <button
-                    className="bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                    className="bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow flex-shrink-0"
                     onClick={() => handleTabChange("Home")}
                   >
                     <FiChevronLeft size={24} />
                   </button>
-                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-2 shadow">
+                  
+                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-2 shadow flex-1">
                     <div className="text-sm text-gray-500">Current Location</div>
                     <div className="font-bold text-gray-800">{currentLocation}</div>
                   </div>
+                  
                   <button
                     onClick={refreshLocation}
                     disabled={isRefreshingLocation}
-                    className={`p-3 rounded-full shadow-lg ${isRefreshingLocation ? 'bg-white text-gray-400' : 'bg-white text-blue-500 hover:bg-blue-50'} transition-all`}
+                    className={`p-3 rounded-full shadow-lg flex-shrink-0 ${isRefreshingLocation ? 'bg-white text-gray-400' : 'bg-white text-blue-500 hover:bg-blue-50'} transition-all`}
                     title="Refresh location"
                   >
                     <FiRefreshCw size={24} className={isRefreshingLocation ? 'animate-spin' : ''} />
+                  </button>
+                </div>
+                
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => {
+                      if (userCoordinates.latitude && userCoordinates.longitude) {
+                        setViewState(prev => ({
+                          ...prev,
+                          longitude: userCoordinates.longitude,
+                          latitude: userCoordinates.latitude,
+                          zoom: 15,
+                          transitionDuration: 800
+                        }));
+                      }
+                    }}
+                    className="px-4 py-2 rounded-full bg-white text-blue-500 hover:bg-blue-50 shadow-lg transition-all flex items-center gap-1.5"
+                    title="Go to my location"
+                  >
+                    <MdMyLocation size={20} />
+                    <span className="text-xs font-medium text-gray-700">Go to me</span>
                   </button>
                 </div>
               </div>

@@ -33,7 +33,8 @@ import {
   MdPriorityHigh,
   MdPeople,
   MdChatBubble,
-  MdDoneAll
+  MdDoneAll,
+  MdMyLocation
 } from "react-icons/md";
 import { 
   FaUser, 
@@ -3626,14 +3627,33 @@ useEffect(() => {
                     <div className="text-sm text-gray-500">Current Location</div>
                     <div className="font-bold text-gray-800">{currentLocation}</div>
                   </div>
-                  <button
-                    onClick={refreshLocation}
-                    disabled={isRefreshingLocation}
-                    className={`p-3 rounded-full shadow-lg ${isRefreshingLocation ? 'bg-white text-gray-400' : 'bg-white text-blue-500 hover:bg-blue-50'} transition-all`}
-                    title="Refresh location"
-                  >
-                    <FiRefreshCw size={24} className={isRefreshingLocation ? 'animate-spin' : ''} />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (userCoordinates.latitude && userCoordinates.longitude) {
+                          setViewState(prev => ({
+                            ...prev,
+                            longitude: userCoordinates.longitude,
+                            latitude: userCoordinates.latitude,
+                            zoom: 15,
+                            transitionDuration: 800
+                          }));
+                        }
+                      }}
+                      className="p-3 rounded-full bg-white text-blue-500 hover:bg-blue-50 shadow-lg transition-all"
+                      title="Go to my location"
+                    >
+                      <MdMyLocation size={24} />
+                    </button>
+                    <button
+                      onClick={refreshLocation}
+                      disabled={isRefreshingLocation}
+                      className={`p-3 rounded-full shadow-lg ${isRefreshingLocation ? 'bg-white text-gray-400' : 'bg-white text-blue-500 hover:bg-blue-50'} transition-all`}
+                      title="Refresh location"
+                    >
+                      <FiRefreshCw size={24} className={isRefreshingLocation ? 'animate-spin' : ''} />
+                    </button>
+                  </div>
                 </div>
               </div>
 
