@@ -2322,7 +2322,7 @@ const renderAnnouncementCard = (announcement) => (
                   <div className="flex justify-between items-center mb-6 sticky top-20 bg-gray-100 -mx-5 px-5 py-3 z-10">
                     <div className="flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 font-serif">
                         <div className="w-1.5 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
                         Announcements
                       </h2>

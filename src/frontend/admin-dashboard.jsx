@@ -2575,9 +2575,9 @@ useEffect(() => {
                 )}
               </div>
               
-              {/* Header with Action Button */}
+              {/* Announcement Header */}
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Announcements</h3>
+                <h3 className="text-xl font-bold text-gray-800 font-serif">Announcements</h3>
                 {/* Announcement Status Filter Dropdown */}
                 <div className="relative">
                     <button
@@ -2686,7 +2686,7 @@ useEffect(() => {
                             markAllAsRead();
                             setShowAnnouncementFilterMenu(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors text-blue-600 hover:bg-blue-50"
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors text-gray-600 hover:bg-gray-50"
                         >
                           <MdCheckCircle size={18} />
                           <span>Mark all as read</span>
