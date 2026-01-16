@@ -64,6 +64,7 @@ const UserDashboard = ({ user, logout }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showAnnouncementFilterMenu, setShowAnnouncementFilterMenu] = useState(false);
   // Navigation stack for screen-based navigation (replaces modals)
   const [navigationStack, setNavigationStack] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -2152,10 +2153,17 @@ const renderAnnouncementCard = (announcement) => (
                         >
                           <MdCalendarToday size={22} className={`${dateFilter !== 'all' ? 'text-blue-500' : 'text-gray-400'}`} />
                         </button>
+                        {/* Backdrop Overlay */}
+                        {showDateFilterMenu && (
+                          <div 
+                            className="fixed inset-0 bg-black/30 z-40"
+                            onClick={() => setShowDateFilterMenu(false)}
+                          ></div>
+                        )}
                         
                         {/* Date Filter Dropdown Menu */}
                         {showDateFilterMenu && (
-                          <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50 animate-slide-up">
+                          <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50 animate-slide-up ">
                             <button
                               onClick={() => {
                                 setDateFilter("all");
