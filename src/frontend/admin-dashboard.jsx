@@ -62,6 +62,9 @@ import {
   HiOutlineClipboardList,
   HiOutlineDocumentAdd
 } from "react-icons/hi";
+import { FiRefreshCw } from "react-icons/fi";
+import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import Swal from "sweetalert2";
 
 const AdminDashboard = ({ user, logout }) => {
@@ -153,6 +156,102 @@ const AdminDashboard = ({ user, logout }) => {
     lat: 14.5995,
     lng: 120.9842,
   });
+
+  // Map state for location tracking
+  const [viewState, setViewState] = useState({
+    longitude: 120.9842,
+    latitude: 14.5995,
+    zoom: 12
+  });
+
+  const [userCoordinates, setUserCoordinates] = useState({
+    latitude: null,
+    longitude: null
+  });
+
+  const [otherUsersLocations, setOtherUsersLocations] = useState([]);
+  const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
+
+  // Fetch other users' locations when map is open
+  useEffect(() => {
+    const currentScreen = getCurrentScreen();
+    if (currentScreen?.screen === 'mapView') {
+      fetchOtherUsersLocations();
+      const interval = setInterval(fetchOtherUsersLocations, 30000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [navigationStack]);
+
+  // Auto-center map on user's current location
+  useEffect(() => {
+    if (userCoordinates.latitude && userCoordinates.longitude) {
+      setViewState(prev => ({
+        ...prev,
+        longitude: userCoordinates.longitude,
+        latitude: userCoordinates.latitude,
+        zoom: 15
+      }));
+    }
+  }, [userCoordinates.latitude, userCoordinates.longitude]);
+
+  const fetchOtherUsersLocations = async () => {
+    try {
+      const res = await fetch('/backend/location.php?user_id=all', {
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.status === 'success' && Array.isArray(data.locations)) {
+        // Filter out current admin user from the list
+        setOtherUsersLocations(data.locations.filter(loc => 
+          loc.user_id !== currentUser?.login_id && 
+          loc.latitude && 
+          loc.longitude
+        ));
+      }
+    } catch (err) {
+      console.error('Failed to fetch other users locations:', err);
+    }
+  };
+
+  const refreshLocation = async () => {
+    setIsRefreshingLocation(true);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserCoordinates({ latitude, longitude });
+          
+          // Send to backend
+          try {
+            await fetch('/backend/location.php', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ latitude, longitude })
+            });
+          } catch (err) {
+            console.error('Failed to update location:', err);
+          }
+          
+          setIsRefreshingLocation(false);
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          setIsRefreshingLocation(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      setIsRefreshingLocation(false);
+    }
+  };
+
+  const getCurrentUserProfileImage = () => {
+    if (selectedFile) return selectedFile;
+    if (currentUser?.uploaded_profile_image) return currentUser.uploaded_profile_image;
+    if (currentUser?.profile_image) return currentUser.profile_image;
+    return null;
+  };
 
   // Navigation Stack Functions
   const pushScreen = (screenName, data = {}) => {
@@ -2306,6 +2405,57 @@ useEffect(() => {
     </div>
   );
 
+  const renderEmployeeLocation = (employee) => (
+    <div key={employee.user_id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center hover:shadow-md transition-shadow">
+      <div className="w-12 h-12 rounded-full overflow-hidden mr-3 border-2 border-blue-100">
+        {employee.profile_image ? (
+          <img
+            src={employee.profile_image}
+            alt={employee.email}
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div className="w-full h-full bg-blue-100 flex items-center justify-center" style={{ display: employee.profile_image ? 'none' : 'flex' }}>
+          <span className="text-blue-600 font-bold text-lg">
+            {employee.email?.charAt(0).toUpperCase() || '?'}
+          </span>
+        </div>
+      </div>
+      <div className="flex-1">
+        <div className="font-semibold text-gray-800 mb-1">
+          {formatAuthorName(employee.email)}
+        </div>
+        <div className="flex items-center text-xs text-gray-500">
+          <MdLocationOn size={14} className="mr-1 text-blue-500" />
+          <span>{employee.location_name || `${employee.latitude?.toFixed(4)}, ${employee.longitude?.toFixed(4)}`}</span>
+        </div>
+        {employee.updated_at && (
+          <div className="text-xs text-gray-400 mt-1">
+            Updated: {formatTimeAgo(employee.updated_at)}
+          </div>
+        )}
+      </div>
+      <button
+        onClick={() => {
+          setViewState({
+            longitude: employee.longitude,
+            latitude: employee.latitude,
+            zoom: 16
+          });
+        }}
+        className="ml-2 p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+        title="View on map"
+      >
+        <MdLocationOn size={20} />
+      </button>
+    </div>
+  );
+
   // Shimmer/Skeleton Loading Component
   const ShimmerCard = () => (
     <div className="bg-white rounded-2xl p-4 mb-3 shadow-lg animate-pulse">
@@ -2886,13 +3036,15 @@ useEffect(() => {
                     <FiChevronLeft size={24} />
                   </button>
                   <div>
-                    <h2 className="text-2xl font-bold">My Location</h2>
-                    <p className="text-blue-100 text-sm mt-1">Track and manage your location</p>
+                    <h2 className="text-2xl font-bold">Task Location</h2>
+                    <p className="text-blue-100 text-sm mt-1">Track and manage Task locations</p>
                   </div>
                 </div>
                 <button
                   className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-colors"
-                  onClick={() => setShowLocationModal(true)}
+                  onClick={() => {
+                    setNavigationStack(prev => [...prev, { screen: 'mapView' }]);
+                  }}
                 >
                   <MdLocationOn size={24} />
                 </button>
@@ -2900,7 +3052,7 @@ useEffect(() => {
 
               {/* Current Location Card */}
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-                <div className="text-sm text-blue-100 mb-1">Current Location</div>
+                <div className="text-sm text-blue-100 mb-1">Employee Location</div>
                 <div className="text-2xl font-bold">{currentLocation}</div>
               </div>
             </div>
@@ -3367,6 +3519,160 @@ useEffect(() => {
 
       {/* Project Details - Stack Navigation */}
       {getCurrentScreen()?.screen === "projectDetails" && renderProjectDetailsModal()}
+
+      {/* Map View - Stack Navigation */}
+      {getCurrentScreen()?.screen === "mapView" && (
+        <div className="fixed inset-0 z-50 bg-white">
+          <div className="relative h-screen w-full overflow-hidden" style={{ overscrollBehavior: 'none', touchAction: 'pan-x pan-y' }}>
+            {/* MAP */}
+            <div className="absolute inset-0 overflow-hidden">
+              <Map
+                {...viewState}
+                onMove={evt => setViewState(evt.viewState)} 
+                style={{ width: "100%", height: "100%" }}
+                mapStyle="mapbox://styles/mapbox/streets-v12"
+                mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}
+              >
+                {/* Other Users' Location Markers with Profile Images */}
+                {otherUsersLocations.map((location) => (
+                  <Marker
+                    key={`user-${location.user_id}`}
+                    longitude={location.longitude}
+                    latitude={location.latitude}
+                    anchor="center"
+                  >
+                    <div className="relative flex flex-col items-center justify-center">
+                      {/* Radar pulse effect */}
+                      <div className="absolute w-12 h-12 rounded-full" style={{
+                        animation: 'radar-pulse 2s ease-out infinite',
+                        animationDelay: `${Math.random() * 2}s`
+                      }}></div>
+
+                      {location.profile_image ? (
+                        <div className="relative z-10">
+                          <img
+                            src={location.profile_image}
+                            alt={location.email}
+                            className="w-12 h-12 rounded-full border-3 border-white shadow-lg object-cover"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                            title={location.email}
+                          />
+                        </div>
+                      ) : (
+                        <div className="relative z-10">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full border-3 border-white shadow-lg flex items-center justify-center" title={location.email}>
+                            <span className="text-white font-bold text-sm">
+                              {location.email?.charAt(0).toUpperCase() || '?'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Marker>
+                ))}
+
+                {/* User Location Marker with Profile Image */}
+                {userCoordinates.latitude && userCoordinates.longitude && (
+                  <Marker 
+                    longitude={userCoordinates.longitude} 
+                    latitude={userCoordinates.latitude}
+                    anchor="center"
+                  >
+                    <div className="relative flex flex-col items-center justify-center">
+                      {/* Radar pulse effect */}
+                      <div className="absolute w-14 h-14 rounded-full" style={{
+                        animation: 'radar-pulse 2s ease-out infinite'
+                      }}></div>
+
+                      {getCurrentUserProfileImage() ? (
+                        <div className="relative z-10">
+                          <img 
+                            src={getCurrentUserProfileImage()}
+                            alt="Your location"
+                            className="w-14 h-14 rounded-full border-4 border-white shadow-lg object-cover"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="relative z-10">
+                          <div className="w-14 h-14 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                            <span className="text-white font-bold text-lg">
+                              {currentUser?.email?.charAt(0).toUpperCase() || '?'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Marker>
+                )}
+              </Map>
+
+              {/* Top Bar */}
+              <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/20 to-transparent pt-4 px-4 z-20">
+                <div className="flex items-center justify-between relative">
+                  <button
+                    className="bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                    onClick={() => popScreen()}
+                  >
+                    <FiChevronLeft size={24} />
+                  </button>
+                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-2 shadow">
+                    <div className="text-sm text-gray-500">Current Location</div>
+                    <div className="font-bold text-gray-800">{currentLocation}</div>
+                  </div>
+                  <button
+                    onClick={refreshLocation}
+                    disabled={isRefreshingLocation}
+                    className={`p-3 rounded-full shadow-lg ${isRefreshingLocation ? 'bg-white text-gray-400' : 'bg-white text-blue-500 hover:bg-blue-50'} transition-all`}
+                    title="Refresh location"
+                  >
+                    <FiRefreshCw size={24} className={isRefreshingLocation ? 'animate-spin' : ''} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Employee Locations Panel */}
+              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-[40%] flex flex-col z-30" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch', touchAction: 'none' }}>
+                <div className="px-5 pt-5 pb-0 flex-shrink-0">
+                  <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800">Employee Locations</h3>
+                      <p className="text-xs text-gray-500 mt-1">{otherUsersLocations.length} employees tracked</p>
+                    </div>
+                    <button 
+                      onClick={fetchOtherUsersLocations}
+                      className="text-blue-500 text-sm font-medium flex items-center gap-1 hover:text-blue-600"
+                    >
+                      <FiRefreshCw size={14} />
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'none', touchAction: 'pan-y', overscrollBehaviorY: 'none' }}>
+                  {otherUsersLocations.length > 0 ? (
+                    otherUsersLocations.map(renderEmployeeLocation)
+                  ) : (
+                    <div className="text-center py-10">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MdLocationOn size={24} className="text-gray-400" />
+                      </div>
+                      <p className="text-gray-600 font-medium">No employee locations available</p>
+                      <p className="text-gray-400 text-sm mt-1">Employees need to enable location tracking</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Comments Modal - Stack Navigation */}
       {showCommentsModal && renderCommentsModal()}
