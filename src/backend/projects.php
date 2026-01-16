@@ -27,7 +27,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $valid_user_ids[] = $user_row['login_id'];
     }
 
-    $result = $conn->query("SELECT * FROM projects ORDER BY id DESC");
+    // Updated query to JOIN with project_progress table to get latest approved progress
+    $result = $conn->query("
+        SELECT 
+            p.*,
+            COALESCE(pp.progress_percentage, p.progress) as current_progress
+        FROM projects p
+        LEFT JOIN (
+            SELECT project_id, progress_percentage
+            FROM project_progress
+            WHERE approval_status = 'APPROVED'
+            ORDER BY created_at DESC
+            LIMIT 1
+        ) pp ON p.id = pp.project_id
+        ORDER BY p.id DESC
+    ");
 
     $projects = [];
     while ($row = $result->fetch_assoc()) {
@@ -43,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         "title" => $row["title"],
         "description" => $row["description"],
         "status" => $row["status"],
-        "progress" => (int)$row["progress"],
+        "progress" => (int)$row["current_progress"],
         "deadline" => $row["deadline"],
         "manager" => $row["manager"],
         "team_users" => count($valid_assigned_users), // Count only valid assigned users
