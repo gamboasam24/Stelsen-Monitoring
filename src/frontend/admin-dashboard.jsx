@@ -2406,8 +2406,19 @@ useEffect(() => {
   );
 
   const renderEmployeeLocation = (employee) => (
-    <div key={employee.user_id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center hover:shadow-md transition-shadow">
-      <div className="w-12 h-12 rounded-full overflow-hidden mr-3 border-2 border-blue-100">
+    <div 
+      key={employee.user_id} 
+      onClick={() => {
+        setViewState({
+          longitude: employee.longitude,
+          latitude: employee.latitude,
+          zoom: 16,
+          transitionDuration: 800
+        });
+      }}
+      className="bg-white rounded-2xl p-4 mb-3 shadow-sm hover:shadow-lg transition-all cursor-pointer active:scale-95 hover:bg-blue-50 flex items-center gap-3"
+    >
+      <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-blue-100">
         {employee.profile_image ? (
           <img
             src={employee.profile_image}
@@ -2421,18 +2432,18 @@ useEffect(() => {
           />
         ) : null}
         <div className="w-full h-full bg-blue-100 flex items-center justify-center" style={{ display: employee.profile_image ? 'none' : 'flex' }}>
-          <span className="text-blue-600 font-bold text-lg">
+          <span className="text-blue-600 font-bold text-sm">
             {employee.email?.charAt(0).toUpperCase() || '?'}
           </span>
         </div>
       </div>
-      <div className="flex-1">
-        <div className="font-semibold text-gray-800 mb-1">
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-gray-800 mb-1 truncate">
           {formatAuthorName(employee.email)}
         </div>
-        <div className="flex items-center text-xs text-gray-500">
-          <MdLocationOn size={14} className="mr-1 text-blue-500" />
-          <span>{employee.location_name || `${employee.latitude?.toFixed(4)}, ${employee.longitude?.toFixed(4)}`}</span>
+        <div className="flex items-center text-xs text-gray-500 gap-1">
+          <MdLocationOn size={14} className="text-blue-500 flex-shrink-0" />
+          <span className="truncate">{employee.location_name || `${employee.latitude?.toFixed(4)}, ${employee.longitude?.toFixed(4)}`}</span>
         </div>
         {employee.updated_at && (
           <div className="text-xs text-gray-400 mt-1">
@@ -2440,19 +2451,9 @@ useEffect(() => {
           </div>
         )}
       </div>
-      <button
-        onClick={() => {
-          setViewState({
-            longitude: employee.longitude,
-            latitude: employee.latitude,
-            zoom: 16
-          });
-        }}
-        className="ml-2 p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
-        title="View on map"
-      >
-        <MdLocationOn size={20} />
-      </button>
+      <div className="p-2 bg-blue-50 text-blue-600 rounded-full flex-shrink-0 hover:bg-blue-100">
+        <MdLocationOn size={18} />
+      </div>
     </div>
   );
 
@@ -3574,43 +3575,8 @@ useEffect(() => {
                   </Marker>
                 ))}
 
-                {/* User Location Marker with Profile Image */}
-                {userCoordinates.latitude && userCoordinates.longitude && (
-                  <Marker 
-                    longitude={userCoordinates.longitude} 
-                    latitude={userCoordinates.latitude}
-                    anchor="center"
-                  >
-                    <div className="relative flex flex-col items-center justify-center">
-                      {/* Radar pulse effect */}
-                      <div className="absolute w-14 h-14 rounded-full" style={{
-                        animation: 'radar-pulse 2s ease-out infinite'
-                      }}></div>
-
-                      {getCurrentUserProfileImage() ? (
-                        <div className="relative z-10">
-                          <img 
-                            src={getCurrentUserProfileImage()}
-                            alt="Your location"
-                            className="w-14 h-14 rounded-full border-4 border-white shadow-lg object-cover"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="relative z-10">
-                          <div className="w-14 h-14 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-lg">
-                              {currentUser?.email?.charAt(0).toUpperCase() || '?'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </Marker>
-                )}
+                {/* User Location Marker with Profile Image - HIDDEN FOR ADMIN */}
+                {/* Only employees see their own location marker, not admin */}
               </Map>
 
               {/* Top Bar */}
