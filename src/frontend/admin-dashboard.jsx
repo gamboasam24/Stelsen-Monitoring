@@ -789,7 +789,25 @@ useEffect(() => {
             const commentsRes = await fetch(`/backend/comments.php?project_id=${project.id}`, { 
               credentials: "include" 
             });
-            const commentsData = await handleApiResponse(commentsRes);
+            
+            // Check if response is OK
+            if (!commentsRes.ok) {
+              console.error(`HTTP error for project ${project.id}: ${commentsRes.status}`);
+              const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+              return { ...project, comments: [], isNew };
+            }
+            
+            // Parse as text first to catch HTML errors
+            const responseText = await commentsRes.text();
+            let commentsData;
+            try {
+              commentsData = JSON.parse(responseText);
+            } catch (jsonErr) {
+              console.error(`JSON parse error for project ${project.id}:`, responseText.substring(0, 200));
+              const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+              return { ...project, comments: [], isNew };
+            }
+            
             const comments = commentsData.status === "success" 
               ? (commentsData.comments || []).map(c => ({
                   id: c.comment_id,
@@ -1245,7 +1263,21 @@ useEffect(() => {
     const refreshComments = async () => {
       try {
         const res = await fetch(`/backend/comments.php?project_id=${selectedProject.id}`, { credentials: "include" });
-        const data = await handleApiResponse(res);
+        
+        if (!res.ok) {
+          console.error(`Auto-refresh HTTP error: ${res.status}`);
+          return;
+        }
+        
+        const responseText = await res.text();
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (jsonErr) {
+          console.error("Auto-refresh JSON parse error:", responseText.substring(0, 200));
+          return;
+        }
+        
         if (data.status === "success") {
           const mapped = (data.comments || []).map((c) => ({
             id: c.comment_id,
