@@ -337,7 +337,7 @@ const formatTimeAgo = (dateString) => {
   const filteredAnnouncements = announcements.filter(ann => {
     if (selectedFilter === "unread") return ann.unread;
     if (selectedFilter === "important") return ann.important;
-    if (selectedFilter === "read") return !ann.unread;
+    if (selectedFilter === "pinned") return ann.pinned;
     if (selectedFilter === "all") return true;
     return true;
   }).filter(ann => {
@@ -582,8 +582,8 @@ const markAsRead = async (id) => {
         return;
       }
       setAnnouncements(prev => {
-        const updated = prev.map(a => a.id === id ? { ...a, is_pinned: nextPinned } : a);
-        return [...updated].sort((a, b) => (b.is_pinned - a.is_pinned));
+        const updated = prev.map(a => a.id === id ? { ...a, pinned: nextPinned } : a);
+        return [...updated].sort((a, b) => (b.pinned - a.pinned));
       });
     } catch (err) {
       console.error("Toggle pin error:", err);
@@ -1201,9 +1201,9 @@ useEffect(() => {
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
           )}
           <button 
-            onClick={() => togglePin(announcement.id, !announcement.is_pinned)}
-            className={(announcement.is_pinned ? "text-red-500" : "text-gray-400") + " hover:text-yellow-600"}
-            title={announcement.is_pinned ? "Unpin" : "Pin"}
+            onClick={() => togglePin(announcement.id, !announcement.pinned)}
+            className={(announcement.pinned ? "text-red-500" : "text-gray-400") + " hover:text-yellow-600"}
+            title={announcement.pinned ? "Unpin" : "Pin"}
           >
             <MdPushPin size={18} />
           </button>
@@ -2577,7 +2577,7 @@ useEffect(() => {
               
               {/* Header with Action Button */}
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-800">Announcements</h3>
+                <h3 className="text-xl font-bold text-gray-800">Announcements</h3>
                 {/* Announcement Status Filter Dropdown */}
                 <div className="relative">
                     <button
@@ -2585,18 +2585,18 @@ useEffect(() => {
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all font-medium text-sm ${
                         selectedFilter === "unread" ? "bg-orange-50 border-orange-300 text-orange-700" :
                         selectedFilter === "important" ? "bg-red-50 border-red-300 text-red-700" :
-                        selectedFilter === "read" ? "bg-green-50 border-green-300 text-green-700" :
+                        selectedFilter === "pinned" ? "bg-purple-50 border-purple-300 text-purple-700" :
                         "bg-blue-50 border-blue-300 text-blue-700"
                       }`}
                     >
                      {selectedFilter === "unread" ? <FaRegBell size={18} /> :
                        selectedFilter === "important" ? <MdPriorityHigh size={18} /> :
-                       selectedFilter === "read" ? <MdDoneAll size={18} /> :
+                       selectedFilter === "pinned" ? <MdPushPin size={18} /> :
                        <MdCheckCircle size={18} />}
                       <span>
                         {selectedFilter === "unread" ? "Unread" :
                          selectedFilter === "important" ? "Important" :
-                         selectedFilter === "read" ? "Read" :
+                         selectedFilter === "pinned" ? "Pinned" :
                          "All"}
                       </span>
                        <FiChevronRight size={16} className={`transition-transform ${showAnnouncementFilterMenu ? 'rotate-90' : ''}`} />
@@ -2647,18 +2647,18 @@ useEffect(() => {
                         
                         <button
                           onClick={() => {
-                            setSelectedFilter("read");
+                            setSelectedFilter("pinned");
                             setShowAnnouncementFilterMenu(false);
                           }}
                           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
-                            selectedFilter === "read"
-                              ? "bg-green-50 text-green-700 border-l-4 border-green-500"
+                            selectedFilter === "pinned"
+                              ? "bg-purple-50 text-purple-700 border-l-4 border-purple-500"
                               : "text-gray-700 hover:bg-gray-50"
                           }`}
                         >
-                          <MdDoneAll size={18} />
-                          <span>Read</span>
-                          {selectedFilter === "read" && <IoMdCheckmarkCircle size={18} className="ml-auto text-green-600" />}
+                          <MdPushPin size={18} />
+                          <span>Pinned</span>
+                          {selectedFilter === "pinned" && <IoMdCheckmarkCircle size={18} className="ml-auto text-purple-600" />}
                         </button>
                         
                         <div className="border-t border-gray-200"></div>
