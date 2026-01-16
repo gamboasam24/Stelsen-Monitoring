@@ -1124,7 +1124,6 @@ const getPriorityBadge = (priority) => {
       "?";
 
     const [imgError, setImgError] = useState(false);
-    const [imgLoaded, setImgLoaded] = useState(false);
 
     // PRIORITY: uploaded → google → fallback
     const imageSrc =
@@ -1132,16 +1131,10 @@ const getPriorityBadge = (priority) => {
       userObj?.profile_image ||
       null;
 
-    // Reset error state when image source changes
-    useEffect(() => {
-      setImgError(false);
-      setImgLoaded(false);
-    }, [imageSrc]);
-
     if (!imageSrc || imgError) {
       return (
         <div
-          className={`bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold flex items-center justify-center rounded-full ${className}`.trim()}
+          className={`bg-blue-500 text-white font-bold flex items-center justify-center rounded-full ${className}`.trim()}
           style={{ width: size, height: size }}
         >
           {initial.toUpperCase()}
@@ -1150,28 +1143,14 @@ const getPriorityBadge = (priority) => {
     }
 
     return (
-      <div className="relative" style={{ width: size, height: size }}>
-        {!imgLoaded && (
-          <div
-            className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-500 text-white font-bold flex items-center justify-center rounded-full animate-pulse"
-          >
-            {initial.toUpperCase()}
-          </div>
-        )}
-        <img
-          src={imageSrc}
-          alt="Profile"
-          onLoad={() => setImgLoaded(true)}
-          onError={() => {
-            setImgError(true);
-            setImgLoaded(false);
-          }}
-          referrerPolicy="no-referrer"
-          crossOrigin="anonymous"
-          className={`rounded-full object-cover ${className} ${imgLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`.trim()}
-          style={{ width: size, height: size }}
-        />
-      </div>
+      <img
+        src={imageSrc}
+        alt="Profile"
+        onError={() => setImgError(true)}
+        referrerPolicy="no-referrer"
+        className={`rounded-full object-cover ${className}`.trim()}
+        style={{ width: size, height: size }}
+      />
     );
   };
 
