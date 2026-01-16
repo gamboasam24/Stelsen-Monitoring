@@ -633,6 +633,151 @@ const handleBudgetChange = (e) => {
   );
 };
 
+  // ProgressApprovalCard Component - for progress submissions in conversation
+  const ProgressApprovalCard = ({ comment, onApprove, onReject }) => {
+    const [isApproving, setIsApproving] = useState(false);
+    const [showMap, setShowMap] = useState(false);
+    
+    const handleApprove = async () => {
+      setIsApproving(true);
+      await onApprove(comment.progress_id);
+      setIsApproving(false);
+    };
+
+    const handleReject = async () => {
+      setIsApproving(true);
+      await onReject(comment.progress_id);
+      setIsApproving(false);
+    };
+
+    const isPending = comment.approval_status === 'PENDING';
+    const isApproved = comment.approval_status === 'APPROVED';
+    const isRejected = comment.approval_status === 'REJECTED';
+
+    return (
+      <div className="max-w-[320px] bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                📊
+              </div>
+              <div>
+                <div className="font-semibold text-sm">Progress Update</div>
+                <div className="text-xs opacity-90">{comment.progress?.percentage || 0}% Complete</div>
+              </div>
+            </div>
+            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+              isPending ? 'bg-yellow-500/20 text-yellow-100' :
+              isApproved ? 'bg-green-500/20 text-green-100' :
+              'bg-red-500/20 text-red-100'
+            }`}>
+              {isPending ? '⏳ Pending' : isApproved ? '✓ Approved' : '✗ Rejected'}
+            </div>
+          </div>
+        </div>
+
+        {/* Evidence Photo */}
+        {comment.progress?.photo && (
+          <div className="relative">
+            <img
+              src={comment.progress.photo}
+              alt="Evidence"
+              className="w-full h-48 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+              onClick={() => window.open(comment.progress.photo, '_blank')}
+            />
+            <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-xs">
+              📸 Evidence
+            </div>
+          </div>
+        )}
+
+        {/* Task Info */}
+        {comment.comment && (
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <div className="text-xs text-gray-500 mb-1">Task Notes:</div>
+            <div className="text-sm text-gray-700 break-words">{comment.comment}</div>
+          </div>
+        )}
+
+        {/* Location */}
+        {comment.progress?.location && (
+          <div className="px-4 py-3 border-b border-gray-200">
+            <button
+              onClick={() => setShowMap(!showMap)}
+              className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📍</span>
+                <div className="text-left">
+                  <div className="font-medium">Location Captured</div>
+                  <div className="text-xs text-gray-500">
+                    {comment.progress.location.latitude?.toFixed(6)}, {comment.progress.location.longitude?.toFixed(6)}
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs text-blue-600">{showMap ? 'Hide' : 'Show'} Map</span>
+            </button>
+            
+            {showMap && (
+              <div className="mt-2 rounded-lg overflow-hidden border border-gray-200">
+                <iframe
+                  width="100%"
+                  height="150"
+                  frameBorder="0"
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${comment.progress.location.longitude-0.01},${comment.progress.location.latitude-0.01},${comment.progress.location.longitude+0.01},${comment.progress.location.latitude+0.01}&marker=${comment.progress.location.latitude},${comment.progress.location.longitude}`}
+                  style={{ border: 0 }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Status Badge */}
+        <div className="px-4 py-2 bg-gray-50 flex items-center gap-2 text-xs">
+          <span className="font-medium text-gray-600">Status:</span>
+          <span className={`px-2 py-0.5 rounded-full font-medium ${
+            comment.progress?.status === 'Completed' ? 'bg-green-100 text-green-700' :
+            comment.progress?.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+            'bg-gray-100 text-gray-700'
+          }`}>
+            {comment.progress?.status || 'In Progress'}
+          </span>
+        </div>
+
+        {/* Approve/Reject Buttons - Only for Admin and Pending */}
+        {isPending && (
+          <div className="px-4 py-3 bg-white flex gap-2">
+            <button
+              onClick={handleReject}
+              disabled={isApproving}
+              className="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span>✗</span> Reject
+            </button>
+            <button
+              onClick={handleApprove}
+              disabled={isApproving}
+              className="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span>✓</span> Approve
+            </button>
+          </div>
+        )}
+
+        {/* Already processed message */}
+        {!isPending && (
+          <div className={`px-4 py-2 text-center text-sm font-medium ${
+            isApproved ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`}>
+            {isApproved ? '✓ Already Approved' : '✗ Already Rejected'}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   //================================================== Mark announcement as read =================================================
 const markAsRead = async (id) => {
   try {
@@ -818,6 +963,10 @@ useEffect(() => {
                   email: c.email,
                   profile_image: c.profile_image,
                   user: c.user || formatAuthorName(c.email),
+                  comment_type: c.comment_type,
+                  progress: c.progress,
+                  progress_id: c.progress_id,
+                  approval_status: c.approval_status
                 }))
               : [];
             const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
@@ -1008,6 +1157,139 @@ useEffect(() => {
       alert("Failed to add comment. Please try again.");
     } finally {
       setIsSending(false);
+    }
+  };
+
+  //========================================================== Approve/Reject Progress ==========================================================
+  const handleApproveProgress = async (progressId) => {
+    try {
+      const formData = new FormData();
+      formData.append('action', 'review_progress');
+      formData.append('progress_id', progressId);
+      formData.append('approval_status', 'APPROVED');
+
+      const response = await fetch('/backend/project_progress.php', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        // Refresh the comments to show updated approval status
+        if (selectedProject) {
+          const res = await fetch(`/backend/comments.php?project_id=${selectedProject.id}`, { 
+            credentials: "include" 
+          });
+          const commentsData = await res.json();
+          
+          if (commentsData.status === 'success') {
+            // Update the selected project with new comments
+            setSelectedProject({
+              ...selectedProject,
+              comments: commentsData.comments.map(c => ({
+                id: c.comment_id,
+                user: c.user,
+                text: c.comment,
+                time: new Date(c.created_at).toLocaleTimeString('en-US', { 
+                  hour: 'numeric', 
+                  minute: '2-digit', 
+                  hour12: true 
+                }),
+                created_at: c.created_at,
+                profile_image: c.profile_image,
+                email: c.email,
+                attachments: c.attachments,
+                comment_type: c.comment_type,
+                progress: c.progress,
+                progress_id: c.progress_id,
+                approval_status: c.approval_status
+              }))
+            });
+
+            Swal.fire({
+              title: 'Approved!',
+              text: 'Progress update has been approved.',
+              icon: 'success',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error approving progress:', error);
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to approve progress update.',
+        icon: 'error'
+      });
+    }
+  };
+
+  const handleRejectProgress = async (progressId) => {
+    try {
+      const formData = new FormData();
+      formData.append('action', 'review_progress');
+      formData.append('progress_id', progressId);
+      formData.append('approval_status', 'REJECTED');
+
+      const response = await fetch('/backend/project_progress.php', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        // Refresh the comments to show updated approval status
+        if (selectedProject) {
+          const res = await fetch(`/backend/comments.php?project_id=${selectedProject.id}`, { 
+            credentials: "include" 
+          });
+          const commentsData = await res.json();
+          
+          if (commentsData.status === 'success') {
+            // Update the selected project with new comments
+            setSelectedProject({
+              ...selectedProject,
+              comments: commentsData.comments.map(c => ({
+                id: c.comment_id,
+                user: c.user,
+                text: c.comment,
+                time: new Date(c.created_at).toLocaleTimeString('en-US', { 
+                  hour: 'numeric', 
+                  minute: '2-digit', 
+                  hour12: true 
+                }),
+                created_at: c.created_at,
+                profile_image: c.profile_image,
+                email: c.email,
+                attachments: c.attachments,
+                comment_type: c.comment_type,
+                progress: c.progress,
+                progress_id: c.progress_id,
+                approval_status: c.approval_status
+              }))
+            });
+
+            Swal.fire({
+              title: 'Rejected',
+              text: 'Progress update has been rejected.',
+              icon: 'info',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error rejecting progress:', error);
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to reject progress update.',
+        icon: 'error'
+      });
     }
   };
 
@@ -1288,6 +1570,10 @@ useEffect(() => {
             profile_image: c.profile_image,
             user: c.user || formatAuthorName(c.email),
             attachments: c.attachments || null,
+            comment_type: c.comment_type,
+            progress: c.progress,
+            progress_id: c.progress_id,
+            approval_status: c.approval_status
           }));
 
           setSelectedProject(prev => prev ? { ...prev, comments: mapped } : prev);
@@ -1782,9 +2068,44 @@ useEffect(() => {
 
             {/* Comments */}
             {selectedProject.comments.map(comment => {
+              // Debug log
+              if (comment.comment_type === 'progress') {
+                console.log('Progress comment found:', comment);
+              }
+              
               const isCurrentUser = comment.email === currentUser?.email;
               const commentUser = isCurrentUser ? currentUser : users.find(u => u.email === comment.email);
               
+              // Render Progress Approval Card for progress comments
+              if (comment.comment_type === 'progress' && comment.progress) {
+                return (
+                  <div key={comment.id} className="flex justify-start mb-4">
+                    <div className="flex max-w-[90%]">
+                      <div className="flex-shrink-0 mr-2 self-start mt-2">
+                        <Avatar 
+                          user={{
+                            ...commentUser,
+                            profile_image: comment.profile_image || commentUser?.profile_image
+                          }} 
+                          size={32} 
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
+                          {comment.user || "User"}
+                        </span>
+                        <ProgressApprovalCard
+                          comment={comment}
+                          onApprove={handleApproveProgress}
+                          onReject={handleRejectProgress}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              
+              // Regular text/attachment messages
               return (
                 <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-1`}>
                   <div className={`flex max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
@@ -1807,67 +2128,55 @@ useEffect(() => {
                         </span>
                       )}
                       
-                      <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
-                        isCurrentUser 
-                          ? 'bg-blue-500 text-white rounded-br-sm' 
-                          : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
-                      }`}>
-                        {/* Messenger-style tail */}
-                        {!isCurrentUser ? (
-                          <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                            <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
-                          </div>
-                        ) : (
-                          <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                            <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
-                          </div>
-                        )}
-                        
-                        {comment.text && (
+                      {/* Text message with bubble */}
+                      {comment.text && (
+                        <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
+                          isCurrentUser 
+                            ? 'bg-blue-500 text-white rounded-br-sm' 
+                            : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
+                        }`}>
+                          {/* Messenger-style tail */}
+                          {!isCurrentUser ? (
+                            <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                              <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
+                            </div>
+                          ) : (
+                            <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                              <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
+                            </div>
+                          )}
+                          
                           <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
                             {comment.text}
                           </p>
-                        )}
-                        
-                        {comment.attachments && comment.attachments.length > 0 && (
-                          <div className={`space-y-2 mt-2 ${comment.text ? 'pt-2 border-t border-opacity-20' : ''} ${
-                            isCurrentUser ? 'border-white/30' : 'border-gray-200'
-                          }`}>
-                            {comment.attachments.map((att, idx) => {
-                              const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
-                              
-                              return isImage ? (
-                                <div key={idx} className="rounded-lg overflow-hidden border border-opacity-20">
-                                  <img
-                                    src={att.path}
-                                    alt={att.name}
-                                    className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                    onClick={() => window.open(att.path, '_blank')}
-                                  />
-                                  {comment.text && (
-                                    <a
-                                      href={att.path}
-                                      download={att.name}
-                                      className={`block text-xs mt-1 px-2 py-1 ${
-                                        isCurrentUser 
-                                          ? 'text-blue-200 hover:text-white' 
-                                          : 'text-gray-500 hover:text-gray-700'
-                                      }`}
-                                    >
-                                      📎 {att.name}
-                                    </a>
-                                  )}
-                                </div>
-                              ) : (
+                        </div>
+                      )}
+                      
+                      {/* Images and attachments - NO bubble, Messenger style */}
+                      {comment.attachments && comment.attachments.length > 0 && (
+                        <div className={`space-y-2 ${comment.text ? 'mt-2' : ''} max-w-[280px]`}>
+                          {comment.attachments.map((att, idx) => {
+                            const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
+                            
+                            return isImage ? (
+                              <div key={idx} className="rounded-2xl overflow-hidden shadow-md">
+                                <img
+                                  src={att.path}
+                                  alt={att.name}
+                                  className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                  onClick={() => window.open(att.path, '_blank')}
+                                />
+                              </div>
+                            ) : (
+                              <div key={idx} className={`relative rounded-2xl px-4 py-2 ${
+                                isCurrentUser 
+                                  ? 'bg-blue-500 text-white rounded-br-sm' 
+                                  : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
+                              }`}>
                                 <a
-                                  key={idx}
                                   href={att.path || att.data}
                                   download={att.name}
-                                  className={`flex items-center text-sm px-3 py-2 rounded-lg transition-colors ${
-                                    isCurrentUser 
-                                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                                  }`}
+                                  className="flex items-center text-sm"
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
@@ -1877,11 +2186,11 @@ useEffect(() => {
                                     {(att.size / 1024).toFixed(1)}KB
                                   </span>
                                 </a>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                       
                       <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
                         <span className="text-[10px] text-gray-400 mr-2">

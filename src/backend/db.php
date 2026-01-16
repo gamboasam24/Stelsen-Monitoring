@@ -105,10 +105,20 @@ if (!in_array('location_accuracy', $columns)) {
 if (!in_array('comment_type', $columns)) {
     $conn->query("ALTER TABLE project_comments ADD COLUMN comment_type VARCHAR(50) DEFAULT 'text'");
 }
+if (!in_array('progress_id', $columns)) {
+    $conn->query("ALTER TABLE project_comments ADD COLUMN progress_id INT DEFAULT NULL");
+}
+if (!in_array('approval_status', $columns)) {
+    $conn->query("ALTER TABLE project_comments ADD COLUMN approval_status VARCHAR(50) DEFAULT NULL");
+}
 
 // Add index if it doesn't exist
 $indexes = $conn->query("SHOW INDEX FROM project_comments WHERE Key_name = 'idx_comment_type'");
 if ($indexes->num_rows === 0) {
     $conn->query("ALTER TABLE project_comments ADD INDEX idx_comment_type (comment_type)");
+}
+$indexes2 = $conn->query("SHOW INDEX FROM project_comments WHERE Key_name = 'idx_progress_id'");
+if ($indexes2->num_rows === 0) {
+    $conn->query("ALTER TABLE project_comments ADD INDEX idx_progress_id (progress_id)");
 }
 ?>

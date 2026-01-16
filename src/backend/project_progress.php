@@ -166,13 +166,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             throw new Exception("Execute failed: " . $stmt->error);
         }
 
+        $progress_id = $conn->insert_id;
+        $stmt->close();
+
+        // Also post to project_comments for conversation view
+        $comment_stmt = $conn->prepare("
+            INSERT INTO project_comments 
+            (project_id, user_id, comment, comment_type, progress_percentage, progress_status, 
+             evidence_photo, location_latitude, location_longitude, location_accuracy, progress_id, approval_status)
+            VALUES (?, ?, ?, 'progress', ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+        ");
+
+        if ($comment_stmt) {
+            $comment_stmt->bind_param(
+                "iisissdddis",
+                $project_id,
+                $user_id,
+                $notes,
+                $progress_percentage,
+                $status,
+                $evidence_photo,
+                $location_lat,
+                $location_lng,
+                $location_accuracy,
+                $progress_id,
+                $approval_status = 'PENDING'
+            );
+            $comment_stmt->execute();
+            $comment_stmt->close();
+        }
+
         echo json_encode([
             'status' => 'success',
             'message' => 'Progress update submitted successfully! Awaiting admin approval.',
-            'progress_id' => $conn->insert_id
+            'progress_id' => $progress_id
         ]);
         
-        $stmt->close();
         exit;
     } catch (Exception $e) {
         http_response_code(500);
@@ -288,6 +317,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'review_progre
         $stmt->bind_param("sii", $approval_status, $user_id, $progress_id);
 
         if ($stmt->execute()) {
+            // Also update the corresponding project_comments entry
+            $comment_stmt = $conn->prepare("
+                UPDATE project_comments 
+                SET approval_status = ?
+                WHERE progress_id = ?
+            ");
+            if ($comment_stmt) {
+                $comment_stmt->bind_param("si", $approval_status, $progress_id);
+                $comment_stmt->execute();
+                $comment_stmt->close();
+            }
+
             echo json_encode([
                 'status' => 'success',
                 'message' => 'Progress update ' . strtolower($approval_status) . ' successfully!'
@@ -353,6 +394,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
             'status' => 'error',
             'message' => 'Database error: ' . $e->getMessage()
         ]);
+    }
+    exit;
+}
+
+/* =========================
+   🧪 TEST/DEBUG ENDPOINT
+   ========================= */
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'test') {
+    try {
+        // Check table structure
+        $columns = $conn->query("DESCRIBE project_comments");
+        $cols = [];
+        while ($row = $columns->fetch_assoc()) {
+            $cols[] = $row['Field'];
+        }
+        
+        // Get recent progress comments
+        $result = $conn->query("
+            SELECT 
+                comment_id, 
+                comment_type, 
+                progress_id, 
+                approval_status,
+                progress_percentage,
+                progress_status,
+                created_at
+            FROM project_comments 
+            WHERE comment_type = 'progress'
+            ORDER BY created_at DESC 
+            LIMIT 5
+        ");
+        
+        $progress_comments = [];
+        while ($row = $result->fetch_assoc()) {
+            $progress_comments[] = $row;
+        }
+        
+        // Get all progress entries
+        $progress_result = $conn->query("
+            SELECT id, project_id, progress_percentage, approval_status, created_at
+            FROM project_progress
+            ORDER BY created_at DESC
+            LIMIT 5
+        ");
+        
+        $progress_entries = [];
+        while ($row = $progress_result->fetch_assoc()) {
+            $progress_entries[] = $row;
+        }
+        
+        echo json_encode([
+            'status' => 'success',
+            'debug_info' => [
+                'project_comments_columns' => $cols,
+                'has_progress_id' => in_array('progress_id', $cols),
+                'has_approval_status' => in_array('approval_status', $cols),
+                'progress_comments_count' => count($progress_comments),
+                'progress_comments' => $progress_comments,
+                'progress_entries_count' => count($progress_entries),
+                'progress_entries' => $progress_entries
+            ]
+        ], JSON_PRETTY_PRINT);
+    } catch (Exception $e) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], JSON_PRETTY_PRINT);
     }
     exit;
 }

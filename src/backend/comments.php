@@ -68,6 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 c.location_longitude,
                 c.location_accuracy,
                 c.comment_type,
+                c.progress_id,
+                c.approval_status,
                 c.created_at,
                 l.email,
                 l.profile_image,
@@ -97,7 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 'created_at' => $row['created_at'],
                 'email' => $row['email'],
                 'profile_image' => $row['profile_image'],
-                'user' => $row['account_type'] === 'admin' ? 'Admin' : explode('@', $row['email'])[0]
+                'user' => $row['account_type'] === 'admin' ? 'Admin' : explode('@', $row['email'])[0],
+                'progress_id' => $row['progress_id'],
+                'approval_status' => $row['approval_status']
             ];
 
             // Add progress fields if this is a progress comment
