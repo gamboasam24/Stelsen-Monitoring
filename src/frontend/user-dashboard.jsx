@@ -69,7 +69,26 @@ const UserDashboard = ({ user, logout }) => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("new");
+  const [dateFilter, setDateFilter] = useState("all"); // all, today, week, month
+  const [showDateFilterMenu, setShowDateFilterMenu] = useState(false);
+  const [customDateRange, setCustomDateRange] = useState({ start: null, end: null });
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const actionMenuRef = useRef(null);
+
+  // Prevent body scroll when date picker modal is open
+  useEffect(() => {
+    if (showDatePicker) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showDatePicker]);
+
   const fileInputRef = useRef(null);
   const commentFileInputRef = useRef(null);
   const videoRef = useRef(null);
@@ -162,11 +181,47 @@ const UserDashboard = ({ user, logout }) => {
 
   // Filtered announcements
   const filteredAnnouncements = announcements.filter(ann => {
+    // Filter by status (unread, important, etc.)
     if (selectedFilter === "unread") return ann.unread;
     if (selectedFilter === "important") return ann.important;
     if (selectedFilter === "pinned") return ann.is_pinned;
     if (selectedFilter === "read") return !ann.unread;
     if (selectedFilter === "new") return ann.isNew;
+    return true;
+  }).filter(ann => {
+    // Filter by date
+    if (dateFilter === "all") return true;
+    
+    const announcementDate = new Date(ann.created_at);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (dateFilter === "today") {
+      const annDate = new Date(ann.created_at);
+      annDate.setHours(0, 0, 0, 0);
+      return annDate.getTime() === today.getTime();
+    }
+    
+    if (dateFilter === "week") {
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return announcementDate >= weekAgo;
+    }
+    
+    if (dateFilter === "month") {
+      const monthAgo = new Date(today);
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      return announcementDate >= monthAgo;
+    }
+    
+    if (dateFilter === "custom" && customDateRange.start && customDateRange.end) {
+      const startDate = new Date(customDateRange.start);
+      const endDate = new Date(customDateRange.end);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      return announcementDate >= startDate && announcementDate <= endDate;
+    }
+    
     return true;
   }).filter(ann => 
     ann.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -2076,16 +2131,117 @@ const renderAnnouncementCard = (announcement) => (
 
             {/* Enhanced Search and Filter Bar */}
                   <div className="mb-8">
-                    {/* Search Bar with Icon */}
-                    <div className="relative mb-5">
-                    <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                      type="text"
-                      placeholder="Search announcements..."
-                      className="w-full pl-12 pr-4 py-3.5 bg-white rounded-2xl border-2 border-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm hover:shadow-md"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                    {/* Search Bar with Icon and Date Filter */}
+                    <div className="flex gap-2 mb-5">
+                      <div className="relative flex-1">
+                        <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        <input
+                          type="text"
+                          placeholder="Search announcements..."
+                          className="w-full pl-12 pr-4 py-3.5 bg-white rounded-2xl border-2 border-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm hover:shadow-md"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      
+                      {/* Compact Date Filter Icon Button */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowDateFilterMenu(!showDateFilterMenu)}
+                          className="h-[52px] w-[52px] flex items-center justify-center bg-white border-2 border-gray-100 rounded-2xl hover:border-blue-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm hover:shadow-md"
+                        >
+                          <MdCalendarToday size={22} className={`${dateFilter !== 'all' ? 'text-blue-500' : 'text-gray-400'}`} />
+                        </button>
+                        
+                        {/* Date Filter Dropdown Menu */}
+                        {showDateFilterMenu && (
+                          <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50 animate-slide-up">
+                            <button
+                              onClick={() => {
+                                setDateFilter("all");
+                                setShowDateFilterMenu(false);
+                                setShowDatePicker(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                                dateFilter === "all" 
+                                  ? "bg-blue-50 text-blue-600 border-l-4 border-blue-500" 
+                                  : "text-gray-700 hover:bg-gray-50"
+                              }`}
+                            >
+                              <MdCalendarToday size={18} />
+                              <span>All Time</span>
+                              {dateFilter === "all" && <IoMdCheckmarkCircle size={18} className="ml-auto" />}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setDateFilter("today");
+                                setShowDateFilterMenu(false);
+                                setShowDatePicker(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                                dateFilter === "today" 
+                                  ? "bg-blue-50 text-blue-600 border-l-4 border-blue-500" 
+                                  : "text-gray-700 hover:bg-gray-50"
+                              }`}
+                            >
+                              <MdCalendarToday size={18} />
+                              <span>Today</span>
+                              {dateFilter === "today" && <IoMdCheckmarkCircle size={18} className="ml-auto" />}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setDateFilter("week");
+                                setShowDateFilterMenu(false);
+                                setShowDatePicker(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                                dateFilter === "week" 
+                                  ? "bg-blue-50 text-blue-600 border-l-4 border-blue-500" 
+                                  : "text-gray-700 hover:bg-gray-50"
+                              }`}
+                            >
+                              <MdCalendarToday size={18} />
+                              <span>This Week</span>
+                              {dateFilter === "week" && <IoMdCheckmarkCircle size={18} className="ml-auto" />}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setDateFilter("month");
+                                setShowDateFilterMenu(false);
+                                setShowDatePicker(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                                dateFilter === "month" 
+                                  ? "bg-blue-50 text-blue-600 border-l-4 border-blue-500" 
+                                  : "text-gray-700 hover:bg-gray-50"
+                              }`}
+                            >
+                              <MdCalendarToday size={18} />
+                              <span>This Month</span>
+                              {dateFilter === "month" && <IoMdCheckmarkCircle size={18} className="ml-auto" />}
+                            </button>
+                            
+                            <div className="border-t border-gray-200"></div>
+                            
+                            {/* Select Date Button - Opens Modal */}
+                            <button
+                              onClick={() => {
+                                setShowDatePicker(true);
+                                setShowDateFilterMenu(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                                dateFilter === "custom" 
+                                  ? "bg-blue-50 text-blue-600 border-l-4 border-blue-500" 
+                                  : "text-gray-700 hover:bg-gray-50"
+                              }`}
+                            >
+                              <MdCalendarToday size={18} />
+                              <span>Select Date</span>
+                              {dateFilter === "custom" && <IoMdCheckmarkCircle size={18} className="ml-auto" />}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Enhanced Filter Buttons */}
@@ -2156,11 +2312,23 @@ const renderAnnouncementCard = (announcement) => (
                   
                   {/* Section Header with Action Button */}
                   <div className="flex justify-between items-center mb-6 sticky top-20 bg-gray-100 -mx-5 px-5 py-3 z-10">
-                    <div>
-                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                      <div className="w-1.5 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
-                      Announcements
-                    </h2>
+                    <div className="flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <div className="w-1.5 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
+                        Announcements
+                      </h2>
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg">
+                        <MdCalendarToday size={14} className="text-blue-500" />
+                        <span className="text-xs font-medium text-gray-700">
+                          {dateFilter === "all" && new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {dateFilter === "today" && "Today"}
+                          {dateFilter === "week" && "This Week"}
+                          {dateFilter === "month" && "This Month"}
+                          {dateFilter === "custom" && "Custom Range"}
+                        </span>
+                      </div>
+                    </div>
                     <p className="text-xs text-gray-500 mt-1">
                       {filteredAnnouncements.length} {selectedFilter === "all" ? "total" : selectedFilter}
                     </p>
@@ -2174,6 +2342,57 @@ const renderAnnouncementCard = (announcement) => (
                     </button>
                     )}
                   </div>
+
+                  {/* Date Picker Modal - Always shows at top */}
+                  {showDatePicker && (
+                    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-20" onClick={() => setShowDatePicker(false)}>
+                      <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-bold text-gray-800">Select Date Range</h3>
+                          <button onClick={() => setShowDatePicker(false)} className="p-1 hover:bg-gray-100 rounded-full">
+                            <IoMdClose size={24} className="text-gray-600" />
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                            <input
+                              type="date"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                              onChange={(e) => setCustomDateRange({ ...customDateRange, start: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                            <input
+                              type="date"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                              onChange={(e) => setCustomDateRange({ ...customDateRange, end: e.target.value })}
+                            />
+                          </div>
+                          
+                          <button
+                            onClick={() => {
+                              if (customDateRange.start && customDateRange.end) {
+                                setDateFilter("custom");
+                                setShowDateFilterMenu(false);
+                                setShowDatePicker(false);
+                              }
+                            }}
+                            disabled={!customDateRange.start || !customDateRange.end}
+                            className={`w-full py-3 font-semibold rounded-xl transition-all ${
+                              customDateRange.start && customDateRange.end
+                                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700"
+                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            }`}
+                          >
+                            Apply Filter
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Announcements List */}
             <div className="mb-8">
