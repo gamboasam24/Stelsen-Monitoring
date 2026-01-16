@@ -393,7 +393,25 @@ useEffect(() => {
             const commentsRes = await fetch(`/backend/comments.php?project_id=${project.id}`, { 
               credentials: "include" 
             });
-            const commentsData = await commentsRes.json();
+            
+            // Check if response status is OK before parsing JSON
+            if (!commentsRes.ok) {
+              console.error(`Failed to fetch comments for project ${project.id}: HTTP ${commentsRes.status}`);
+              const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+              return { ...project, comments: [], isNew };
+            }
+            
+            // Get response text first to debug HTML errors
+            const responseText = await commentsRes.text();
+            let commentsData;
+            try {
+              commentsData = JSON.parse(responseText);
+            } catch (jsonErr) {
+              console.error(`Failed to parse JSON for project ${project.id}. Response:`, responseText.substring(0, 200));
+              const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+              return { ...project, comments: [], isNew };
+            }
+            
             const comments = commentsData.status === "success" 
               ? (commentsData.comments || []).map(c => ({
                   id: c.comment_id,
@@ -1282,7 +1300,7 @@ const renderAnnouncementCard = (announcement) => (
           setProgressPercentage(item.progress || 0);
           setShowProgressModal(true);
         }}>
-          📊 Update Progress
+          Update Progress
         </span>
         <span className="font-bold">{item.progress}%</span>
       </div>
@@ -2905,83 +2923,39 @@ const renderAnnouncementCard = (announcement) => (
   const takePhotoForModal = () => {
     if (cameraCanvasRef.current && cameraVideoRef.current) {
       const context = cameraCanvasRef.current.getContext('2d');
-      // Resize to max 1080p to reduce file size
-      const maxWidth = 1080;
-      const maxHeight = 1080;
-      let width = cameraVideoRef.current.videoWidth;
-      let height = cameraVideoRef.current.videoHeight;
-      
-      if (width > maxWidth || height > maxHeight) {
-        const ratio = Math.min(maxWidth / width, maxHeight / height);
-        width = width * ratio;
-        height = height * ratio;
-      }
-      
-      cameraCanvasRef.current.width = width;
-      cameraCanvasRef.current.height = height;
-      context.drawImage(cameraVideoRef.current, 0, 0, width, height);
-      // Use lower quality (0.7) to reduce file size further
-      const photoData = cameraCanvasRef.current.toDataURL('image/jpeg', 0.7);
+      cameraCanvasRef.current.width = cameraVideoRef.current.videoWidth;
+      cameraCanvasRef.current.height = cameraVideoRef.current.videoHeight;
+      context.drawImage(cameraVideoRef.current, 0, 0);
+      const photoData = cameraCanvasRef.current.toDataURL('image/jpeg', 0.95);
       setCapturedPhoto(photoData);
     }
   };
 
   const submitProgressUpdate = async () => {
-    if (!capturedPhoto) {
-      alert("Please capture a photo before submitting");
+    if (!capturedPhoto || !taskLocation) {
+      alert("Please capture photo and location before submitting");
       return;
     }
 
-    // Allow submission without location, but warn user
-    if (!taskLocation) {
-      const confirmSubmit = window.confirm(
-        "⚠️ Location not available. Submit without geolocation data?\n\nNote: This evidence will be marked as location unverified."
-      );
-      if (!confirmSubmit) return;
-    }
-
     try {
-      // Use FormData for better handling of large base64 image data
-      const formData = new FormData();
-      formData.append('action', 'update_progress');
-      formData.append('project_id', selectedTaskForProgress.id);
-      formData.append('progress_percentage', progressPercentage);
-      formData.append('status', progressStatus);
-      formData.append('notes', progressNotes);
-      formData.append('evidence_photo', capturedPhoto);
-      formData.append('location_latitude', taskLocation?.latitude || 0);
-      formData.append('location_longitude', taskLocation?.longitude || 0);
-      formData.append('location_accuracy', taskLocation?.accuracy || 0);
-
       const response = await fetch('/backend/project_progress.php', {
         method: 'POST',
         credentials: 'include',
-        body: formData
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action: 'update_progress',
+          project_id: selectedTaskForProgress.id,
+          progress_percentage: progressPercentage,
+          status: progressStatus,
+          notes: progressNotes,
+          evidence_photo: capturedPhoto,
+          location_latitude: taskLocation.latitude,
+          location_longitude: taskLocation.longitude,
+          location_accuracy: taskLocation.accuracy
+        }).toString()
       });
 
-      // Get response text first to check for errors
-      const responseText = await response.text();
-      
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers));
-      console.log('Response body:', responseText);
-      
-      if (!response.ok) {
-        console.error('Backend error response:', responseText);
-        alert("❌ Server error: " + (responseText || response.statusText));
-        return;
-      }
-
-      // Try to parse JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse response:', responseText);
-        alert("❌ Server returned invalid response. Please check server logs.");
-        return;
-      }
-
+      const data = await response.json();
       if (data.status === 'success') {
         alert("✅ Progress update submitted successfully!");
         setShowPhotoModal(false);
@@ -3058,7 +3032,7 @@ const renderAnnouncementCard = (announcement) => (
         },
         { 
           enableHighAccuracy: true, 
-          timeout: 30000,
+          timeout: 15000,
           maximumAge: 0
         }
       );

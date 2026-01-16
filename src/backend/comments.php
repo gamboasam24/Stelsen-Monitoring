@@ -61,6 +61,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 c.comment_id,
                 c.comment,
                 c.attachments,
+                c.progress_percentage,
+                c.progress_status,
+                c.evidence_photo,
+                c.location_latitude,
+                c.location_longitude,
+                c.location_accuracy,
+                c.comment_type,
                 c.created_at,
                 l.email,
                 l.profile_image,
@@ -82,15 +89,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $attachments = json_decode($row['attachments'], true);
             }
             
-            $comments[] = [
+            $comment_data = [
                 'comment_id' => $row['comment_id'],
                 'comment' => $row['comment'],
                 'attachments' => $attachments,
+                'comment_type' => $row['comment_type'],
                 'created_at' => $row['created_at'],
                 'email' => $row['email'],
                 'profile_image' => $row['profile_image'],
                 'user' => $row['account_type'] === 'admin' ? 'Admin' : explode('@', $row['email'])[0]
             ];
+
+            // Add progress fields if this is a progress comment
+            if ($row['comment_type'] === 'progress') {
+                $comment_data['progress'] = [
+                    'percentage' => (int)$row['progress_percentage'],
+                    'status' => $row['progress_status'],
+                    'photo' => $row['evidence_photo'],  // Base64 image data
+                    'location' => [
+                        'latitude' => (float)$row['location_latitude'],
+                        'longitude' => (float)$row['location_longitude'],
+                        'accuracy' => (float)$row['location_accuracy']
+                    ]
+                ];
+            }
+
+            $comments[] = $comment_data;
         }
 
         echo json_encode([
