@@ -116,6 +116,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                         'accuracy' => (float)$row['location_accuracy']
                     ]
                 ];
+                
+                // Also add direct fields for easier access
+                $comment_data['progress_percentage'] = (int)$row['progress_percentage'];
+                $comment_data['progress_status'] = $row['progress_status'];
+                $comment_data['evidence_photo'] = $row['evidence_photo'];
+                $comment_data['location_latitude'] = (float)$row['location_latitude'];
+                $comment_data['location_longitude'] = (float)$row['location_longitude'];
+                $comment_data['location_accuracy'] = (float)$row['location_accuracy'];
             }
 
             $comments[] = $comment_data;

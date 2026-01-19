@@ -415,15 +415,32 @@ useEffect(() => {
             }
             
             const comments = commentsData.status === "success" 
-              ? (commentsData.comments || []).map(c => ({
-                  id: c.comment_id,
-                  text: c.comment,
-                  time: getCommentTimeAgo(c.created_at),
-                  created_at: c.created_at,
-                  email: c.email,
-                  profile_image: c.profile_image,
-                  user: c.user || formatAuthorName(c.email),
-                }))
+              ? (commentsData.comments || []).map(c => {
+                  // Debug log
+                  if (c.comment_type === 'progress' || c.progress_percentage) {
+                    console.log('Initial load - Progress comment found:', c);
+                  }
+                  
+                  return {
+                    id: c.comment_id,
+                    text: c.comment,
+                    time: getCommentTimeAgo(c.created_at),
+                    created_at: c.created_at,
+                    email: c.email,
+                    profile_image: c.profile_image,
+                    user: c.user || formatAuthorName(c.email),
+                    attachments: c.attachments || null,
+                    // Progress fields - direct from backend
+                    progress_percentage: c.progress_percentage || null,
+                    progress_status: c.progress_status || null,
+                    evidence_photo: c.evidence_photo || null,
+                    location_latitude: c.location_latitude || null,
+                    location_longitude: c.location_longitude || null,
+                    location_accuracy: c.location_accuracy || null,
+                    approval_status: c.approval_status || null,
+                    comment_type: c.comment_type || null,
+                  };
+                })
               : [];
             const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
             return { ...project, comments, isNew };
@@ -1119,16 +1136,32 @@ const getPriorityBadge = (priority) => {
         const res = await fetch(`/backend/comments.php?project_id=${selectedProject.id}`, { credentials: "include" });
         const data = await res.json();
         if (data.status === "success") {
-          const mapped = (data.comments || []).map((c) => ({
-            id: c.comment_id,
-            text: c.comment,
-            time: getCommentTimeAgo(c.created_at),
-            created_at: c.created_at,
-            email: c.email,
-            profile_image: c.profile_image,
-            user: c.user || formatAuthorName(c.email),
-            attachments: c.attachments || null,
-          }));
+          const mapped = (data.comments || []).map((c) => {
+            // Debug log to see what we're getting
+            if (c.comment_type === 'progress' || c.progress_percentage) {
+              console.log('Progress comment found:', c);
+            }
+            
+            return {
+              id: c.comment_id,
+              text: c.comment,
+              time: getCommentTimeAgo(c.created_at),
+              created_at: c.created_at,
+              email: c.email,
+              profile_image: c.profile_image,
+              user: c.user || formatAuthorName(c.email),
+              attachments: c.attachments || null,
+              // Progress fields - direct from backend
+              progress_percentage: c.progress_percentage || null,
+              progress_status: c.progress_status || null,
+              evidence_photo: c.evidence_photo || null,
+              location_latitude: c.location_latitude || null,
+              location_longitude: c.location_longitude || null,
+              location_accuracy: c.location_accuracy || null,
+              approval_status: c.approval_status || null,
+              comment_type: c.comment_type || null,
+            };
+          });
 
           setSelectedProject(prev => prev ? { ...prev, comments: mapped } : prev);
           setProjects(prev => prev.map(p => p.id === selectedProject.id ? { ...p, comments: mapped } : p));
@@ -1707,7 +1740,7 @@ const renderAnnouncementCard = (announcement) => (
                    </div>
 
                    {/* Progress Update Card */}
-                 {(comment.progress_percentage || comment.progress_status) && (
+                 {(comment.progress_percentage || comment.progress_status || comment.comment_type === 'progress') && (
                    <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4 mt-2`}>
                      <button
                        onClick={() => {
