@@ -120,6 +120,8 @@ const UserDashboard = ({ user, logout }) => {
   });
   const [otherUsersLocations, setOtherUsersLocations] = useState([]);
   const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
+  const [selectedProgressUpdate, setSelectedProgressUpdate] = useState(null);
+  const [showProgressDetailView, setShowProgressDetailView] = useState(false);
 
   // Pin state is provided by backend (persisted like admin)
 
@@ -1703,9 +1705,85 @@ const renderAnnouncementCard = (announcement) => (
                        </div>
                      </div>
                    </div>
-                 </div>
-               );
-             })}
+
+                   {/* Progress Update Card */}
+                 {(comment.progress_percentage || comment.progress_status) && (
+                   <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4 mt-2`}>
+                     <button
+                       onClick={() => {
+                         setSelectedProgressUpdate(comment);
+                         setShowProgressDetailView(true);
+                       }}
+                       className="w-[90%] max-w-md bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
+                     >
+                       <div className="flex items-center justify-between mb-3">
+                         <div className="flex items-center gap-2">
+                           <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                             <MdCheck size={16} />
+                           </div>
+                           <div>
+                             <p className="text-sm font-semibold text-gray-900">Progress Update</p>
+                             <p className="text-xs text-gray-500">{comment.user || 'User'}</p>
+                           </div>
+                         </div>
+                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                           comment.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
+                           comment.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                           'bg-yellow-100 text-yellow-700'
+                         }`}>
+                           {comment.progress_status || 'Pending'}
+                         </span>
+                       </div>
+
+                       {/* Progress Bar */}
+                       <div className="mb-3">
+                         <div className="flex justify-between items-center mb-1">
+                           <span className="text-sm font-medium text-gray-700">Progress</span>
+                           <span className="text-sm font-bold text-blue-600">{comment.progress_percentage || 0}%</span>
+                         </div>
+                         <div className="w-full bg-gray-200 rounded-full h-2">
+                           <div
+                             className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all"
+                             style={{ width: `${comment.progress_percentage || 0}%` }}
+                           ></div>
+                         </div>
+                       </div>
+
+                       {/* Details Grid */}
+                       <div className="grid grid-cols-2 gap-2 mb-3">
+                         {comment.evidence_photo && (
+                           <div className="col-span-2">
+                             <img 
+                               src={comment.evidence_photo} 
+                               alt="Evidence" 
+                               className="w-full h-24 object-cover rounded-lg border border-blue-200"
+                             />
+                           </div>
+                         )}
+                         {comment.location_latitude && (
+                           <div className="flex items-center gap-2 text-xs">
+                             <MdLocationOn size={14} className="text-red-500 flex-shrink-0" />
+                             <span className="text-gray-600 truncate">Location tracked</span>
+                           </div>
+                         )}
+                         {comment.location_accuracy && (
+                           <div className="flex items-center gap-2 text-xs">
+                             <span className="text-gray-600">±{comment.location_accuracy.toFixed(1)}m</span>
+                           </div>
+                         )}
+                       </div>
+
+                       {/* View Details Button */}
+                       <div className="flex items-center justify-between pt-2 border-t border-blue-100">
+                         <p className="text-xs text-gray-500">Click to view full details</p>
+                         <FiChevronRight size={16} className="text-gray-400" />
+                       </div>
+                     </button>
+                   </div>
+                 )}
+               </div>
+             );
+           })}
            </>
          ) : (
            // Empty state with Messenger-style design
@@ -3353,6 +3431,148 @@ const renderAnnouncementCard = (announcement) => (
         }
         return renderCommentsModal();
       })()}
+
+      {/* Progress Detail View Modal */}
+      {showProgressDetailView && selectedProgressUpdate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+            {/* Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Progress Update Details</h2>
+              <button 
+                onClick={() => {
+                  setShowProgressDetailView(false);
+                  setSelectedProgressUpdate(null);
+                }}
+                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+              >
+                <IoMdClose size={24} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* User Info */}
+              <div className="flex items-center gap-4">
+                <Avatar 
+                  userObj={{
+                    name: selectedProgressUpdate.user,
+                    profile_image: selectedProgressUpdate.profile_image
+                  }} 
+                  size={48} 
+                />
+                <div>
+                  <p className="font-semibold text-gray-900">{selectedProgressUpdate.user || 'User'}</p>
+                  <p className="text-sm text-gray-500">{selectedProgressUpdate.time}</p>
+                </div>
+              </div>
+
+              {/* Status Badge */}
+              <div>
+                <p className="text-sm text-gray-600 mb-2">Status</p>
+                <span className={`inline-block px-4 py-2 rounded-full font-semibold ${
+                  selectedProgressUpdate.progress_status === 'Completed' ? 'bg-green-100 text-green-800' :
+                  selectedProgressUpdate.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {selectedProgressUpdate.progress_status || 'Pending'}
+                </span>
+              </div>
+
+              {/* Progress Percentage */}
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <p className="text-sm font-semibold text-gray-700">Progress Percentage</p>
+                  <p className="text-2xl font-bold text-blue-600">{selectedProgressUpdate.progress_percentage || 0}%</p>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-4">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 h-4 rounded-full transition-all"
+                    style={{ width: `${selectedProgressUpdate.progress_percentage || 0}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Evidence Photo */}
+              {selectedProgressUpdate.evidence_photo && (
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-3">Evidence Photo</p>
+                  <img 
+                    src={selectedProgressUpdate.evidence_photo} 
+                    alt="Evidence" 
+                    className="w-full rounded-xl border-2 border-gray-200"
+                  />
+                </div>
+              )}
+
+              {/* Location Information */}
+              {(selectedProgressUpdate.location_latitude && selectedProgressUpdate.location_longitude) && (
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MdLocationOn size={20} className="text-red-500" />
+                    <p className="text-sm font-semibold text-gray-700">Location Data</p>
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div className="flex justify-between">
+                      <span>Latitude:</span>
+                      <span className="font-mono font-semibold">{parseFloat(selectedProgressUpdate.location_latitude).toFixed(6)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Longitude:</span>
+                      <span className="font-mono font-semibold">{parseFloat(selectedProgressUpdate.location_longitude).toFixed(6)}</span>
+                    </div>
+                    {selectedProgressUpdate.location_accuracy && (
+                      <div className="flex justify-between">
+                        <span>Accuracy:</span>
+                        <span className="font-mono font-semibold">±{selectedProgressUpdate.location_accuracy.toFixed(2)}m</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Comments/Notes */}
+              {selectedProgressUpdate.text && (
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Notes</p>
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
+                      {selectedProgressUpdate.text}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Approval Status if available */}
+              {selectedProgressUpdate.approval_status && (
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Approval Status</p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                    selectedProgressUpdate.approval_status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                    selectedProgressUpdate.approval_status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {selectedProgressUpdate.approval_status || 'PENDING'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Action */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4">
+              <button
+                onClick={() => {
+                  setShowProgressDetailView(false);
+                  setSelectedProgressUpdate(null);
+                }}
+                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Camera Modal */}
       {showCameraModal && (
