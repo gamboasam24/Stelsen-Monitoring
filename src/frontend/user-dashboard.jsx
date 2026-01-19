@@ -2885,19 +2885,10 @@ const renderAnnouncementCard = (announcement) => (
           <button 
             onClick={() => {
               setShowProgressModal(false);
-              setCapturedPhoto(null);
-            }}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={() => {
-              setShowProgressModal(false);
-              setShowPhotoModal(true);
+              setShowPhotoModal(true);  
               setIsCapturingLocation(true);
             }}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-2xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
           >
             <MdCamera size={18} className="mr-2" />
             Confirm & Take Photo
