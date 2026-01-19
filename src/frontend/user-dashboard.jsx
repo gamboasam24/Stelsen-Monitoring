@@ -28,7 +28,8 @@ import {
   MdNotifications,
   MdMyLocation,
   MdCamera,
-  MdCheck
+  MdCheck,
+  MdTimeline
 } from "react-icons/md";
 import {
   FaUser,
@@ -1351,7 +1352,7 @@ const renderAnnouncementCard = (announcement) => (
         <button
         onClick={() => {
           setSelectedProject({ ...item, comments: item.comments || [] });
-          setShowCommentsModal(true);
+          pushScreen('comments');
           // Mark all comments as read for this project
           if (item && item.comments) {
           const commentIds = item.comments.map(c => c.id);
@@ -1476,10 +1477,11 @@ const renderAnnouncementCard = (announcement) => (
               <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3 border border-gray-200">{selectedProject.description}</p>
             </div>
 
-            <div className="mt-6">
+            {/* Action Buttons Section */}
+            <div className="mt-8 space-y-4">
               <button
                 onClick={() => {
-                  setShowCommentsModal(true);
+                  pushScreen('comments');
                   // Mark all comments as read for this project
                   if (selectedProject && selectedProject.comments) {
                     const commentIds = selectedProject.comments.map(c => c.id);
@@ -1489,7 +1491,7 @@ const renderAnnouncementCard = (announcement) => (
                     }));
                   }
                 }}
-                className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all border border-blue-200 flex items-center justify-between relative"
+                className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all duration-200 border border-blue-200 hover:border-blue-300 flex items-center justify-between relative hover:shadow-md"
               >
                 <div className="flex items-center">
                   <div className="bg-blue-500 p-3 rounded-full mr-3 relative">
@@ -1517,53 +1519,37 @@ const renderAnnouncementCard = (announcement) => (
                 onClick={() => {
                   // Fetch progress updates for this project
                   if (selectedProject?.id) {
-                    fetch(`/backend/comments.php?project_id=${selectedProject.id}`, { credentials: "include" })
+                    fetch(`/backend/project_progress.php?project_id=${selectedProject.id}`, { 
+                      credentials: "include" 
+                    })
                       .then(res => res.json())
                       .then(data => {
-                        if (data.status === "success") {
-                          // Filter only progress comments
-                          const progressComments = (data.comments || []).filter(c => 
-                            c.comment_type === 'progress' || c.progress_percentage || c.progress_status
-                          );
-                          
-                          // Map to proper format
-                          const progressList = progressComments.map(c => ({
-                            id: c.comment_id,
-                            text: c.comment,
-                            time: getCommentTimeAgo(c.created_at),
-                            created_at: c.created_at,
-                            email: c.email,
-                            profile_image: c.profile_image,
-                            user: c.user || formatAuthorName(c.email),
-                            progress_percentage: c.progress_percentage || null,
-                            progress_status: c.progress_status || null,
-                            evidence_photo: c.evidence_photo || null,
-                            location_latitude: c.location_latitude || null,
-                            location_longitude: c.location_longitude || null,
-                            location_accuracy: c.location_accuracy || null,
-                            approval_status: c.approval_status || null,
-                            comment_type: c.comment_type || null,
-                          }));
-                          
-                          setTaskProgressList(progressList);
-                          setShowTaskProgressModal(true);
+                        if (data.status === "success" && data.progress) {
+                          setTaskProgressList(data.progress);
+                        } else {
+                          setTaskProgressList([]);
                         }
+                        pushScreen("taskProgress");
                       })
-                      .catch(err => console.error('Error fetching progress:', err));
+                      .catch(err => {
+                        console.error('Error fetching progress:', err);
+                        setTaskProgressList([]);
+                        pushScreen("taskProgress");
+                      });
                   }
                 }}
-                className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 rounded-2xl transition-all duration-200 border border-green-200 hover:border-green-300 hover:shadow-md"
+                className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-sky-50 to-cyan-50 hover:from-sky-100 hover:to-cyan-100 rounded-xl transition-all duration-200 border border-sky-200 hover:border-sky-300 hover:shadow-md"
               >
-                <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
-                  <MdCheck className="text-white" size={24} />
+                <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-sky-500 to-cyan-600 rounded-full flex items-center justify-center shadow-lg">
+                  <MdTimeline className="text-white" size={24} />
                 </div>
-                <div className="text-left">
+                <div className="text-left flex-1">
                   <h4 className="text-md font-bold text-gray-800">Task Progress</h4>
                   <p className="text-sm text-gray-600">
                     Track project milestones and updates
                   </p>
                 </div>
-                <FiChevronRight size={24} className="text-green-500" />
+                <FiChevronRight size={24} className="text-sky-500 flex-shrink-0" />
               </button>
             </div>
           </>
@@ -1572,397 +1558,398 @@ const renderAnnouncementCard = (announcement) => (
     </div>
   ); 
 
-  const renderCommentsModal = () => (
-   <div className="fixed inset-0 bg-white z-[60] flex flex-col">
-     {/* Messenger-style Header */}
-     <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
-       <button 
-         onClick={() => setShowCommentsModal(false)}
-         className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
-       >
-         <FiChevronLeft size={24} className="text-gray-700" />
-       </button>
-       
-       <Avatar 
-         userObj={user}
-         size={40}
-         className="flex-shrink-0 mr-4"
-       />
-       
-       <div className="flex-1 min-w-0 ml-2">
+const renderCommentsModal = () => (
+  <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
+    {/* Messenger-style Header */}
+    <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
+      <button 
+        onClick={popScreen}
+        className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
+      >
+        <FiChevronLeft size={24} className="text-gray-700" />
+      </button>
+      
+      <Avatar 
+        userObj={user}
+        size={40}
+        className="flex-shrink-0 mr-4"
+      />
+      
+      <div className="flex-1 min-w-0 ml-2">
         <h3 className="text-base font-bold text-gray-900 truncate">{selectedProject?.title}</h3>
         <p className="text-xs text-gray-500 truncate flex items-center gap-1">
           <span className="w-2 h-2 bg-green-500 rounded-full"></span>
           Active now
         </p>
+      </div>
+      
+      <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+        <FiSearch size={20} className="text-gray-600" />
+      </button>
+      
+      <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+        <MdPeople size={20} className="text-gray-600" />
+      </button>
+    </div>
+
+    {/* Messenger Chat Area */}
+    <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4">
+      <div className="max-w-3xl mx-auto space-y-1">
+        {/* Date Separator */}
+        <div className="flex justify-center my-6">
+          <div className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
+            {(() => {
+              if (!selectedProject?.comments || selectedProject.comments.length === 0) {
+                return "Today";
+              }
+              
+              // Get the earliest comment date
+              const oldestComment = selectedProject.comments.reduce((oldest, current) => {
+                const oldestDate = new Date(oldest.created_at);
+                const currentDate = new Date(current.created_at);
+                return currentDate < oldestDate ? current : oldest;
+              });
+              
+              const commentDate = new Date(oldestComment.created_at);
+              const today = new Date();
+              
+              // Reset times to compare dates only
+              today.setHours(0, 0, 0, 0);
+              commentDate.setHours(0, 0, 0, 0);
+              
+              const diffTime = today - commentDate;
+              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays === 0) {
+                return "Today";
+              } else if (diffDays === 1) {
+                return "Yesterday";
+              } else if (diffDays < 7) {
+                return `${diffDays} days ago`;
+              } else if (diffDays < 30) {
+                const weeks = Math.floor(diffDays / 7);
+                return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
+              } else if (diffDays < 365) {
+                const months = Math.floor(diffDays / 30);
+                return `${months} month${months !== 1 ? 's' : ''} ago`;
+              } else {
+                const years = Math.floor(diffDays / 365);
+                return `${years} year${years !== 1 ? 's' : ''} ago`;
+              }
+            })()}
+          </div>
         </div>
-       
-       <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
-         <FiSearch size={20} className="text-gray-600" />
-       </button>
-       
-       <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
-         <MdPeople size={20} className="text-gray-600" />
-       </button>
-     </div>
 
-     {/* Messenger Chat Area */}
-     <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4 pb-32">
-       <div className="max-w-3xl mx-auto space-y-1">
-         {/* Date Separator */}
-         <div className="flex justify-center my-6">
-           <div className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
-             {(() => {
-               if (!selectedProject?.comments || selectedProject.comments.length === 0) {
-                 return "Today";
-               }
-               
-               // Get the earliest comment date
-               const oldestComment = selectedProject.comments.reduce((oldest, current) => {
-                 const oldestDate = new Date(oldest.created_at);
-                 const currentDate = new Date(current.created_at);
-                 return currentDate < oldestDate ? current : oldest;
-               });
-               
-               const commentDate = new Date(oldestComment.created_at);
-               const today = new Date();
-               
-               // Reset times to compare dates only
-               today.setHours(0, 0, 0, 0);
-               commentDate.setHours(0, 0, 0, 0);
-               
-               const diffTime = today - commentDate;
-               const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-               
-               if (diffDays === 0) {
-                 return "Today";
-               } else if (diffDays === 1) {
-                 return "Yesterday";
-               } else if (diffDays < 7) {
-                 return `${diffDays} days ago`;
-               } else if (diffDays < 30) {
-                 const weeks = Math.floor(diffDays / 7);
-                 return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
-               } else if (diffDays < 365) {
-                 const months = Math.floor(diffDays / 30);
-                 return `${months} month${months !== 1 ? 's' : ''} ago`;
-               } else {
-                 const years = Math.floor(diffDays / 365);
-                 return `${years} year${years !== 1 ? 's' : ''} ago`;
-               }
-             })()}
-           </div>
-         </div>
+        {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
+          <>
+            {/* Previous comments indicator */}
+            <div className="text-center my-4">
+              <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                ↑ View previous comments
+              </button>
+            </div>
 
-         {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
-           <>
-             {/* Previous comments indicator */}
-             <div className="text-center my-4">
-               <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                 ↑ View previous comments
-               </button>
-             </div>
+            {/* Comments */}
+            {selectedProject.comments.map((comment, idx) => {
+              const isCurrentUser = comment.email === user?.email;
+              const commentUser = isCurrentUser ? user : users.find(u => u.email === comment.email);
+              
+              // Check if previous comment is from the same user
+              const previousComment = idx > 0 ? selectedProject.comments[idx - 1] : null;
+              const previousUserEmail = previousComment?.email;
+              const showUserLabel = previousUserEmail !== comment.email;
+              
+              return (
+                <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-1`}>
+                  <div className={`flex max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                    {!isCurrentUser && (
+                      <div className="flex-shrink-0 mr-2 self-end">
+                        <Avatar 
+                          userObj={{
+                            ...commentUser,
+                            profile_image: comment.profile_image || commentUser?.profile_image
+                          }} 
+                          size={28} 
+                        />
+                      </div>
+                    )}
+                    
+                    <div className={`flex flex-col ${isCurrentUser ? 'items-end' : ''}`}>
+                      {!isCurrentUser && showUserLabel && (
+                        <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
+                          {comment.user || "User"}
+                        </span>
+                      )}
+                      
+                      <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
+                        isCurrentUser 
+                          ? 'bg-blue-500 text-white rounded-br-sm' 
+                          : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
+                      }`}>
+                        {/* Messenger-style tail */}
+                        {!isCurrentUser ? (
+                          <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                            <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
+                          </div>
+                        ) : (
+                          <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                            <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
+                          </div>
+                        )}
+                        
+                        {comment.text && (
+                          <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                            {comment.text}
+                          </p>
+                        )}
+                        
+                        {comment.attachments && comment.attachments.length > 0 && (
+                          <div className={`space-y-2 mt-2 ${comment.text ? 'pt-2 border-t border-opacity-20' : ''} ${
+                            isCurrentUser ? 'border-white/30' : 'border-gray-200'
+                          }`}>
+                            {comment.attachments.map((att, idx) => {
+                              const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
+                              
+                              return isImage ? (
+                                <div key={idx} className="rounded-lg overflow-hidden border border-opacity-20">
+                                  <img
+                                    src={att.path}
+                                    alt={att.name}
+                                    className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                    onClick={() => window.open(att.path, '_blank')}
+                                  />
+                                  {comment.text && (
+                                    <a
+                                      href={att.path}
+                                      download={att.name}
+                                      className={`block text-xs mt-1 px-2 py-1 ${
+                                        isCurrentUser 
+                                          ? 'text-blue-200 hover:text-white' 
+                                          : 'text-gray-500 hover:text-gray-700'
+                                      }`}
+                                    >
+                                      📎 {att.name}
+                                    </a>
+                                  )}
+                                </div>
+                              ) : (
+                                <a
+                                  key={idx}
+                                  href={att.path || att.data}
+                                  download={att.name}
+                                  className={`flex items-center text-sm px-3 py-2 rounded-lg transition-colors ${
+                                    isCurrentUser 
+                                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                  }`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <FiPaperclip size={16} className="mr-2 flex-shrink-0" />
+                                  <span className="truncate flex-1">{att.name}</span>
+                                  <span className="text-xs opacity-75 ml-2">
+                                    {(att.size / 1024).toFixed(1)}KB
+                                  </span>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                        <span className="text-[10px] text-gray-400 mr-2">
+                          {comment.time}
+                        </span>
+                        {isCurrentUser && (
+                          <div className="text-blue-500">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        ) : (
+          // Empty state with Messenger-style design
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
+            <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+              <svg className="w-10 h-10 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12h-8v-2h8v2zm0-4h-8V8h8v2z"/>
+              </svg>
+            </div>
+            <p className="text-lg font-medium text-gray-600">No comments yet</p>
+            <p className="text-sm text-gray-400 mt-1">Be the first to comment</p>
+            <div className="mt-6 text-xs text-gray-400 flex items-center">
+              <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
+              Messages are end-to-end encrypted
+              <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
 
-             {/* Comments */}
-             {selectedProject.comments.map(comment => {
-               const isCurrentUser = comment.email === user?.email;
-               const commentUser = isCurrentUser ? user : users.find(u => u.email === comment.email);
-               
-               return (
-                 <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-1`}>
-                   <div className={`flex max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
-                     {!isCurrentUser && (
-                       <div className="flex-shrink-0 mr-2 self-end">
-                         <Avatar 
-                           userObj={{
-                             ...commentUser,
-                             profile_image: comment.profile_image || commentUser?.profile_image
-                           }} 
-                           size={28} 
-                         />
-                       </div>
-                     )}
-                     
-                     <div className={`flex flex-col ${isCurrentUser ? 'items-end' : ''}`}>
-                       {!isCurrentUser && (
-                         <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
-                           {comment.user || "User"}
-                         </span>
-                       )}
-                       
-                       <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
-                         isCurrentUser 
-                           ? 'bg-blue-500 text-white rounded-br-sm' 
-                           : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
-                       }`}>
-                         {/* Messenger-style tail */}
-                         {!isCurrentUser ? (
-                           <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                             <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
-                           </div>
-                         ) : (
-                           <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                             <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
-                           </div>
-                         )}
-                         
-                         {comment.text && (
-                           <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-                             {comment.text}
-                           </p>
-                         )}
-                         
-                         {comment.attachments && comment.attachments.length > 0 && (
-                           <div className={`space-y-2 mt-2 ${comment.text ? 'pt-2 border-t border-opacity-20' : ''} ${
-                             isCurrentUser ? 'border-white/30' : 'border-gray-200'
-                           }`}>
-                             {comment.attachments.map((att, idx) => {
-                               const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
-                               
-                               return isImage ? (
-                                 <div key={idx} className="rounded-lg overflow-hidden border border-opacity-20">
-                                   <img
-                                     src={att.path}
-                                     alt={att.name}
-                                     className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                     onClick={() => window.open(att.path, '_blank')}
-                                   />
-                                   {comment.text && (
-                                     <a
-                                       href={att.path}
-                                       download={att.name}
-                                       className={`block text-xs mt-1 px-2 py-1 ${
-                                         isCurrentUser 
-                                           ? 'text-blue-200 hover:text-white' 
-                                           : 'text-gray-500 hover:text-gray-700'
-                                       }`}
-                                     >
-                                       📎 {att.name}
-                                     </a>
-                                   )}
-                                 </div>
-                               ) : (
-                                 <a
-                                   key={idx}
-                                   href={att.path || att.data}
-                                   download={att.name}
-                                   className={`flex items-center text-sm px-3 py-2 rounded-lg transition-colors ${
-                                     isCurrentUser 
-                                       ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                                       : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                                   }`}
-                                   target="_blank"
-                                   rel="noopener noreferrer"
-                                 >
-                                   <FiPaperclip size={16} className="mr-2 flex-shrink-0" />
-                                   <span className="truncate flex-1">{att.name}</span>
-                                   <span className="text-xs opacity-75 ml-2">
-                                     {(att.size / 1024).toFixed(1)}KB
-                                   </span>
-                                 </a>
-                               );
-                             })}
-                           </div>
-                         )}
-                       </div>
-                       
-                       <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                         <span className="text-[10px] text-gray-400 mr-2">
-                           {comment.time}
-                         </span>
-                         {isCurrentUser && (
-                           <div className="text-blue-500">
-                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                               <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
-                             </svg>
-                           </div>
-                         )}
-                       </div>
-                     </div>
-                   </div>
-                 </div>
-               );
-             })}
-           </>
-         ) : (
-           // Empty state with Messenger-style design
-           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
-             <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-               <svg className="w-10 h-10 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12h-8v-2h8v2zm0-4h-8V8h8v2z"/>
-               </svg>
-             </div>
-             <p className="text-lg font-medium text-gray-600">No comments yet</p>
-             <p className="text-sm text-gray-400 mt-1">Be the first to comment</p>
-             <div className="mt-6 text-xs text-gray-400 flex items-center">
-               <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
-               Messages are end-to-end encrypted
-               <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
-             </div>
-           </div>
-         )}
-       </div>
+    {/* Messenger Input Area */}
+    <div className="bg-white border-t border-gray-200 px-4 py-3">
+      {/* Typing indicator */}
+      {false && ( // You can conditionally show this
+        <div className="flex items-center mb-2 ml-2">
+          <div className="flex space-x-1">
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
+          <span className="text-xs text-gray-500 ml-2">Someone is typing...</span>
+        </div>
+      )}
+      
+      {/* Attachments Preview */}
+      {commentAttachments.length > 0 && (
+        <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm font-medium text-blue-700">
+              {commentAttachments.length} attachment{commentAttachments.length !== 1 ? 's' : ''}
+            </div>
+            <button
+              onClick={() => setCommentAttachments([])}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Clear all
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
+            {commentAttachments.map((att, idx) => (
+              <div key={idx} className="relative group">
+                <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-lg px-3 py-2 text-sm flex-shrink-0">
+                  <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span className="truncate max-w-[120px] text-gray-700">{att.name}</span>
+                  <button
+                    onClick={() => removeAttachment(idx)}
+                    className="text-gray-400 hover:text-red-500 flex-shrink-0 ml-1"
+                    title="Remove"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Input Form - Mobile Optimized */}
+      <div className="flex items-center gap-1">
+        {/* Left side buttons */}
+        <div className="flex items-center flex-shrink-0">
+          <button 
+            type="button"
+            onClick={() => commentFileInputRef.current?.click()}
+            className="p-2 text-gray-500 hover:text-blue-600 active:bg-gray-100 rounded-full transition-colors touch-manipulation"
+            title="Attach files"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+          
+          <button 
+            type="button"
+            onClick={startCamera}
+            className="p-2 text-gray-500 hover:text-green-600 active:bg-gray-100 rounded-full transition-colors touch-manipulation ml-0.5"
+            title="Take photo"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </button>
+        </div>
+        
+        {/* Oval input */}
+        <div className="flex items-center flex-1 bg-gray-100 rounded-full px-4 py-2.5 shadow-sm border-gray-200">
+          {/* Textarea */}
+          <textarea
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Message"
+            rows={1}
+            name="msg"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="sentences"
+            spellCheck={false}
+            inputMode="text"
+            enterKeyHint="send"
+            className="flex-1 resize-none bg-transparent outline-none text-sm placeholder:text-gray-400 leading-5"
+            style={{
+              fontSize: "16px",
+              WebkitAppearance: "none",
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (commentText.trim() || commentAttachments.length > 0) {
+                  addComment(selectedProject.id);
+                }
+              }
+            }}
+          />
+        </div>
+        
+        {/* Send button */}
+        <button
+          type="button"
+          onClick={() => {
+            if ((commentText.trim() || commentAttachments.length > 0) && !isSending) {
+              addComment(selectedProject.id);
+            }
+          }}
+          disabled={(!commentText.trim() && commentAttachments.length === 0) || isSending}
+          className={`p-3 rounded-full transition-all ml-1 flex-shrink-0 touch-manipulation ${
+            (commentText.trim() || commentAttachments.length > 0) && !isSending
+              ? 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white shadow'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          }`}
+          title="Send message"
+          style={{ 
+            minWidth: '44px',
+            minHeight: '44px',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          {isSending ? (
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16151495 C3.34915502,0.9 2.40734225,0.9 1.77946707,1.4429026 C0.994623095,2.0766019 0.837654326,3.16592693 1.15159189,3.95141385 L3.03521743,10.3924068 C3.03521743,10.5495042 3.19218622,10.7066015 3.50612381,10.7066015 L16.6915026,11.4920884 C16.6915026,11.4920884 17.1624089,11.4920884 17.1624089,11.0051895 L17.1624089,12.4744748 C17.1624089,12.4744748 17.1624089,12.4744748 16.6915026,12.4744748 Z"/>
+            </svg>
+          )}
+        </button>
+      </div>
 
-       {/* Messenger Input Area */}
-       <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-0 py-3 z-50">
-       {/* Typing indicator */}
-       {false && ( // You can conditionally show this
-         <div className="flex items-center mb-2 ml-2">
-           <div className="flex space-x-1">
-             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-           </div>
-           <span className="text-xs text-gray-500 ml-2">Someone is typing...</span>
-         </div>
-       )}
-       
-       {/* Attachments Preview */}
-       {commentAttachments.length > 0 && (
-         <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-           <div className="flex items-center justify-between mb-2">
-             <div className="text-sm font-medium text-blue-700">
-               {commentAttachments.length} attachment{commentAttachments.length !== 1 ? 's' : ''}
-             </div>
-             <button
-               onClick={() => setCommentAttachments([])}
-               className="text-sm text-blue-600 hover:text-blue-800"
-             >
-               Clear all
-             </button>
-           </div>
-           <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
-             {commentAttachments.map((att, idx) => (
-               <div key={idx} className="relative group">
-                 <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-lg px-3 py-2 text-sm flex-shrink-0">
-                   <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                   </svg>
-                   <span className="truncate max-w-[120px] text-gray-700">{att.name}</span>
-                   <button
-                     onClick={() => removeAttachment(idx)}
-                     className="text-gray-400 hover:text-red-500 flex-shrink-0 ml-1"
-                     title="Remove"
-                   >
-                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                       <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/>
-                     </svg>
-                   </button>
-                 </div>
-               </div>
-             ))}
-           </div>
-         </div>
-       )}
-       
-       {/* Input Form - Mobile Optimized */}
-       <div className="flex items-center gap-2 px-4">
-   {/* Left side buttons */}
-   <div className="flex items-center flex-shrink-0">
-     <button 
-       type="button"
-       onClick={() => commentFileInputRef.current?.click()}
-       className="p-2 text-gray-500 hover:text-blue-600 active:bg-gray-100 rounded-full transition-colors touch-manipulation"
-       title="Attach files"
-     >
-       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
-       </svg>
-     </button>
-     
-     <button 
-       type="button"
-       onClick={startCamera}
-       className="p-2 text-gray-500 hover:text-green-600 active:bg-gray-100 rounded-full transition-colors touch-manipulation ml-0.5"
-       title="Take photo"
-     >
-       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-         <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-         <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
-       </svg>
-     </button>
-   </div>
-     {/* Oval input */}
-  <div className="flex items-center flex-1 bg-gray-100 rounded-full px-4 py-2.5 shadow-sm border border-gray-200">
-
-    {/* Textarea */}
-    <textarea
-      value={commentText}
-      onChange={(e) => setCommentText(e.target.value)}
-      placeholder="Message"
-      rows={1}
-      name="msg"
-
-      autoComplete="off"
-      autoCorrect="off"
-      autoCapitalize="sentences"
-      spellCheck={false}
-
-      inputMode="text"
-      enterKeyHint="send"
-
-      className="flex-1 resize-none bg-transparent outline-none text-sm placeholder:text-gray-500 placeholder:font-normal leading-5 w-full"
-
-      style={{
-        fontSize: "16px",
-        WebkitAppearance: "none",
-      }}
-
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          if (commentText.trim() || commentAttachments.length > 0) {
-            addComment(selectedProject.id);
-          }
-        }
-      }}
-    />
+      <input
+        ref={commentFileInputRef}
+        type="file"
+        multiple
+        onChange={handleCommentFileChange}
+        style={{ display: 'none' }}
+      />
+    </div>
   </div>
-   
-   {/* Send button */}
-   <button
-     type="button"
-     onClick={() => {
-       if ((commentText.trim() || commentAttachments.length > 0) && !isSending) {
-         addComment(selectedProject.id);
-       }
-     }}
-     disabled={(!commentText.trim() && commentAttachments.length === 0) || isSending}
-     className={`p-3 rounded-full transition-all ml-1 flex-shrink-0 touch-manipulation ${
-       (commentText.trim() || commentAttachments.length > 0) && !isSending
-         ? 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white shadow'
-         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-     }`}
-     title="Send message"
-     style={{ 
-       minWidth: '44px',
-       minHeight: '44px',
-       WebkitTapHighlightColor: 'transparent',
-     }}
-   >
-     {isSending ? (
-       <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-       </svg>
-     ) : (
-       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-         <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16151495 C3.34915502,0.9 2.40734225,0.9 1.77946707,1.4429026 C0.994623095,2.0766019 0.837654326,3.16592693 1.15159189,3.95141385 L3.03521743,10.3924068 C3.03521743,10.5495042 3.19218622,10.7066015 3.50612381,10.7066015 L16.6915026,11.4920884 C16.6915026,11.4920884 17.1624089,11.4920884 17.1624089,11.0051895 L17.1624089,12.4744748 C17.1624089,12.4744748 17.1624089,12.4744748 16.6915026,12.4744748 Z"/>
-       </svg>
-     )}
-   </button>
-   <input
-     ref={commentFileInputRef}
-     type="file"
-     multiple
-     onChange={handleCommentFileChange}
-     style={{ display: 'none' }}
-   />
-  </div>
-  </div>
-  </div>
-   </div>
- );
+);
 
   const renderLocationHistory = (item) => (
     <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center">
@@ -3420,14 +3407,222 @@ const renderAnnouncementCard = (announcement) => (
       {/* Task Details - Stack Navigation */}
       {getCurrentScreen()?.screen === "projectDetails" && renderProjectDetailsModal()}
 
-      {/* Comments Modal - Reset navigation stack */}
-      {showCommentsModal && (() => {
-        // Reset navigation stack when comments modal is open
-        if (navigationStack.length > 0) {
-          setNavigationStack([]);
-        }
-        return renderCommentsModal();
-      })()}
+      {/* Task Progress - Stack Navigation */}
+      {getCurrentScreen()?.screen === "taskProgress" && (
+        <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
+          {/* Header */}
+          <div className="sticky top-0 z-20 bg-gradient-to-r from-sky-500 to-cyan-600 text-white px-5 py-4 border-b border-sky-400 flex items-center">
+            <button 
+              onClick={popScreen}
+              className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
+            >
+              <FiChevronLeft size={24} />
+            </button>
+            <h3 className="flex-1 text-lg font-bold">Task Progress</h3>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5">
+            {taskProgressList && taskProgressList.length > 0 ? (
+              <div className="space-y-4">
+                {taskProgressList.map(progress => (
+                  <button
+                    key={progress.id}
+                    onClick={() => {
+                      setSelectedProgressUpdate(progress);
+                      pushScreen("progressDetail");
+                    }}
+                    className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar 
+                          userObj={{
+                            name: progress.user,
+                            profile_image: progress.profile_image
+                          }} 
+                          size={40} 
+                        />
+                        <div>
+                          <p className="font-semibold text-gray-900">{progress.user || 'User'}</p>
+                          <p className="text-xs text-gray-500">{progress.time}</p>
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                        progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
+                        progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {progress.progress_status || 'Pending'}
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mb-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium text-gray-700">Progress</span>
+                        <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                          style={{ width: `${progress.progress_percentage || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* Notes Preview */}
+                    {progress.text && (
+                      <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
+                    )}
+
+                    <div className="flex items-center justify-end mt-2">
+                      <FiChevronRight size={20} className="text-blue-500" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                  <MdCheck className="text-gray-300" size={40} />
+                </div>
+                <p className="text-lg font-medium text-gray-600 mb-2">No progress updates yet</p>
+                <p className="text-sm text-gray-400">Submit progress updates to track task completion</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Progress Detail - Stack Navigation */}
+      {getCurrentScreen()?.screen === "progressDetail" && selectedProgressUpdate && (
+        <div className="fixed inset-0 bg-white z-[70] flex flex-col animate-slide-in-right">
+          {/* Header */}
+          <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-4 border-b border-blue-400 flex items-center">
+            <button 
+              onClick={popScreen}
+              className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
+            >
+              <FiChevronLeft size={24} />
+            </button>
+            <h3 className="flex-1 text-lg font-bold">Progress Details</h3>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5">
+            <div className="space-y-6">
+              {/* User Info */}
+              <div className="flex items-center gap-4">
+                <Avatar 
+                  userObj={{
+                    name: selectedProgressUpdate.user,
+                    profile_image: selectedProgressUpdate.profile_image
+                  }} 
+                  size={48} 
+                />
+                <div>
+                  <p className="font-semibold text-gray-900">{selectedProgressUpdate.user || 'User'}</p>
+                  <p className="text-sm text-gray-500">{selectedProgressUpdate.time}</p>
+                </div>
+              </div>
+
+              {/* Status & Progress */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <p className={`font-semibold ${
+                    selectedProgressUpdate.progress_status === 'Completed' ? 'text-green-600' :
+                    selectedProgressUpdate.progress_status === 'In Progress' ? 'text-blue-600' :
+                    'text-yellow-600'
+                  }`}>
+                    {selectedProgressUpdate.progress_status || 'Pending'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">Progress</p>
+                  <p className="font-semibold text-blue-600">{selectedProgressUpdate.progress_percentage || 0}%</p>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all"
+                    style={{ width: `${selectedProgressUpdate.progress_percentage || 0}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedProgressUpdate.text && (
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <p className="text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">Notes</p>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedProgressUpdate.text}</p>
+                </div>
+              )}
+
+              {/* Evidence Photo */}
+              {selectedProgressUpdate.evidence_photo && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Evidence Photo</p>
+                  <img 
+                    src={selectedProgressUpdate.evidence_photo} 
+                    alt="Evidence" 
+                    className="w-full rounded-xl shadow-lg cursor-pointer hover:opacity-95 transition-opacity"
+                    onClick={() => window.open(selectedProgressUpdate.evidence_photo, '_blank')}
+                  />
+                </div>
+              )}
+
+              {/* Location */}
+              {(selectedProgressUpdate.location_latitude && selectedProgressUpdate.location_longitude) && (
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Location</p>
+                  <div className="flex items-center text-gray-600">
+                    <MdLocationOn className="text-red-500 mr-2" size={20} />
+                    <span className="text-sm">
+                      {selectedProgressUpdate.location_latitude}, {selectedProgressUpdate.location_longitude}
+                      {selectedProgressUpdate.location_accuracy && (
+                        <span className="text-xs text-gray-400 ml-2">
+                          (±{selectedProgressUpdate.location_accuracy}m)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Approval Status */}
+              {selectedProgressUpdate.approval_status && (
+                <div className={`rounded-xl p-4 border ${
+                  selectedProgressUpdate.approval_status === 'approved' ? 'bg-green-50 border-green-200' :
+                  selectedProgressUpdate.approval_status === 'rejected' ? 'bg-red-50 border-red-200' :
+                  'bg-yellow-50 border-yellow-200'
+                }`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{
+                    color: selectedProgressUpdate.approval_status === 'approved' ? '#16a34a' :
+                           selectedProgressUpdate.approval_status === 'rejected' ? '#dc2626' : '#ca8a04'
+                  }}>
+                    Approval Status
+                  </p>
+                  <p className={`font-semibold capitalize ${
+                    selectedProgressUpdate.approval_status === 'approved' ? 'text-green-700' :
+                    selectedProgressUpdate.approval_status === 'rejected' ? 'text-red-700' :
+                    'text-yellow-700'
+                  }`}>
+                    {selectedProgressUpdate.approval_status}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comments & Clarifications - Stack Navigation */}
+      {getCurrentScreen()?.screen === "comments" && renderCommentsModal()}
 
       {/* Progress Detail View Modal */}
       {showProgressDetailView && selectedProgressUpdate && (
@@ -3566,117 +3761,6 @@ const renderAnnouncementCard = (announcement) => (
               >
                 Close
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Task Progress Modal */}
-      {showTaskProgressModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl my-8">
-            {/* Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Task Progress</h2>
-              <button 
-                onClick={() => {
-                  setShowTaskProgressModal(false);
-                  setTaskProgressList([]);
-                }}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-              >
-                <IoMdClose size={24} />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-6">
-              {taskProgressList && taskProgressList.length > 0 ? (
-                <div className="space-y-4">
-                  {taskProgressList.map(progress => (
-                    <button
-                      key={progress.id}
-                      onClick={() => {
-                        setSelectedProgressUpdate(progress);
-                        setShowProgressDetailView(true);
-                        setShowTaskProgressModal(false);
-                      }}
-                      className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar 
-                            userObj={{
-                              name: progress.user,
-                              profile_image: progress.profile_image
-                            }} 
-                            size={40} 
-                          />
-                          <div>
-                            <p className="font-semibold text-gray-900">{progress.user || 'User'}</p>
-                            <p className="text-xs text-gray-500">{progress.time}</p>
-                          </div>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                          progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
-                          progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {progress.progress_status || 'Pending'}
-                        </span>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="mb-3">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium text-gray-700">Progress</span>
-                          <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
-                            style={{ width: `${progress.progress_percentage || 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-
-                      {/* Preview */}
-                      {progress.evidence_photo && (
-                        <div className="mb-3">
-                          <img 
-                            src={progress.evidence_photo} 
-                            alt="Evidence" 
-                            className="w-full h-32 object-cover rounded-lg border border-blue-200"
-                          />
-                        </div>
-                      )}
-
-                      {/* Notes Preview */}
-                      {progress.text && (
-                        <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
-                      )}
-
-                      <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                        {progress.location_latitude && (
-                          <span className="flex items-center gap-1">
-                            <MdLocationOn size={14} className="text-red-500" />
-                            Location tracked
-                          </span>
-                        )}
-                        <span>Click for details →</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-gray-300 mb-3">
-                    <MdCheck size={48} className="mx-auto" />
-                  </div>
-                  <p className="text-gray-600 font-medium">No progress updates yet</p>
-                  <p className="text-sm text-gray-500 mt-1">Submit progress updates to track task completion</p>
-                </div>
-              )}
             </div>
           </div>
         </div>

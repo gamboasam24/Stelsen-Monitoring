@@ -78,7 +78,6 @@ const AdminDashboard = ({ user, logout }) => {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
-  const [showCommentsModal, setShowCommentsModal] = useState(false);
   // Navigation stack for screen-based navigation (replaces modals)
   const [navigationStack, setNavigationStack] = useState([]);
   const [currentLocation, setCurrentLocation] = useState("Office");
@@ -269,36 +268,57 @@ const AdminDashboard = ({ user, logout }) => {
   const isScreenOpen = (screenName) => {
     return navigationStack.some(item => item.screen === screenName);
   };
-  
-// Format author name from email
-const formatAuthorName = (email) => {
-  if (!email) return "Unknown";
 
-  return email
-    .split("@")[0]            // remove domain
-    .replace(/\d+/g, "")      // remove numbers
-    .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
-};
+  // Open Comments & Clarifications using stack navigation
+  const openCommentsScreen = (project) => {
+    if (!project) return;
 
-// Format numbers as Philippine Peso with comma grouping
-const formatPeso = (value) => {
-  if (value === null || value === undefined || value === "") return "₱0";
-  const num = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
-  if (isNaN(num)) return "₱0";
-  return "₱" + num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-};
+    const normalizedComments = project.comments || [];
+    setSelectedProject({ ...project, comments: normalizedComments });
 
-// Treat tasks as new for 3 days from start date; if no date, assume new when progress is 0
-const isProjectNew = (dateValue, progress) => {
-  if (dateValue) {
-    const start = new Date(dateValue);
-    if (!isNaN(start)) {
-      const diffDays = (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24);
-      if (diffDays <= 3) return true;
+    if (normalizedComments.length > 0) {
+      const commentIds = normalizedComments.map(c => c.id);
+      setReadComments(prev => ({
+        ...prev,
+        [project.id]: commentIds
+      }));
     }
-  }
-  return progress === undefined || progress === null || Number(progress) === 0;
-};
+
+    setNavigationStack(prev => {
+      const filtered = prev.filter(screen => !["comments", "projectUsers", "addUserToProject"].includes(screen.screen));
+      return [...filtered, { screen: "comments", data: { projectId: project.id } }];
+    });
+  };
+  
+  // Format author name from email
+  const formatAuthorName = (email) => {
+    if (!email) return "Unknown";
+
+    return email
+      .split("@")[0]            // remove domain
+      .replace(/\d+/g, "")      // remove numbers
+      .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
+  };
+
+  // Format numbers as Philippine Peso with comma grouping
+  const formatPeso = (value) => {
+    if (value === null || value === undefined || value === "") return "₱0";
+    const num = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+    if (isNaN(num)) return "₱0";
+    return "₱" + num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  };
+
+  // Treat tasks as new for 3 days from start date; if no date, assume new when progress is 0
+  const isProjectNew = (dateValue, progress) => {
+    if (dateValue) {
+      const start = new Date(dateValue);
+      if (!isNaN(start)) {
+        const diffDays = (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays <= 3) return true;
+      }
+    }
+    return progress === undefined || progress === null || Number(progress) === 0;
+  };
 
 // Get icon for announcement type
 const getIconForType = (type) => {
@@ -1540,7 +1560,13 @@ useEffect(() => {
 
   // Auto-refresh comments when modal is open
   useEffect(() => {
-    if (!showCommentsModal || !selectedProject?.id) return;
+    const isCommentsOpen = navigationStack.some(screen => [
+      "comments",
+      "projectUsers",
+      "addUserToProject"
+    ].includes(screen.screen));
+
+    if (!isCommentsOpen || !selectedProject?.id) return;
 
     const refreshComments = async () => {
       try {
@@ -1587,7 +1613,7 @@ useEffect(() => {
     // Refresh every 3 seconds
     const interval = setInterval(refreshComments, 3000);
     return () => clearInterval(interval);
-  }, [showCommentsModal, selectedProject?.id]);
+  }, [navigationStack, selectedProject?.id]);
 
   //========================================================== Render Functions ==========================================================
   const renderAnnouncementCard = (announcement) => (
@@ -1705,18 +1731,7 @@ useEffect(() => {
           </div>
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => {
-                setSelectedProject({ ...item, comments: item.comments || [] });
-                setShowCommentsModal(true);
-                // Mark all comments as read for this project
-                if (item && item.comments) {
-                  const commentIds = item.comments.map(c => c.id);
-                  setReadComments(prev => ({
-                    ...prev,
-                    [item.id]: commentIds
-                  }));
-                }
-              }}
+              onClick={() => openCommentsScreen(item)}
               className="flex items-center text-xs text-gray-500 relative hover:text-blue-500 transition-colors"
             >
               <MdComment size={14} className="mr-1" />
@@ -1829,19 +1844,7 @@ useEffect(() => {
             {/* Comments Section - Preview */}
             <div className="mb-6">
               <button
-                onClick={() => {
-                  setShowCommentsModal(true);
-                  // Reset navigation stack when opening comments
-                  setNavigationStack([]);
-                  // Mark all comments as read for this project
-                  if (selectedProject && selectedProject.comments) {
-                    const commentIds = selectedProject.comments.map(c => c.id);
-                    setReadComments(prev => ({
-                      ...prev,
-                      [selectedProject.id]: commentIds
-                    }));
-                  }
-                }}
+                onClick={() => openCommentsScreen(selectedProject)}
                 className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all border border-blue-200"
               >
                 <div className="flex items-center justify-between">
@@ -1872,11 +1875,11 @@ useEffect(() => {
       </div>
     </div>
   );const renderCommentsModal = () => (
-  <div className="fixed inset-0 bg-white z-[60] flex flex-col">
+  <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
     {/* Messenger-style Header */}
       <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
         <button 
-        onClick={() => setShowCommentsModal(false)}
+        onClick={() => popScreen()}
         className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
         >
         <FiChevronLeft size={24} className="text-gray-700" />
@@ -1910,104 +1913,111 @@ useEffect(() => {
       </div>
 
       {/* Navigation Stack - Screen-based Navigation */}
-      {navigationStack.length > 0 && (
-        <div className="fixed inset-0 bg-white z-40 flex flex-col animate-slide-in-right">
-          {/* Dynamic Header */}
-          <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 flex items-center">
-            <button 
-              onClick={popScreen}
-              className="p-2 rounded-full hover:bg-gray-100 mr-3"
-            >
-              <FiChevronLeft size={24} className="text-gray-700" />
-            </button>
-            <h3 className="text-lg font-bold text-gray-800">
-              {getCurrentScreen()?.screen === "projectUsers" ? "Project Team" : "Add Users to Project"}
-            </h3>
-          </div>
+      {(() => {
+        const currentScreen = getCurrentScreen();
+        const isNestedCommentScreen = currentScreen?.screen === "projectUsers" || currentScreen?.screen === "addUserToProject";
 
-          {/* Dynamic Content */}
-          <div className="flex-1 overflow-y-auto p-5">
-            {/* Project Users Screen */}
-            {getCurrentScreen()?.screen === "projectUsers" && (
-              <div className="space-y-4">
-                {/* Add User Button */}
-                <button
-                  onClick={() => pushScreen("addUserToProject")}
-                  className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium flex items-center justify-center hover:from-blue-600 hover:to-blue-700 transition-all"
-                >
-                  <MdAdd size={20} className="mr-2" />
-                  Add User to Project
-                </button>
+        if (!isNestedCommentScreen) return null;
 
-                {/* Current Team Members */}
-                <div>
-                  <h4 className="font-bold text-gray-800 mb-4">Team Members</h4>
-                  <div className="space-y-3">
-                    {selectedProject?.assignedUsers && selectedProject.assignedUsers.length > 0 ? (
-                      selectedProject.assignedUsers.map(userId => {
-                        const user = users.find(u => String(u.id) === String(userId));
-                        return user ? (
-                          <div key={userId} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
-                            <div className="flex items-center flex-1">
-                              <Avatar user={user} size={40} />
-                              <div className="ml-3 flex-1">
-                                <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
-                                <p className="text-xs text-gray-500">{user.email}</p>
+        return (
+          <div className="fixed inset-0 bg-white z-40 flex flex-col animate-slide-in-right">
+            {/* Dynamic Header */}
+            <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 flex items-center">
+              <button 
+                onClick={popScreen}
+                className="p-2 rounded-full hover:bg-gray-100 mr-3"
+              >
+                <FiChevronLeft size={24} className="text-gray-700" />
+              </button>
+              <h3 className="text-lg font-bold text-gray-800">
+                {currentScreen?.screen === "projectUsers" ? "Project Team" : "Add Users to Project"}
+              </h3>
+            </div>
+
+            {/* Dynamic Content */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {/* Project Users Screen */}
+              {currentScreen?.screen === "projectUsers" && (
+                <div className="space-y-4">
+                  {/* Add User Button */}
+                  <button
+                    onClick={() => pushScreen("addUserToProject")}
+                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium flex items-center justify-center hover:from-blue-600 hover:to-blue-700 transition-all"
+                  >
+                    <MdAdd size={20} className="mr-2" />
+                    Add User to Project
+                  </button>
+
+                  {/* Current Team Members */}
+                  <div>
+                    <h4 className="font-bold text-gray-800 mb-4">Team Members</h4>
+                    <div className="space-y-3">
+                      {selectedProject?.assignedUsers && selectedProject.assignedUsers.length > 0 ? (
+                        selectedProject.assignedUsers.map(userId => {
+                          const user = users.find(u => String(u.id) === String(userId));
+                          return user ? (
+                            <div key={userId} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
+                              <div className="flex items-center flex-1">
+                                <Avatar user={user} size={40} />
+                                <div className="ml-3 flex-1">
+                                  <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
+                                  <p className="text-xs text-gray-500">{user.email}</p>
+                                </div>
                               </div>
+                              <button
+                                onClick={() => removeUserFromProject(user.id, formatAuthorName(user.email || user.name))}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                title="Remove user"
+                              >
+                                <IoMdClose size={20} />
+                              </button>
                             </div>
-                            <button
-                              onClick={() => removeUserFromProject(user.id, formatAuthorName(user.email || user.name))}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                              title="Remove user"
-                            >
-                              <IoMdClose size={20} />
-                            </button>
-                          </div>
-                        ) : null;
-                      })
-                    ) : (
-                      <div className="text-center py-8">
-                        <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
-                        <p className="text-gray-600 font-medium">No users assigned</p>
-                        <p className="text-sm text-gray-400">Add users to this project</p>
-                      </div>
-                    )}
+                          ) : null;
+                        })
+                      ) : (
+                        <div className="text-center py-8">
+                          <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
+                          <p className="text-gray-600 font-medium">No users assigned</p>
+                          <p className="text-sm text-gray-400">Add users to this project</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Add User to Project Screen */}
-            {getCurrentScreen()?.screen === "addUserToProject" && (
-              <div className="space-y-3">
-                {users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).length > 0 ? (
-                  users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).map(user => (
-                    <button
-                      key={user.id}
-                      onClick={() => addUserToProject(user.id, formatAuthorName(user.email || user.name))}
-                      className="w-full flex items-center p-4 bg-gray-50 hover:bg-blue-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all"
-                    >
-                      <Avatar user={user} size={40} />
-                      <div className="ml-3 flex-1 text-left">
-                        <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
-                      </div>
-                      <div className="w-6 h-6 border-2 border-gray-300 rounded-full flex items-center justify-center">
-                        <MdAdd size={16} className="text-blue-500" />
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
-                    <p className="text-gray-600 font-medium">All users are already assigned</p>
-                  </div>
-                )}
-              </div>
-            )}
+              {/* Add User to Project Screen */}
+              {currentScreen?.screen === "addUserToProject" && (
+                <div className="space-y-3">
+                  {users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).length > 0 ? (
+                    users.filter(user => !selectedProject?.assignedUsers?.includes(String(user.id))).map(user => (
+                      <button
+                        key={user.id}
+                        onClick={() => addUserToProject(user.id, formatAuthorName(user.email || user.name))}
+                        className="w-full flex items-center p-4 bg-gray-50 hover:bg-blue-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all"
+                      >
+                        <Avatar user={user} size={40} />
+                        <div className="ml-3 flex-1 text-left">
+                          <p className="font-medium text-gray-800">{formatAuthorName(user.email || user.name)}</p>
+                          <p className="text-xs text-gray-500">{user.email}</p>
+                        </div>
+                        <div className="w-6 h-6 border-2 border-gray-300 rounded-full flex items-center justify-center">
+                          <MdAdd size={16} className="text-blue-500" />
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <MdPeople size={40} className="mx-auto text-gray-300 mb-2" />
+                      <p className="text-gray-600 font-medium">All users are already assigned</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Messenger Chat Area */}
     <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4">
@@ -2062,12 +2072,12 @@ useEffect(() => {
             {/* Previous comments indicator */}
             <div className="text-center my-4">
               <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                ↑ View previous comments
+                View previous comments
               </button>
             </div>
 
             {/* Comments */}
-            {selectedProject.comments.map(comment => {
+            {selectedProject.comments.map((comment, idx) => {
               // Debug log
               if (comment.comment_type === 'progress') {
                 console.log('Progress comment found:', comment);
@@ -2075,6 +2085,11 @@ useEffect(() => {
               
               const isCurrentUser = comment.email === currentUser?.email;
               const commentUser = isCurrentUser ? currentUser : users.find(u => u.email === comment.email);
+              
+              // Check if previous comment is from the same user
+              const previousComment = idx > 0 ? selectedProject.comments[idx - 1] : null;
+              const previousUserEmail = previousComment?.email;
+              const showUserLabel = previousUserEmail !== comment.email;
               
               // Render Progress Approval Card for progress comments
               if (comment.comment_type === 'progress' && comment.progress) {
@@ -2122,7 +2137,7 @@ useEffect(() => {
                     )}
                     
                     <div className={`flex flex-col ${isCurrentUser ? 'items-end' : ''}`}>
-                      {!isCurrentUser && (
+                      {!isCurrentUser && showUserLabel && (
                         <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
                           {comment.user || "User"}
                         </span>
@@ -2390,7 +2405,6 @@ useEffect(() => {
         style={{ display: 'none' }}
       />
     </div>
-    
   </div>
 );
 
@@ -3982,7 +3996,7 @@ useEffect(() => {
       )}
 
       {/* Comments Modal - Stack Navigation */}
-      {showCommentsModal && renderCommentsModal()}
+      {navigationStack.some(screen => screen.screen === "comments") && renderCommentsModal()}
 
       {/* Location Update Modal */}
       {showLocationModal && (
