@@ -118,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $location_lat = floatval($_POST['location_latitude'] ?? 0);
         $location_lng = floatval($_POST['location_longitude'] ?? 0);
         $location_accuracy = floatval($_POST['location_accuracy'] ?? 0);
+        $location_name = $_POST['location_name'] ?? '';
 
         // Validation
         if ($project_id <= 0) {
@@ -140,8 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt = $conn->prepare("
             INSERT INTO project_progress 
             (project_id, user_id, progress_percentage, status, notes, evidence_photo, 
-             location_latitude, location_longitude, location_accuracy, approval_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+             location_latitude, location_longitude, location_accuracy, location_name, approval_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
         ");
 
         if (!$stmt) {
@@ -150,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
         // Bind parameters: i=int, s=string, d=double
         $stmt->bind_param(
-            "iiisssddd",
+            "iiisssddds",
             $project_id,
             $user_id,
             $progress_percentage,
@@ -159,7 +160,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $evidence_photo,
             $location_lat,
             $location_lng,
-            $location_accuracy
+            $location_accuracy,
+            $location_name
         );
 
         if (!$stmt->execute()) {
@@ -173,13 +175,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $comment_stmt = $conn->prepare("
             INSERT INTO project_comments 
             (project_id, user_id, comment, comment_type, progress_percentage, progress_status, 
-             evidence_photo, location_latitude, location_longitude, location_accuracy, progress_id, approval_status)
-            VALUES (?, ?, ?, 'progress', ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+             evidence_photo, location_latitude, location_longitude, location_accuracy, location_name, progress_id, approval_status)
+            VALUES (?, ?, ?, 'progress', ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
         ");
 
         if ($comment_stmt) {
             $comment_stmt->bind_param(
-                "iisissdddis",
+                "iisissdddsi",
                 $project_id,
                 $user_id,
                 $notes,
@@ -189,8 +191,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $location_lat,
                 $location_lng,
                 $location_accuracy,
-                $progress_id,
-                $approval_status = 'PENDING'
+                $location_name,
+                $progress_id
             );
             $comment_stmt->execute();
             $comment_stmt->close();
@@ -278,6 +280,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['project_id']) && (!isse
         }
 
         $stmt->close();
+
+        // Fallback: if no mirrored progress comments, pull from project_progress table directly
+        if (count($progress) === 0) {
+            $stmt = $conn->prepare("
+                SELECT 
+                    pp.id,
+                    pp.project_id,
+                    pp.user_id,
+                    pp.notes,
+                    pp.progress_percentage,
+                    pp.status,
+                    pp.evidence_photo,
+                    pp.location_latitude,
+                    pp.location_longitude,
+                    pp.location_accuracy,
+                    pp.approval_status,
+                    pp.created_at,
+                    l.email,
+                    l.profile_image
+                FROM project_progress pp
+                JOIN login l ON pp.user_id = l.login_id
+                WHERE pp.project_id = ?
+                ORDER BY pp.created_at DESC
+            ");
+
+            if (!$stmt) {
+                throw new Exception('Prepare failed: ' . $conn->error);
+            }
+
+            $stmt->bind_param('i', $project_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            while ($row = $result->fetch_assoc()) {
+                $progress[] = [
+                    'id' => (int)$row['id'],
+                    'project_id' => (int)$row['project_id'],
+                    'user_id' => (int)$row['user_id'],
+                    'user' => $row['email'],
+                    'profile_image' => $row['profile_image'],
+                    'text' => $row['notes'],
+                    'progress_percentage' => isset($row['progress_percentage']) ? (int)$row['progress_percentage'] : null,
+                    'progress_status' => $row['status'] ?? null,
+                    'evidence_photo' => $row['evidence_photo'] ?? null,
+                    'location_latitude' => $row['location_latitude'] ?? null,
+                    'location_longitude' => $row['location_longitude'] ?? null,
+                    'location_accuracy' => $row['location_accuracy'] ?? null,
+                    'approval_status' => $row['approval_status'] ?? null,
+                    'time' => $row['created_at'],
+                    'created_at' => $row['created_at'],
+                ];
+            }
+
+            $stmt->close();
+        }
 
         echo json_encode([
             'status' => 'success',

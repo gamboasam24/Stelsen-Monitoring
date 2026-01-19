@@ -345,6 +345,24 @@ const AdminDashboard = ({ user, logout }) => {
       .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
   };
 
+  // Format datetime like "January 01, 2026 12:00pm"
+  const formatDateTime = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (isNaN(d)) return value;
+
+    const month = d.toLocaleString('en-US', { month: 'long' });
+    const day = d.toLocaleString('en-US', { day: '2-digit' });
+    const year = d.getFullYear();
+
+    let hours = d.getHours();
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
+    hours = hours % 12 || 12;
+
+    return `${month} ${day}, ${year} ${hours}:${minutes}${ampm}`;
+  };
+
   // Format numbers as Philippine Peso with comma grouping
   const formatPeso = (value) => {
     if (value === null || value === undefined || value === "") return "₱0";
@@ -3962,64 +3980,68 @@ useEffect(() => {
               </div>
             ) : taskProgressList && taskProgressList.length > 0 ? (
               <div className="space-y-4">
-                {taskProgressList.map(progress => (
-                  <button
-                    key={progress.id}
-                    onClick={() => {
-                      setSelectedProgressUpdate(progress);
-                      setNavigationStack(prev => {
-                        const filtered = prev.filter(screen => screen.screen !== "progressDetail");
-                        return [...filtered, { screen: "progressDetail", data: { progressId: progress.id } }];
-                      });
-                    }}
-                    className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          user={{
-                            name: progress.user,
-                            email: progress.email,
-                            profile_image: progress.profile_image
-                          }}
-                          size={40}
-                        />
-                        <div>
-                          <p className="font-semibold text-gray-900">{progress.user || 'User'}</p>
-                          <p className="text-xs text-gray-500">{progress.time}</p>
+                {taskProgressList.map(progress => {
+                  const displayName = formatAuthorName(progress.user || progress.email);
+                  const displayTime = formatDateTime(progress.time || progress.created_at);
+                  return (
+                    <button
+                      key={progress.id}
+                      onClick={() => {
+                        setSelectedProgressUpdate(progress);
+                        setNavigationStack(prev => {
+                          const filtered = prev.filter(screen => screen.screen !== "progressDetail");
+                          return [...filtered, { screen: "progressDetail", data: { progressId: progress.id } }];
+                        });
+                      }}
+                      className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            user={{
+                              name: displayName,
+                              email: progress.email,
+                              profile_image: progress.profile_image
+                            }}
+                            size={40}
+                          />
+                          <div>
+                            <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
+                            <p className="text-xs text-gray-500">{displayTime}</p>
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                          progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
+                          progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {progress.progress_status || 'Pending'}
+                        </span>
+                      </div>
+
+                      <div className="mb-3">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-medium text-gray-700">Progress</span>
+                          <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                            style={{ width: `${progress.progress_percentage || 0}%` }}
+                          ></div>
                         </div>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                        progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
-                        progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {progress.progress_status || 'Pending'}
-                      </span>
-                    </div>
 
-                    <div className="mb-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-medium text-gray-700">Progress</span>
-                        <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
+                      {progress.text && (
+                        <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
+                      )}
+
+                      <div className="flex items-center justify-end mt-2">
+                        <FiChevronRight size={20} className="text-blue-500" />
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
-                          style={{ width: `${progress.progress_percentage || 0}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {progress.text && (
-                      <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
-                    )}
-
-                    <div className="flex items-center justify-end mt-2">
-                      <FiChevronRight size={20} className="text-blue-500" />
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -4050,18 +4072,26 @@ useEffect(() => {
           <div className="flex-1 overflow-y-auto p-5">
             <div className="space-y-6">
               <div className="flex items-center gap-4">
-                <Avatar
-                  user={{
-                    name: selectedProgressUpdate.user,
-                    email: selectedProgressUpdate.email,
-                    profile_image: selectedProgressUpdate.profile_image
-                  }}
-                  size={48}
-                />
-                <div>
-                  <p className="font-semibold text-gray-900">{selectedProgressUpdate.user || 'User'}</p>
-                  <p className="text-sm text-gray-500">{selectedProgressUpdate.time}</p>
-                </div>
+                {(() => {
+                  const displayName = formatAuthorName(selectedProgressUpdate.user || selectedProgressUpdate.email);
+                  const displayTime = formatDateTime(selectedProgressUpdate.time || selectedProgressUpdate.created_at);
+                  return (
+                    <>
+                      <Avatar
+                        user={{
+                          name: displayName,
+                          email: selectedProgressUpdate.email,
+                          profile_image: selectedProgressUpdate.profile_image
+                        }}
+                        size={48}
+                      />
+                      <div>
+                        <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
+                        <p className="text-sm text-gray-500">{displayTime}</p>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -4115,7 +4145,7 @@ useEffect(() => {
                   <div className="flex items-center text-gray-600">
                     <MdLocationOn className="text-red-500 mr-2" size={20} />
                     <span className="text-sm">
-                      {selectedProgressUpdate.location_latitude}, {selectedProgressUpdate.location_longitude}
+                      {selectedProgressUpdate.location_name || `${selectedProgressUpdate.location_latitude}, ${selectedProgressUpdate.location_longitude}`}
                       {selectedProgressUpdate.location_accuracy && (
                         <span className="text-xs text-gray-400 ml-2">
                           (±{selectedProgressUpdate.location_accuracy}m)

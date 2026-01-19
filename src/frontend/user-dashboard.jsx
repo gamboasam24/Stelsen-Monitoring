@@ -274,6 +274,24 @@ const UserDashboard = ({ user, logout }) => {
       .replace(/\b\w/g, c => c.toUpperCase()); // capitalize
   };
 
+  // Format datetime like "January 01, 2026 12:00pm"
+  const formatDateTime = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (isNaN(d)) return value;
+
+    const month = d.toLocaleString('en-US', { month: 'long' });
+    const day = d.toLocaleString('en-US', { day: '2-digit' });
+    const year = d.getFullYear();
+
+    let hours = d.getHours();
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
+    hours = hours % 12 || 12;
+
+    return `${month} ${day}, ${year} ${hours}:${minutes}${ampm}`;
+  };
+
   // Format numbers as Philippine Peso with comma grouping
   const formatPeso = (value) => {
     if (value === null || value === undefined || value === "") return "₱0";
@@ -2990,6 +3008,21 @@ const renderCommentsModal = () => (
     }
 
     try {
+      // Get location name from coordinates
+      let locationName = null;
+      try {
+        const accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+        const geoResponse = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${taskLocation.longitude},${taskLocation.latitude}.json?access_token=${accessToken}&types=address,poi,place,locality,neighborhood`
+        );
+        const geoData = await geoResponse.json();
+        if (geoData.features && geoData.features.length > 0) {
+          locationName = geoData.features[0].place_name;
+        }
+      } catch (geoError) {
+        console.error('Error fetching location name:', geoError);
+      }
+
       const response = await fetch('/backend/project_progress.php', {
         method: 'POST',
         credentials: 'include',
@@ -3003,7 +3036,8 @@ const renderCommentsModal = () => (
           evidence_photo: capturedPhoto,
           location_latitude: taskLocation.latitude,
           location_longitude: taskLocation.longitude,
-          location_accuracy: taskLocation.accuracy
+          location_accuracy: taskLocation.accuracy,
+          location_name: locationName || ''
         }).toString()
       });
 
@@ -3084,7 +3118,7 @@ const renderCommentsModal = () => (
         },
         { 
           enableHighAccuracy: true, 
-          timeout: 15000,
+          timeout: 30000,
           maximumAge: 0
         }
       );
@@ -3115,7 +3149,7 @@ const renderCommentsModal = () => (
             {/* Location Status */}
             <div className={`p-3 rounded-lg text-sm flex items-center justify-between ${
               locationValidationMsg.includes("✅") ? 'bg-green-50 text-green-700' : 
-              locationValidationMsg.includes("❌") ? 'bg-red-50 text-red-700' :
+              locationValidationMsg.includes("❌") || locationValidationMsg.includes("⚠️") ? 'bg-red-50 text-red-700' :
               'bg-yellow-50 text-yellow-700'
             }`}>
               <div className="flex items-center flex-1">
@@ -3128,12 +3162,12 @@ const renderCommentsModal = () => (
                   <span>{locationValidationMsg || "Initializing GPS..."}</span>
                 )}
               </div>
-              {locationValidationMsg.includes("❌") && !isCapturingLocation && (
+              {(locationValidationMsg.includes("❌") || locationValidationMsg.includes("⚠️")) && !isCapturingLocation && (
                 <button
                   onClick={() => setIsCapturingLocation(true)}
-                  className="ml-2 px-2 py-1 text-xs font-medium bg-white rounded hover:bg-gray-100 transition-colors"
+                  className="ml-2 px-3 py-1 text-xs font-semibold bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors shadow-sm"
                 >
-                  Retry
+                  Try Again
                 </button>
               )}
             </div>
@@ -3424,62 +3458,66 @@ const renderCommentsModal = () => (
           <div className="flex-1 overflow-y-auto p-5">
             {taskProgressList && taskProgressList.length > 0 ? (
               <div className="space-y-4">
-                {taskProgressList.map(progress => (
-                  <button
-                    key={progress.id}
-                    onClick={() => {
-                      setSelectedProgressUpdate(progress);
-                      pushScreen("progressDetail");
-                    }}
-                    className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar 
-                          userObj={{
-                            name: progress.user,
-                            profile_image: progress.profile_image
-                          }} 
-                          size={40} 
-                        />
-                        <div>
-                          <p className="font-semibold text-gray-900">{progress.user || 'User'}</p>
-                          <p className="text-xs text-gray-500">{progress.time}</p>
+                {taskProgressList.map(progress => {
+                  const displayName = formatAuthorName(progress.user || progress.email);
+                  const displayTime = formatDateTime(progress.time || progress.created_at);
+                  return (
+                    <button
+                      key={progress.id}
+                      onClick={() => {
+                        setSelectedProgressUpdate(progress);
+                        pushScreen("progressDetail");
+                      }}
+                      className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar 
+                            userObj={{
+                              name: displayName,
+                              profile_image: progress.profile_image
+                            }} 
+                            size={40} 
+                          />
+                          <div>
+                            <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
+                            <p className="text-xs text-gray-500">{displayTime}</p>
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                          progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
+                          progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {progress.progress_status || 'Pending'}
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mb-3">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-medium text-gray-700">Progress</span>
+                          <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                            style={{ width: `${progress.progress_percentage || 0}%` }}
+                          ></div>
                         </div>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                        progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
-                        progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {progress.progress_status || 'Pending'}
-                      </span>
-                    </div>
 
-                    {/* Progress Bar */}
-                    <div className="mb-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-medium text-gray-700">Progress</span>
-                        <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
+                      {/* Notes Preview */}
+                      {progress.text && (
+                        <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
+                      )}
+
+                      <div className="flex items-center justify-end mt-2">
+                        <FiChevronRight size={20} className="text-blue-500" />
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
-                          style={{ width: `${progress.progress_percentage || 0}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {/* Notes Preview */}
-                    {progress.text && (
-                      <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
-                    )}
-
-                    <div className="flex items-center justify-end mt-2">
-                      <FiChevronRight size={20} className="text-blue-500" />
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -3513,17 +3551,25 @@ const renderCommentsModal = () => (
             <div className="space-y-6">
               {/* User Info */}
               <div className="flex items-center gap-4">
-                <Avatar 
-                  userObj={{
-                    name: selectedProgressUpdate.user,
-                    profile_image: selectedProgressUpdate.profile_image
-                  }} 
-                  size={48} 
-                />
-                <div>
-                  <p className="font-semibold text-gray-900">{selectedProgressUpdate.user || 'User'}</p>
-                  <p className="text-sm text-gray-500">{selectedProgressUpdate.time}</p>
-                </div>
+                {(() => {
+                  const displayName = formatAuthorName(selectedProgressUpdate.user || selectedProgressUpdate.email);
+                  const displayTime = formatDateTime(selectedProgressUpdate.time || selectedProgressUpdate.created_at);
+                  return (
+                    <>
+                      <Avatar 
+                        userObj={{
+                          name: displayName,
+                          profile_image: selectedProgressUpdate.profile_image
+                        }} 
+                        size={48} 
+                      />
+                      <div>
+                        <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
+                        <p className="text-sm text-gray-500">{displayTime}</p>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Status & Progress */}
@@ -3582,7 +3628,7 @@ const renderCommentsModal = () => (
                   <div className="flex items-center text-gray-600">
                     <MdLocationOn className="text-red-500 mr-2" size={20} />
                     <span className="text-sm">
-                      {selectedProgressUpdate.location_latitude}, {selectedProgressUpdate.location_longitude}
+                      {selectedProgressUpdate.location_name || `${selectedProgressUpdate.location_latitude}, ${selectedProgressUpdate.location_longitude}`}
                       {selectedProgressUpdate.location_accuracy && (
                         <span className="text-xs text-gray-400 ml-2">
                           (±{selectedProgressUpdate.location_accuracy}m)
@@ -3704,6 +3750,12 @@ const renderCommentsModal = () => (
                     <p className="text-sm font-semibold text-gray-700">Location Data</p>
                   </div>
                   <div className="space-y-2 text-sm text-gray-600">
+                    {selectedProgressUpdate.location_name && (
+                      <div className="flex justify-between mb-3 pb-3 border-b border-gray-300">
+                        <span>Location:</span>
+                        <span className="font-semibold">{selectedProgressUpdate.location_name}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span>Latitude:</span>
                       <span className="font-mono font-semibold">{parseFloat(selectedProgressUpdate.location_latitude).toFixed(6)}</span>
