@@ -57,7 +57,19 @@ import {
   FiBell,
   FiSearch,
   FiFilter,
-  FiMessageSquare
+  FiMessageSquare,
+  FiBarChart2,
+  FiBarChart,
+  FiPercent,
+  FiClock,
+  FiCheckCircle,
+  FiXCircle,
+  FiFileText,
+  FiMapPin,
+  FiMap,
+  FiExternalLink,
+  FiActivity,
+  FiLoader
 } from "react-icons/fi";
 import { 
   HiOutlineChatAlt2,
@@ -737,129 +749,190 @@ const handleBudgetChange = (e) => {
     const isApproved = comment.approval_status === 'APPROVED';
     const isRejected = comment.approval_status === 'REJECTED';
 
-    return (
-      <div className="max-w-[320px] bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                📊
-              </div>
-              <div>
-                <div className="font-semibold text-sm">Progress Update</div>
-                <div className="text-xs opacity-90">{comment.progress?.percentage || 0}% Complete</div>
-              </div>
+   return (
+  <div className="max-w-[320px] bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
+    {/* Header */}
+    <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-sm">
+            <div className="relative">
+              <div className="absolute inset-0 bg-white/30 rounded-full animate-ping opacity-75"></div>
+              <FiBarChart2 className="text-white" size={20} />
             </div>
-            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-              isPending ? 'bg-yellow-500/20 text-yellow-100' :
-              isApproved ? 'bg-green-500/20 text-green-100' :
-              'bg-red-500/20 text-red-100'
-            }`}>
-              {isPending ? '⏳ Pending' : isApproved ? '✓ Approved' : '✗ Rejected'}
+          </div>
+          <div>
+            <div className="font-semibold text-sm flex items-center gap-1">
+              <FiBarChart className="opacity-90" size={14} />
+              Progress Update
+            </div>
+            <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
+              <FiPercent size={12} className="opacity-80" />
+              {comment.progress?.percentage || 0}% Complete
             </div>
           </div>
         </div>
+        
+      </div>
+    </div>
 
-        {/* Evidence Photo */}
-        {comment.progress?.photo && (
-          <div className="relative">
-            <img
-              src={comment.progress.photo}
-              alt="Evidence"
-              className="w-full h-48 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-              onClick={() => window.open(comment.progress.photo, '_blank')}
+    {/* Evidence Photo */}
+    {comment.progress?.photo && (
+      <div className="relative group">
+        <img
+          src={comment.progress.photo}
+          alt="Evidence"
+          className="w-full h-48 object-cover cursor-pointer group-hover:scale-[1.02] transition-transform duration-300"
+          onClick={() => window.open(comment.progress.photo, '_blank')}
+        />
+        <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 shadow-lg">
+          <FiCamera size={12} />
+          Evidence
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      </div>
+    )}
+
+    {/* Task Info */}
+    {comment.comment && (
+      <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
+        <div className="flex items-start gap-2 mb-2">
+          <FiFileText className="text-gray-400 mt-0.5 flex-shrink-0" size={14} />
+          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Notes</div>
+        </div>
+        <div className="text-sm text-gray-700 leading-relaxed break-words bg-white rounded-lg p-3 border border-gray-100 shadow-sm">
+          {comment.comment}
+        </div>
+      </div>
+    )}
+
+    {/* Location */}
+    {comment.progress?.location && (
+      <div className="px-4 py-3 border-b border-gray-100">
+        <button
+          onClick={() => setShowMap(!showMap)}
+          className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
+              <FiMapPin className="text-blue-500" size={18} />
+            </div>
+            <div className="text-left">
+              <div className="font-medium flex items-center gap-1">
+                <span>Location Captured</span>
+                <FiChevronRight className={`transform transition-transform duration-300 ${showMap ? 'rotate-90' : ''}`} size={14} />
+              </div>
+              <div className="text-xs text-gray-500 font-mono mt-0.5">
+                {comment.progress.location.latitude?.toFixed(6)}, {comment.progress.location.longitude?.toFixed(6)}
+              </div>
+            </div>
+          </div>
+        </button>
+        
+        {showMap && (
+          <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 shadow-lg animate-slideDown">
+            <iframe
+              width="100%"
+              height="150"
+              frameBorder="0"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${comment.progress.location.longitude-0.01},${comment.progress.location.latitude-0.01},${comment.progress.location.longitude+0.01},${comment.progress.location.latitude+0.01}&marker=${comment.progress.location.latitude},${comment.progress.location.longitude}`}
+              style={{ border: 0 }}
+              title="Location Map"
+              allowFullScreen
             />
-            <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-xs">
-              📸 Evidence
+            <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
+              <div className="flex items-center gap-1.5">
+                <FiMap size={12} />
+                <span>OpenStreetMap View</span>
+              </div>
+              <a
+                href={`https://www.openstreetmap.org/?mlat=${comment.progress.location.latitude}&mlon=${comment.progress.location.longitude}&zoom=15`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+              >
+                Open Full Map
+                <FiExternalLink size={12} />
+              </a>
             </div>
-          </div>
-        )}
-
-        {/* Task Info */}
-        {comment.comment && (
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <div className="text-xs text-gray-500 mb-1">Task Notes:</div>
-            <div className="text-sm text-gray-700 break-words">{comment.comment}</div>
-          </div>
-        )}
-
-        {/* Location */}
-        {comment.progress?.location && (
-          <div className="px-4 py-3 border-b border-gray-200">
-            <button
-              onClick={() => setShowMap(!showMap)}
-              className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">📍</span>
-                <div className="text-left">
-                  <div className="font-medium">Location Captured</div>
-                  <div className="text-xs text-gray-500">
-                    {comment.progress.location.latitude?.toFixed(6)}, {comment.progress.location.longitude?.toFixed(6)}
-                  </div>
-                </div>
-              </div>
-              <span className="text-xs text-blue-600">{showMap ? 'Hide' : 'Show'} Map</span>
-            </button>
-            
-            {showMap && (
-              <div className="mt-2 rounded-lg overflow-hidden border border-gray-200">
-                <iframe
-                  width="100%"
-                  height="150"
-                  frameBorder="0"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${comment.progress.location.longitude-0.01},${comment.progress.location.latitude-0.01},${comment.progress.location.longitude+0.01},${comment.progress.location.latitude+0.01}&marker=${comment.progress.location.latitude},${comment.progress.location.longitude}`}
-                  style={{ border: 0 }}
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Status Badge */}
-        <div className="px-4 py-2 bg-gray-50 flex items-center gap-2 text-xs">
-          <span className="font-medium text-gray-600">Status:</span>
-          <span className={`px-2 py-0.5 rounded-full font-medium ${
-            comment.progress?.status === 'Completed' ? 'bg-green-100 text-green-700' :
-            comment.progress?.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>
-            {comment.progress?.status || 'In Progress'}
-          </span>
-        </div>
-
-        {/* Approve/Reject Buttons - Only for Admin and Pending */}
-        {isPending && (
-          <div className="px-4 py-3 bg-white flex gap-2">
-            <button
-              onClick={handleReject}
-              disabled={isApproving}
-              className="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span>✗</span> Reject
-            </button>
-            <button
-              onClick={handleApprove}
-              disabled={isApproving}
-              className="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span>✓</span> Approve
-            </button>
-          </div>
-        )}
-
-        {/* Already processed message */}
-        {!isPending && (
-          <div className={`px-4 py-2 text-center text-sm font-medium ${
-            isApproved ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-          }`}>
-            {isApproved ? '✓ Already Approved' : '✗ Already Rejected'}
           </div>
         )}
       </div>
-    );
-  };
+    )}
+
+    {/* Status Badge */}
+    <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 flex items-center gap-3 border-b border-gray-100">
+      <div className="flex items-center gap-2 text-gray-600">
+        <FiActivity size={16} className="text-blue-500" />
+        <span className="text-sm font-medium">Status:</span>
+      </div>
+      <span className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-sm ${
+        comment.progress?.status === 'Completed' ? 'bg-gradient-to-r from-green-100 to-green-50 text-green-700 border border-green-200' :
+        comment.progress?.status === 'In Progress' ? 'bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 border border-blue-200' :
+        'bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 border border-gray-200'
+      }`}>
+        {comment.progress?.status === 'Completed' ? (
+          <>
+            <FiCheckCircle size={12} />
+            Completed
+          </>
+        ) : comment.progress?.status === 'In Progress' ? (
+          <>
+            <FiLoader className="animate-spin" size={12} />
+            In Progress
+          </>
+        ) : (
+          <>
+            <FiClock size={12} />
+            Pending
+          </>
+        )}
+      </span>
+    </div>
+
+    {/* Approve/Reject Buttons - Only for Admin and Pending */}
+    {isPending && (
+      <div className="px-4 py-4 bg-white flex gap-3">
+        <button
+          onClick={handleReject}
+          disabled={isApproving}
+          className="flex-1 py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+        >
+          <FiXCircle size={16} />
+          <span>Reject</span>
+        </button>
+        <button
+          onClick={handleApprove}
+          disabled={isApproving}
+          className="flex-1 py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+        >
+          <FiCheckCircle size={16} />
+          <span>Approve</span>
+        </button>
+      </div>
+    )}
+
+    {/* Already processed message */}
+    {!isPending && (
+      <div className={`px-4 py-3 text-center text-sm font-medium flex items-center justify-center gap-2 ${
+        isApproved ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-t border-green-200' : 
+        'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-t border-red-200'
+      }`}>
+        {isApproved ? (
+          <>
+            <FiCheckCircle size={16} />
+            <span className="font-semibold">Already Approved</span>
+          </>
+        ) : (
+          <>
+            <FiXCircle size={16} />
+            <span className="font-semibold">Already Rejected</span>
+          </>
+        )}
+      </div>
+    )}
+  </div>
+);  };  
 
   //================================================== Mark announcement as read =================================================
 const markAsRead = async (id) => {
