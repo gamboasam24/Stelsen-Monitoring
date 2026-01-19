@@ -33,7 +33,9 @@ import {
   MdPriorityHigh,
   MdPeople,
   MdChatBubble,
-  MdDoneAll
+  MdDoneAll,
+  MdTimeline,
+  MdCheck
 } from "react-icons/md";
 import { 
   FaUser, 
@@ -124,6 +126,9 @@ const AdminDashboard = ({ user, logout }) => {
       return {};
     }
   });
+  const [taskProgressList, setTaskProgressList] = useState([]);
+  const [selectedProgressUpdate, setSelectedProgressUpdate] = useState(null);
+  const [isLoadingTaskProgress, setIsLoadingTaskProgress] = useState(false);
 
   // Prevent body scroll when date picker modal is open
   useEffect(() => {
@@ -288,6 +293,32 @@ const AdminDashboard = ({ user, logout }) => {
       const filtered = prev.filter(screen => !["comments", "projectUsers", "addUserToProject"].includes(screen.screen));
       return [...filtered, { screen: "comments", data: { projectId: project.id } }];
     });
+  };
+
+  // Open Task Progress list (stack navigation)
+  const openTaskProgressScreen = async (project) => {
+    if (!project?.id) return;
+    setSelectedProject(prev => prev?.id === project.id ? prev : { ...project, comments: project.comments || [] });
+    setIsLoadingTaskProgress(true);
+
+    try {
+      const res = await fetch(`/backend/project_progress.php?project_id=${project.id}`, { credentials: "include" });
+      const data = await res.json();
+      if (data.status === "success" && Array.isArray(data.progress)) {
+        setTaskProgressList(data.progress);
+      } else {
+        setTaskProgressList([]);
+      }
+    } catch (err) {
+      console.error("Error fetching task progress:", err);
+      setTaskProgressList([]);
+    } finally {
+      setIsLoadingTaskProgress(false);
+      setNavigationStack(prev => {
+        const filtered = prev.filter(screen => screen.screen !== "taskProgress" && screen.screen !== "progressDetail");
+        return [...filtered, { screen: "taskProgress", data: { projectId: project.id } }];
+      });
+    }
   };
   
   // Format author name from email
@@ -1842,7 +1873,7 @@ useEffect(() => {
             </div>
 
             {/* Comments Section - Preview */}
-            <div className="mb-6">
+            <div className="mb-4">
               <button
                 onClick={() => openCommentsScreen(selectedProject)}
                 className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all border border-blue-200"
@@ -1868,6 +1899,23 @@ useEffect(() => {
                   </div>
                   <FiChevronRight size={24} className="text-blue-500" />
                 </div>
+              </button>
+            </div>
+
+            {/* Task Progress Button */}
+            <div className="mb-6">
+              <button
+                onClick={() => openTaskProgressScreen(selectedProject)}
+                className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-sky-50 to-cyan-50 hover:from-sky-100 hover:to-cyan-100 rounded-xl transition-all border border-sky-200 hover:border-sky-300 hover:shadow-md"
+              >
+                <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-sky-500 to-cyan-600 rounded-full flex items-center justify-center shadow-lg">
+                  <MdTimeline className="text-white" size={24} />
+                </div>
+                <div className="text-left flex-1">
+                  <h4 className="text-md font-bold text-gray-800">Task Progress</h4>
+                  <p className="text-sm text-gray-600">Track project milestones and updates</p>
+                </div>
+                <FiChevronRight size={24} className="text-sky-500 flex-shrink-0" />
               </button>
             </div>
           </>
@@ -3875,6 +3923,216 @@ useEffect(() => {
 
       {/* Project Details - Stack Navigation */}
       {getCurrentScreen()?.screen === "projectDetails" && renderProjectDetailsModal()}
+
+      {/* Task Progress - Stack Navigation */}
+      {getCurrentScreen()?.screen === "taskProgress" && (
+        <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
+          <div className="sticky top-0 z-20 bg-gradient-to-r from-sky-500 to-cyan-600 text-white px-5 py-4 border-b border-sky-400 flex items-center">
+            <button
+              onClick={popScreen}
+              className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
+            >
+              <FiChevronLeft size={24} />
+            </button>
+            <h3 className="flex-1 text-lg font-bold">Task Progress</h3>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5">
+            {isLoadingTaskProgress ? (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                Loading progress...
+              </div>
+            ) : taskProgressList && taskProgressList.length > 0 ? (
+              <div className="space-y-4">
+                {taskProgressList.map(progress => (
+                  <button
+                    key={progress.id}
+                    onClick={() => {
+                      setSelectedProgressUpdate(progress);
+                      setNavigationStack(prev => {
+                        const filtered = prev.filter(screen => screen.screen !== "progressDetail");
+                        return [...filtered, { screen: "progressDetail", data: { progressId: progress.id } }];
+                      });
+                    }}
+                    className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          user={{
+                            name: progress.user,
+                            email: progress.email,
+                            profile_image: progress.profile_image
+                          }}
+                          size={40}
+                        />
+                        <div>
+                          <p className="font-semibold text-gray-900">{progress.user || 'User'}</p>
+                          <p className="text-xs text-gray-500">{progress.time}</p>
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                        progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
+                        progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {progress.progress_status || 'Pending'}
+                      </span>
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium text-gray-700">Progress</span>
+                        <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                          style={{ width: `${progress.progress_percentage || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {progress.text && (
+                      <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
+                    )}
+
+                    <div className="flex items-center justify-end mt-2">
+                      <FiChevronRight size={20} className="text-blue-500" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                  <MdCheck className="text-gray-300" size={40} />
+                </div>
+                <p className="text-lg font-medium text-gray-600 mb-2">No progress updates yet</p>
+                <p className="text-sm text-gray-400">Progress submissions will show here</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Progress Detail - Stack Navigation */}
+      {getCurrentScreen()?.screen === "progressDetail" && selectedProgressUpdate && (
+        <div className="fixed inset-0 bg-white z-[70] flex flex-col animate-slide-in-right">
+          <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-4 border-b border-blue-400 flex items-center">
+            <button
+              onClick={popScreen}
+              className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
+            >
+              <FiChevronLeft size={24} />
+            </button>
+            <h3 className="flex-1 text-lg font-bold">Progress Details</h3>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5">
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Avatar
+                  user={{
+                    name: selectedProgressUpdate.user,
+                    email: selectedProgressUpdate.email,
+                    profile_image: selectedProgressUpdate.profile_image
+                  }}
+                  size={48}
+                />
+                <div>
+                  <p className="font-semibold text-gray-900">{selectedProgressUpdate.user || 'User'}</p>
+                  <p className="text-sm text-gray-500">{selectedProgressUpdate.time}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <p className={`font-semibold ${
+                    selectedProgressUpdate.progress_status === 'Completed' ? 'text-green-600' :
+                    selectedProgressUpdate.progress_status === 'In Progress' ? 'text-blue-600' :
+                    'text-yellow-600'
+                  }`}>
+                    {selectedProgressUpdate.progress_status || 'Pending'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">Progress</p>
+                  <p className="font-semibold text-blue-600">{selectedProgressUpdate.progress_percentage || 0}%</p>
+                </div>
+              </div>
+
+              <div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all"
+                    style={{ width: `${selectedProgressUpdate.progress_percentage || 0}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {selectedProgressUpdate.text && (
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <p className="text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">Notes</p>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedProgressUpdate.text}</p>
+                </div>
+              )}
+
+              {selectedProgressUpdate.evidence_photo && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Evidence Photo</p>
+                  <img
+                    src={selectedProgressUpdate.evidence_photo}
+                    alt="Evidence"
+                    className="w-full rounded-xl shadow-lg cursor-pointer hover:opacity-95 transition-opacity"
+                    onClick={() => window.open(selectedProgressUpdate.evidence_photo, '_blank')}
+                  />
+                </div>
+              )}
+
+              {(selectedProgressUpdate.location_latitude && selectedProgressUpdate.location_longitude) && (
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Location</p>
+                  <div className="flex items-center text-gray-600">
+                    <MdLocationOn className="text-red-500 mr-2" size={20} />
+                    <span className="text-sm">
+                      {selectedProgressUpdate.location_latitude}, {selectedProgressUpdate.location_longitude}
+                      {selectedProgressUpdate.location_accuracy && (
+                        <span className="text-xs text-gray-400 ml-2">
+                          (±{selectedProgressUpdate.location_accuracy}m)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {selectedProgressUpdate.approval_status && (
+                <div className={`rounded-xl p-4 border ${
+                  selectedProgressUpdate.approval_status === 'approved' ? 'bg-green-50 border-green-200' :
+                  selectedProgressUpdate.approval_status === 'rejected' ? 'bg-red-50 border-red-200' :
+                  'bg-yellow-50 border-yellow-200'
+                }`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{
+                    color: selectedProgressUpdate.approval_status === 'approved' ? '#16a34a' :
+                           selectedProgressUpdate.approval_status === 'rejected' ? '#dc2626' : '#ca8a04'
+                  }}>
+                    Approval Status
+                  </p>
+                  <p className={`font-semibold capitalize ${
+                    selectedProgressUpdate.approval_status === 'approved' ? 'text-green-700' :
+                    selectedProgressUpdate.approval_status === 'rejected' ? 'text-red-700' :
+                    'text-yellow-700'
+                  }`}>
+                    {selectedProgressUpdate.approval_status}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Map View - Stack Navigation */}
       {getCurrentScreen()?.screen === "mapView" && (
