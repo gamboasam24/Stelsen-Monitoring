@@ -214,6 +214,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 /* =========================
+   📥 GET PROGRESS BY PROJECT (USER/ADMIN)
+   ========================= */
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['project_id']) && (!isset($_GET['action']) || $_GET['action'] === '')) {
+    $project_id = intval($_GET['project_id']);
+
+    if ($project_id <= 0) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid project ID']);
+        exit;
+    }
+
+    try {
+        $stmt = $conn->prepare("
+            SELECT 
+                pc.comment_id AS id,
+                pc.project_id,
+                pc.user_id,
+                pc.comment AS text,
+                pc.progress_percentage,
+                pc.progress_status,
+                pc.evidence_photo,
+                pc.location_latitude,
+                pc.location_longitude,
+                pc.location_accuracy,
+                pc.approval_status,
+                pc.created_at,
+                l.email,
+                l.profile_image
+            FROM project_comments pc
+            JOIN login l ON pc.user_id = l.login_id
+            WHERE pc.project_id = ? AND pc.comment_type = 'progress'
+            ORDER BY pc.created_at DESC
+        ");
+
+        if (!$stmt) {
+            throw new Exception('Prepare failed: ' . $conn->error);
+        }
+
+        $stmt->bind_param('i', $project_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $progress = [];
+        while ($row = $result->fetch_assoc()) {
+            $progress[] = [
+                'id' => (int)$row['id'],
+                'project_id' => (int)$row['project_id'],
+                'user_id' => (int)$row['user_id'],
+                'user' => $row['email'],
+                'profile_image' => $row['profile_image'],
+                'text' => $row['text'],
+                'progress_percentage' => isset($row['progress_percentage']) ? (int)$row['progress_percentage'] : null,
+                'progress_status' => $row['progress_status'] ?? null,
+                'evidence_photo' => $row['evidence_photo'] ?? null,
+                'location_latitude' => $row['location_latitude'] ?? null,
+                'location_longitude' => $row['location_longitude'] ?? null,
+                'location_accuracy' => $row['location_accuracy'] ?? null,
+                'approval_status' => $row['approval_status'] ?? null,
+                'time' => $row['created_at'],
+                'created_at' => $row['created_at'],
+            ];
+        }
+
+        $stmt->close();
+
+        echo json_encode([
+            'status' => 'success',
+            'progress' => $progress
+        ]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Database error: ' . $e->getMessage()
+        ]);
+    }
+    exit;
+}
+
+/* =========================
    📊 GET PENDING UPDATES (ADMIN)
    ========================= */
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'get_pending') {
