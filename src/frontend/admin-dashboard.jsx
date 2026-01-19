@@ -320,6 +320,20 @@ const AdminDashboard = ({ user, logout }) => {
       });
     }
   };
+
+  // Open Map View with project-specific locations
+  const openProjectMapView = () => {
+    if (!selectedProject) return;
+    
+    // Fetch fresh location data for project users before opening map
+    fetchOtherUsersLocations();
+    
+    // Push map view to navigation stack
+    setNavigationStack(prev => {
+      const filtered = prev.filter(screen => screen.screen !== "mapView");
+      return [...filtered, { screen: "mapView", data: { projectId: selectedProject.id } }];
+    });
+  };
   
   // Format author name from email
   const formatAuthorName = (email) => {
@@ -1947,8 +1961,12 @@ useEffect(() => {
         </p>
         </div>
         
-        <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
-        <FiSearch size={20} className="text-gray-600" />
+        <button 
+        onClick={openProjectMapView}
+        className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2"
+        title="View project locations"
+        >
+        <MdLocationOn size={20} className="text-gray-600" />
         </button>
         
         <button 
@@ -4147,8 +4165,18 @@ useEffect(() => {
                 mapStyle="mapbox://styles/mapbox/streets-v12"
                 mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}
               >
-                {/* Other Users' Location Markers with Profile Images */}
-                {otherUsersLocations.map((location) => (
+                {/* Filter locations to show only project-assigned users */}
+                {otherUsersLocations
+                  .filter(location => {
+                    // If we have a project context, only show users assigned to this project
+                    const projectData = getCurrentScreen()?.data;
+                    if (projectData?.projectId && selectedProject?.assignedUsers) {
+                      return selectedProject.assignedUsers.includes(String(location.user_id));
+                    }
+                    // Otherwise show all locations
+                    return true;
+                  })
+                  .map((location) => (
                   <Marker
                     key={`user-${location.user_id}`}
                     longitude={location.longitude}
@@ -4222,8 +4250,24 @@ useEffect(() => {
                   <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
                   <div className="flex justify-between items-center mb-4">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-800">Employee Locations</h3>
-                      <p className="text-xs text-gray-500 mt-1">{otherUsersLocations.length} employees tracked</p>
+                      <h3 className="text-lg font-bold text-gray-800">
+                        {getCurrentScreen()?.data?.projectId && selectedProject 
+                          ? `${selectedProject.title} Team Locations`
+                          : 'Employee Locations'
+                        }
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {(() => {
+                          const projectData = getCurrentScreen()?.data;
+                          if (projectData?.projectId && selectedProject?.assignedUsers) {
+                            const filteredCount = otherUsersLocations.filter(loc => 
+                              selectedProject.assignedUsers.includes(String(loc.user_id))
+                            ).length;
+                            return `${filteredCount} team member${filteredCount !== 1 ? 's' : ''} tracked`;
+                          }
+                          return `${otherUsersLocations.length} employee${otherUsersLocations.length !== 1 ? 's' : ''} tracked`;
+                        })()}
+                      </p>
                     </div>
                     <button 
                       onClick={fetchOtherUsersLocations}
@@ -4235,17 +4279,39 @@ useEffect(() => {
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'none', touchAction: 'pan-y', overscrollBehaviorY: 'none' }}>
-                  {otherUsersLocations.length > 0 ? (
-                    otherUsersLocations.map(renderEmployeeLocation)
-                  ) : (
-                    <div className="text-center py-10">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <MdLocationOn size={24} className="text-gray-400" />
+                  {(() => {
+                    const projectData = getCurrentScreen()?.data;
+                    let locationsToShow = otherUsersLocations;
+                    
+                    // Filter locations if we're viewing a specific project
+                    if (projectData?.projectId && selectedProject?.assignedUsers) {
+                      locationsToShow = otherUsersLocations.filter(loc => 
+                        selectedProject.assignedUsers.includes(String(loc.user_id))
+                      );
+                    }
+                    
+                    return locationsToShow.length > 0 ? (
+                      locationsToShow.map(renderEmployeeLocation)
+                    ) : (
+                      <div className="text-center py-10">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <MdLocationOn size={24} className="text-gray-400" />
+                        </div>
+                        <p className="text-gray-600 font-medium">
+                          {projectData?.projectId 
+                            ? 'No team member locations available'
+                            : 'No employee locations available'
+                          }
+                        </p>
+                        <p className="text-gray-400 text-sm mt-1">
+                          {projectData?.projectId
+                            ? 'Team members need to enable location tracking'
+                            : 'Employees need to enable location tracking'
+                          }
+                        </p>
                       </div>
-                      <p className="text-gray-600 font-medium">No employee locations available</p>
-                      <p className="text-gray-400 text-sm mt-1">Employees need to enable location tracking</p>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
             </div>

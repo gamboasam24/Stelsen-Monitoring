@@ -28,8 +28,7 @@ import {
   MdNotifications,
   MdMyLocation,
   MdCamera,
-  MdCheck,
-  MdTimeline
+  MdCheck
 } from "react-icons/md";
 import {
   FaUser,
@@ -1541,7 +1540,7 @@ const renderAnnouncementCard = (announcement) => (
                 className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-sky-50 to-cyan-50 hover:from-sky-100 hover:to-cyan-100 rounded-xl transition-all duration-200 border border-sky-200 hover:border-sky-300 hover:shadow-md"
               >
                 <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-sky-500 to-cyan-600 rounded-full flex items-center justify-center shadow-lg">
-                  <MdTimeline className="text-white" size={24} />
+                  <MdCheck className="text-white" size={24} />
                 </div>
                 <div className="text-left flex-1">
                   <h4 className="text-md font-bold text-gray-800">Task Progress</h4>
