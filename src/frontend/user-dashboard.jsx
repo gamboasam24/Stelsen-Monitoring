@@ -122,6 +122,8 @@ const UserDashboard = ({ user, logout }) => {
   const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
   const [selectedProgressUpdate, setSelectedProgressUpdate] = useState(null);
   const [showProgressDetailView, setShowProgressDetailView] = useState(false);
+  const [showTaskProgressModal, setShowTaskProgressModal] = useState(false);
+  const [taskProgressList, setTaskProgressList] = useState([]);
 
   // Pin state is provided by backend (persisted like admin)
 
@@ -415,32 +417,25 @@ useEffect(() => {
             }
             
             const comments = commentsData.status === "success" 
-              ? (commentsData.comments || []).map(c => {
-                  // Debug log
-                  if (c.comment_type === 'progress' || c.progress_percentage) {
-                    console.log('Initial load - Progress comment found:', c);
-                  }
-                  
-                  return {
-                    id: c.comment_id,
-                    text: c.comment,
-                    time: getCommentTimeAgo(c.created_at),
-                    created_at: c.created_at,
-                    email: c.email,
-                    profile_image: c.profile_image,
-                    user: c.user || formatAuthorName(c.email),
-                    attachments: c.attachments || null,
-                    // Progress fields - direct from backend
-                    progress_percentage: c.progress_percentage || null,
-                    progress_status: c.progress_status || null,
-                    evidence_photo: c.evidence_photo || null,
-                    location_latitude: c.location_latitude || null,
-                    location_longitude: c.location_longitude || null,
-                    location_accuracy: c.location_accuracy || null,
-                    approval_status: c.approval_status || null,
-                    comment_type: c.comment_type || null,
-                  };
-                })
+              ? (commentsData.comments || []).map(c => ({
+                  id: c.comment_id,
+                  text: c.comment,
+                  time: getCommentTimeAgo(c.created_at),
+                  created_at: c.created_at,
+                  email: c.email,
+                  profile_image: c.profile_image,
+                  user: c.user || formatAuthorName(c.email),
+                  attachments: c.attachments || null,
+                  // Progress fields - direct from backend
+                  progress_percentage: c.progress_percentage || null,
+                  progress_status: c.progress_status || null,
+                  evidence_photo: c.evidence_photo || null,
+                  location_latitude: c.location_latitude || null,
+                  location_longitude: c.location_longitude || null,
+                  location_accuracy: c.location_accuracy || null,
+                  approval_status: c.approval_status || null,
+                  comment_type: c.comment_type || null,
+                }))
               : [];
             const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
             return { ...project, comments, isNew };
@@ -1136,32 +1131,25 @@ const getPriorityBadge = (priority) => {
         const res = await fetch(`/backend/comments.php?project_id=${selectedProject.id}`, { credentials: "include" });
         const data = await res.json();
         if (data.status === "success") {
-          const mapped = (data.comments || []).map((c) => {
-            // Debug log to see what we're getting
-            if (c.comment_type === 'progress' || c.progress_percentage) {
-              console.log('Progress comment found:', c);
-            }
-            
-            return {
-              id: c.comment_id,
-              text: c.comment,
-              time: getCommentTimeAgo(c.created_at),
-              created_at: c.created_at,
-              email: c.email,
-              profile_image: c.profile_image,
-              user: c.user || formatAuthorName(c.email),
-              attachments: c.attachments || null,
-              // Progress fields - direct from backend
-              progress_percentage: c.progress_percentage || null,
-              progress_status: c.progress_status || null,
-              evidence_photo: c.evidence_photo || null,
-              location_latitude: c.location_latitude || null,
-              location_longitude: c.location_longitude || null,
-              location_accuracy: c.location_accuracy || null,
-              approval_status: c.approval_status || null,
-              comment_type: c.comment_type || null,
-            };
-          });
+          const mapped = (data.comments || []).map((c) => ({
+            id: c.comment_id,
+            text: c.comment,
+            time: getCommentTimeAgo(c.created_at),
+            created_at: c.created_at,
+            email: c.email,
+            profile_image: c.profile_image,
+            user: c.user || formatAuthorName(c.email),
+            attachments: c.attachments || null,
+            // Progress fields - direct from backend
+            progress_percentage: c.progress_percentage || null,
+            progress_status: c.progress_status || null,
+            evidence_photo: c.evidence_photo || null,
+            location_latitude: c.location_latitude || null,
+            location_longitude: c.location_longitude || null,
+            location_accuracy: c.location_accuracy || null,
+            approval_status: c.approval_status || null,
+            comment_type: c.comment_type || null,
+          }));
 
           setSelectedProject(prev => prev ? { ...prev, comments: mapped } : prev);
           setProjects(prev => prev.map(p => p.id === selectedProject.id ? { ...p, comments: mapped } : p));
@@ -1523,6 +1511,60 @@ const renderAnnouncementCard = (announcement) => (
                 </div>
                 <FiChevronRight size={24} className="text-blue-500" />
               </button>
+
+              {/* Task Progress Button */}
+              <button
+                onClick={() => {
+                  // Fetch progress updates for this project
+                  if (selectedProject?.id) {
+                    fetch(`/backend/comments.php?project_id=${selectedProject.id}`, { credentials: "include" })
+                      .then(res => res.json())
+                      .then(data => {
+                        if (data.status === "success") {
+                          // Filter only progress comments
+                          const progressComments = (data.comments || []).filter(c => 
+                            c.comment_type === 'progress' || c.progress_percentage || c.progress_status
+                          );
+                          
+                          // Map to proper format
+                          const progressList = progressComments.map(c => ({
+                            id: c.comment_id,
+                            text: c.comment,
+                            time: getCommentTimeAgo(c.created_at),
+                            created_at: c.created_at,
+                            email: c.email,
+                            profile_image: c.profile_image,
+                            user: c.user || formatAuthorName(c.email),
+                            progress_percentage: c.progress_percentage || null,
+                            progress_status: c.progress_status || null,
+                            evidence_photo: c.evidence_photo || null,
+                            location_latitude: c.location_latitude || null,
+                            location_longitude: c.location_longitude || null,
+                            location_accuracy: c.location_accuracy || null,
+                            approval_status: c.approval_status || null,
+                            comment_type: c.comment_type || null,
+                          }));
+                          
+                          setTaskProgressList(progressList);
+                          setShowTaskProgressModal(true);
+                        }
+                      })
+                      .catch(err => console.error('Error fetching progress:', err));
+                  }
+                }}
+                className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 rounded-2xl transition-all duration-200 border border-green-200 hover:border-green-300 hover:shadow-md"
+              >
+                <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
+                  <MdCheck className="text-white" size={24} />
+                </div>
+                <div className="text-left">
+                  <h4 className="text-md font-bold text-gray-800">Task Progress</h4>
+                  <p className="text-sm text-gray-600">
+                    Track project milestones and updates
+                  </p>
+                </div>
+                <FiChevronRight size={24} className="text-green-500" />
+              </button>
             </div>
           </>
         )}
@@ -1565,7 +1607,7 @@ const renderAnnouncementCard = (announcement) => (
      </div>
 
      {/* Messenger Chat Area */}
-     <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4">
+     <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4 pb-32">
        <div className="max-w-3xl mx-auto space-y-1">
          {/* Date Separator */}
          <div className="flex justify-center my-6">
@@ -1738,85 +1780,9 @@ const renderAnnouncementCard = (announcement) => (
                        </div>
                      </div>
                    </div>
-
-                   {/* Progress Update Card */}
-                 {(comment.progress_percentage || comment.progress_status || comment.comment_type === 'progress') && (
-                   <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4 mt-2`}>
-                     <button
-                       onClick={() => {
-                         setSelectedProgressUpdate(comment);
-                         setShowProgressDetailView(true);
-                       }}
-                       className="w-[90%] max-w-md bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
-                     >
-                       <div className="flex items-center justify-between mb-3">
-                         <div className="flex items-center gap-2">
-                           <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
-                             <MdCheck size={16} />
-                           </div>
-                           <div>
-                             <p className="text-sm font-semibold text-gray-900">Progress Update</p>
-                             <p className="text-xs text-gray-500">{comment.user || 'User'}</p>
-                           </div>
-                         </div>
-                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                           comment.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
-                           comment.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                           'bg-yellow-100 text-yellow-700'
-                         }`}>
-                           {comment.progress_status || 'Pending'}
-                         </span>
-                       </div>
-
-                       {/* Progress Bar */}
-                       <div className="mb-3">
-                         <div className="flex justify-between items-center mb-1">
-                           <span className="text-sm font-medium text-gray-700">Progress</span>
-                           <span className="text-sm font-bold text-blue-600">{comment.progress_percentage || 0}%</span>
-                         </div>
-                         <div className="w-full bg-gray-200 rounded-full h-2">
-                           <div
-                             className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all"
-                             style={{ width: `${comment.progress_percentage || 0}%` }}
-                           ></div>
-                         </div>
-                       </div>
-
-                       {/* Details Grid */}
-                       <div className="grid grid-cols-2 gap-2 mb-3">
-                         {comment.evidence_photo && (
-                           <div className="col-span-2">
-                             <img 
-                               src={comment.evidence_photo} 
-                               alt="Evidence" 
-                               className="w-full h-24 object-cover rounded-lg border border-blue-200"
-                             />
-                           </div>
-                         )}
-                         {comment.location_latitude && (
-                           <div className="flex items-center gap-2 text-xs">
-                             <MdLocationOn size={14} className="text-red-500 flex-shrink-0" />
-                             <span className="text-gray-600 truncate">Location tracked</span>
-                           </div>
-                         )}
-                         {comment.location_accuracy && (
-                           <div className="flex items-center gap-2 text-xs">
-                             <span className="text-gray-600">±{comment.location_accuracy.toFixed(1)}m</span>
-                           </div>
-                         )}
-                       </div>
-
-                       {/* View Details Button */}
-                       <div className="flex items-center justify-between pt-2 border-t border-blue-100">
-                         <p className="text-xs text-gray-500">Click to view full details</p>
-                         <FiChevronRight size={16} className="text-gray-400" />
-                       </div>
-                     </button>
-                   </div>
-                 )}
-               </div>
-             );
-           })}
+                 </div>
+               );
+             })}
            </>
          ) : (
            // Empty state with Messenger-style design
@@ -1836,10 +1802,9 @@ const renderAnnouncementCard = (announcement) => (
            </div>
          )}
        </div>
-     </div>
- 
-     {/* Messenger Input Area */}
-     <div className="bg-white border-t border-gray-200 px-4 py-3">
+
+       {/* Messenger Input Area */}
+       <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-0 py-3 z-50">
        {/* Typing indicator */}
        {false && ( // You can conditionally show this
          <div className="flex items-center mb-2 ml-2">
@@ -1890,8 +1855,8 @@ const renderAnnouncementCard = (announcement) => (
          </div>
        )}
        
- {/* Input Form - Mobile Optimized */}
- <div className="flex items-center gap-1">
+       {/* Input Form - Mobile Optimized */}
+       <div className="flex items-center gap-2 px-4">
    {/* Left side buttons */}
    <div className="flex items-center flex-shrink-0">
      <button 
@@ -1918,7 +1883,7 @@ const renderAnnouncementCard = (announcement) => (
      </button>
    </div>
      {/* Oval input */}
-  <div className="flex items-center flex-1 bg-gray-100 rounded-full px-3 py-2 shadow-sm">
+  <div className="flex items-center flex-1 bg-gray-100 rounded-full px-4 py-2.5 shadow-sm border border-gray-200">
 
     {/* Textarea */}
     <textarea
@@ -1936,7 +1901,7 @@ const renderAnnouncementCard = (announcement) => (
       inputMode="text"
       enterKeyHint="send"
 
-      className="flex-1 resize-none bg-transparent outline-none text-sm placeholder:text-gray-400 leading-5"
+      className="flex-1 resize-none bg-transparent outline-none text-sm placeholder:text-gray-500 placeholder:font-normal leading-5 w-full"
 
       style={{
         fontSize: "16px",
@@ -1986,17 +1951,16 @@ const renderAnnouncementCard = (announcement) => (
        </svg>
      )}
    </button>
- </div>
-       
-       <input
-         ref={commentFileInputRef}
-         type="file"
-         multiple
-         onChange={handleCommentFileChange}
-         style={{ display: 'none' }}
-       />
-     </div>
-     
+   <input
+     ref={commentFileInputRef}
+     type="file"
+     multiple
+     onChange={handleCommentFileChange}
+     style={{ display: 'none' }}
+   />
+  </div>
+  </div>
+  </div>
    </div>
  );
 
@@ -3602,6 +3566,117 @@ const renderAnnouncementCard = (announcement) => (
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Progress Modal */}
+      {showTaskProgressModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl my-8">
+            {/* Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Task Progress</h2>
+              <button 
+                onClick={() => {
+                  setShowTaskProgressModal(false);
+                  setTaskProgressList([]);
+                }}
+                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+              >
+                <IoMdClose size={24} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              {taskProgressList && taskProgressList.length > 0 ? (
+                <div className="space-y-4">
+                  {taskProgressList.map(progress => (
+                    <button
+                      key={progress.id}
+                      onClick={() => {
+                        setSelectedProgressUpdate(progress);
+                        setShowProgressDetailView(true);
+                        setShowTaskProgressModal(false);
+                      }}
+                      className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar 
+                            userObj={{
+                              name: progress.user,
+                              profile_image: progress.profile_image
+                            }} 
+                            size={40} 
+                          />
+                          <div>
+                            <p className="font-semibold text-gray-900">{progress.user || 'User'}</p>
+                            <p className="text-xs text-gray-500">{progress.time}</p>
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                          progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
+                          progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {progress.progress_status || 'Pending'}
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mb-3">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-medium text-gray-700">Progress</span>
+                          <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
+                            style={{ width: `${progress.progress_percentage || 0}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Preview */}
+                      {progress.evidence_photo && (
+                        <div className="mb-3">
+                          <img 
+                            src={progress.evidence_photo} 
+                            alt="Evidence" 
+                            className="w-full h-32 object-cover rounded-lg border border-blue-200"
+                          />
+                        </div>
+                      )}
+
+                      {/* Notes Preview */}
+                      {progress.text && (
+                        <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
+                      )}
+
+                      <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                        {progress.location_latitude && (
+                          <span className="flex items-center gap-1">
+                            <MdLocationOn size={14} className="text-red-500" />
+                            Location tracked
+                          </span>
+                        )}
+                        <span>Click for details →</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-gray-300 mb-3">
+                    <MdCheck size={48} className="mx-auto" />
+                  </div>
+                  <p className="text-gray-600 font-medium">No progress updates yet</p>
+                  <p className="text-sm text-gray-500 mt-1">Submit progress updates to track task completion</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

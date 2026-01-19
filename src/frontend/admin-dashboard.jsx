@@ -2311,7 +2311,7 @@ useEffect(() => {
   </div>
   
      {/* Oval input */}
-  <div className="flex items-center flex-1 bg-gray-100 rounded-full px-3 py-2 shadow-sm">
+  <div className="flex items-center flex-1 bg-gray-100 rounded-full px-4 py-2.5 shadow-sm border-gray-200">
 
     {/* Textarea */}
     <textarea

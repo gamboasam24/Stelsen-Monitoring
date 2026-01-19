@@ -393,7 +393,7 @@ function App() {
       <div className="flex flex-col items-center">
         <div className="relative mb-8">
         <img 
-          src="public/img/stelsenlogo.png" 
+          src="/img/stelsenlogo.png" 
           alt="Stelsen Logo" 
           className="h-24 w-24 object-contain bg-white rounded-3xl p-2 shadow-lg"
         />
@@ -1228,7 +1228,7 @@ function App() {
             {/* App Icon - PNG Image */}
             <div className="mb-4">
               <img 
-                src="public/img/Stelsen Logo.png" 
+                src="/img/Stelsen Logo.png" 
                 alt="Stelsen Logo" 
                 className="h-32 w-auto object-contain bg-white rounded-2xl p-3 shadow-lg"
               />
