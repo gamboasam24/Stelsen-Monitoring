@@ -49,7 +49,19 @@ import {
   FiSearch,
   FiFilter,
   FiRefreshCw,
-  FiX
+  FiX,
+  FiBarChart2,
+  FiBarChart,
+  FiPercent,
+  FiFileText,
+  FiMapPin,
+  FiMap,
+  FiExternalLink,
+  FiActivity,
+  FiLoader,
+  FiClock,
+  FiCheckCircle,
+  FiXCircle
 } from "react-icons/fi";
 import {
   HiOutlineChatAlt2,
@@ -124,6 +136,7 @@ const UserDashboard = ({ user, logout }) => {
   const [showProgressDetailView, setShowProgressDetailView] = useState(false);
   const [showTaskProgressModal, setShowTaskProgressModal] = useState(false);
   const [taskProgressList, setTaskProgressList] = useState([]);
+  const [progressMapStates, setProgressMapStates] = useState({});
 
   // Pin state is provided by backend (persisted like admin)
 
@@ -1229,6 +1242,217 @@ const getPriorityBadge = (priority) => {
         className={`rounded-full object-cover ${className}`.trim()}
         style={{ width: size, height: size }}
       />
+    );
+  };
+
+  const ProgressApprovalCardUser = ({ progress }) => {
+    const progressKey = progress?.id || progress?.progress_id || progress?.comment_id || progress?.progressId || progress?.progressid;
+    const percentage = progress?.progress_percentage ?? progress?.progress?.percentage ?? 0;
+    const progressStatus = (progress?.progress_status || progress?.status || "Pending").toLowerCase();
+    const approvalStatus = (progress?.approval_status || "PENDING").toUpperCase();
+    const displayName = formatAuthorName(progress?.user || progress?.email);
+    const displayTime = formatDateTime(progress?.time || progress?.created_at);
+    const hasLocation = Boolean(progress?.location_latitude && progress?.location_longitude);
+    const locationLabel = progress?.location_name || (hasLocation
+      ? `${parseFloat(progress.location_latitude).toFixed(6)}, ${parseFloat(progress.location_longitude).toFixed(6)}`
+      : null);
+    const showMap = progressKey ? Boolean(progressMapStates[progressKey]) : false;
+    const toggleMap = () => {
+      if (!hasLocation || !progressKey) return;
+      setProgressMapStates(prev => ({
+        ...prev,
+        [progressKey]: !showMap
+      }));
+    };
+
+    const approvalMeta = {
+      APPROVED: {
+        badge: "bg-green-50 text-green-700 border-green-200",
+        icon: <FiCheckCircle size={14} />,
+        label: "Approved"
+      },
+      REJECTED: {
+        badge: "bg-red-50 text-red-700 border-red-200",
+        icon: <FiXCircle size={14} />,
+        label: "Rejected"
+      },
+      PENDING: {
+        badge: "bg-yellow-50 text-yellow-700 border-yellow-200",
+        icon: <FiClock size={14} />,
+        label: "Pending Review"
+      }
+    };
+
+    const approvalBadge = approvalMeta[approvalStatus] || approvalMeta.PENDING;
+
+    const progressMeta = {
+      completed: {
+        className: "bg-green-100 text-green-700 border-green-200",
+        icon: <FiCheckCircle size={14} />,
+        label: "Completed"
+      },
+      "in progress": {
+        className: "bg-blue-100 text-blue-700 border-blue-200",
+        icon: <FiLoader size={14} className="animate-spin" />,
+        label: "In Progress"
+      },
+      default: {
+        className: "bg-yellow-100 text-yellow-700 border-yellow-200",
+        icon: <FiClock size={14} />,
+        label: "Pending"
+      }
+    };
+
+    const progressBadge = progressMeta[progressStatus] || progressMeta.default;
+
+    const mapImageUrl = hasLocation
+      ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${progress.location_longitude},${progress.location_latitude})/${progress.location_longitude},${progress.location_latitude},14,0/360x220@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`
+      : null;
+
+    return (
+      <div className="max-w-[420px] w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+        <div className="bg-gradient-to-r from-indigo-500 via-blue-600 to-sky-600 px-4 py-3 text-white">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-sm">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-white/30 rounded-full animate-ping opacity-75"></div>
+                  <FiBarChart2 className="text-white" size={20} />
+                </div>
+              </div>
+              <div>
+                <div className="font-semibold text-sm flex items-center gap-1">
+                  <FiBarChart className="opacity-90" size={14} />
+                  Your Progress Update
+                </div>
+                <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
+                  <FiPercent size={12} className="opacity-80" />
+                  {percentage || 0}% Complete
+                </div>
+              </div>
+            </div>
+            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold border shadow-sm inline-flex items-center gap-1 ${approvalBadge.badge}`}>
+              {approvalBadge.icon}
+              {approvalBadge.label}
+            </span>
+          </div>
+        </div>
+
+        {progress?.evidence_photo && (
+          <div className="relative group">
+            <img
+              src={progress.evidence_photo}
+              alt="Evidence"
+              className="w-full h-48 object-cover cursor-pointer group-hover:scale-[1.02] transition-transform duration-300"
+              onClick={() => window.open(progress.evidence_photo, '_blank')}
+            />
+            <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 shadow-lg">
+              <FiCamera size={12} />
+              Evidence
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          </div>
+        )}
+
+        <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
+          <div className="flex items-start gap-2 mb-2">
+            <FiFileText className="text-gray-400 mt-0.5 flex-shrink-0" size={14} />
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Notes</div>
+          </div>
+          <div className={`text-sm leading-relaxed break-words rounded-lg p-3 border shadow-sm ${
+            progress?.text
+              ? "text-gray-700 bg-white border-gray-100"
+              : "text-gray-400 bg-gray-50 border-gray-100 italic"
+          }`}>
+            {progress?.text || "No notes provided"}
+          </div>
+        </div>
+
+        {hasLocation && (
+          <div className="px-4 py-3 border-b border-gray-100">
+            {!showMap ? (
+              <button
+                onClick={toggleMap}
+                className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
+                    <FiMapPin className="text-blue-500" size={18} />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium flex items-center gap-1">
+                      <span>View Location</span>
+                      <FiChevronRight className="transform transition-transform duration-300" size={14} />
+                    </div>
+                    <div className="text-xs text-gray-500 font-mono mt-0.5">
+                      {locationLabel}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <FiMapPin className="text-blue-500" size={16} />
+                    <span>Location Map</span>
+                  </div>
+                  <button
+                    onClick={toggleMap}
+                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <FiX className="text-gray-500" size={18} />
+                  </button>
+                </div>
+                <div className="rounded-xl overflow-hidden border border-gray-200 shadow-lg">
+                  <img
+                    src={mapImageUrl}
+                    alt="Location Map"
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
+                    <div className="flex items-center gap-1.5">
+                      <FiMap size={12} />
+                      <span>Mapbox View</span>
+                    </div>
+                    <a
+                      href={`https://www.google.com/maps?q=${progress.location_latitude},${progress.location_longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                    >
+                      Open in Maps
+                      <FiExternalLink size={12} />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 flex items-center gap-3 border-b border-gray-100">
+          <div className="flex items-center gap-2 text-gray-600">
+            <FiActivity size={16} className="text-blue-500" />
+            <span className="text-sm font-medium">Status:</span>
+          </div>
+          <span className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-sm border ${progressBadge.className}`}>
+            {progressBadge.icon}
+            {progressBadge.label}
+          </span>
+        </div>
+
+        <div className="px-4 py-3 flex items-center justify-between text-sm text-gray-600">
+          <div>
+            <p className="font-semibold text-gray-800">{displayName || "User"}</p>
+            <p className="text-xs text-gray-500">{displayTime}</p>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold border shadow-sm ${approvalBadge.badge}`}>
+            {approvalBadge.icon}
+            {approvalBadge.label}
+          </span>
+        </div>
+      </div>
     );
   };
 
@@ -3547,120 +3771,9 @@ const renderCommentsModal = () => (
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5">
-            <div className="space-y-6">
-              {/* User Info */}
-              <div className="flex items-center gap-4">
-                {(() => {
-                  const displayName = formatAuthorName(selectedProgressUpdate.user || selectedProgressUpdate.email);
-                  const displayTime = formatDateTime(selectedProgressUpdate.time || selectedProgressUpdate.created_at);
-                  return (
-                    <>
-                      <Avatar 
-                        userObj={{
-                          name: displayName,
-                          profile_image: selectedProgressUpdate.profile_image
-                        }} 
-                        size={48} 
-                      />
-                      <div>
-                        <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
-                        <p className="text-sm text-gray-500">{displayTime}</p>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-
-              {/* Status & Progress */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <p className="text-xs text-gray-500 mb-1">Status</p>
-                  <p className={`font-semibold ${
-                    selectedProgressUpdate.progress_status === 'Completed' ? 'text-green-600' :
-                    selectedProgressUpdate.progress_status === 'In Progress' ? 'text-blue-600' :
-                    'text-yellow-600'
-                  }`}>
-                    {selectedProgressUpdate.progress_status || 'Pending'}
-                  </p>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <p className="text-xs text-gray-500 mb-1">Progress</p>
-                  <p className="font-semibold text-blue-600">{selectedProgressUpdate.progress_percentage || 0}%</p>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all"
-                    style={{ width: `${selectedProgressUpdate.progress_percentage || 0}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Notes */}
-              {selectedProgressUpdate.text && (
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                  <p className="text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">Notes</p>
-                  <p className="text-gray-700 whitespace-pre-wrap">{selectedProgressUpdate.text}</p>
-                </div>
-              )}
-
-              {/* Evidence Photo */}
-              {selectedProgressUpdate.evidence_photo && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Evidence Photo</p>
-                  <img 
-                    src={selectedProgressUpdate.evidence_photo} 
-                    alt="Evidence" 
-                    className="w-full rounded-xl shadow-lg cursor-pointer hover:opacity-95 transition-opacity"
-                    onClick={() => window.open(selectedProgressUpdate.evidence_photo, '_blank')}
-                  />
-                </div>
-              )}
-
-              {/* Location */}
-              {(selectedProgressUpdate.location_latitude && selectedProgressUpdate.location_longitude) && (
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Location</p>
-                  <div className="flex items-center text-gray-600">
-                    <MdLocationOn className="text-red-500 mr-2" size={20} />
-                    <span className="text-sm">
-                      {selectedProgressUpdate.location_name || `${selectedProgressUpdate.location_latitude}, ${selectedProgressUpdate.location_longitude}`}
-                      {selectedProgressUpdate.location_accuracy && (
-                        <span className="text-xs text-gray-400 ml-2">
-                          (±{selectedProgressUpdate.location_accuracy}m)
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Approval Status */}
-              {selectedProgressUpdate.approval_status && (
-                <div className={`rounded-xl p-4 border ${
-                  selectedProgressUpdate.approval_status === 'approved' ? 'bg-green-50 border-green-200' :
-                  selectedProgressUpdate.approval_status === 'rejected' ? 'bg-red-50 border-red-200' :
-                  'bg-yellow-50 border-yellow-200'
-                }`}>
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{
-                    color: selectedProgressUpdate.approval_status === 'approved' ? '#16a34a' :
-                           selectedProgressUpdate.approval_status === 'rejected' ? '#dc2626' : '#ca8a04'
-                  }}>
-                    Approval Status
-                  </p>
-                  <p className={`font-semibold capitalize ${
-                    selectedProgressUpdate.approval_status === 'approved' ? 'text-green-700' :
-                    selectedProgressUpdate.approval_status === 'rejected' ? 'text-red-700' :
-                    'text-yellow-700'
-                  }`}>
-                    {selectedProgressUpdate.approval_status}
-                  </p>
-                </div>
-              )}
+          <div className="flex-1 overflow-y-auto p-5 flex justify-center">
+            <div className="w-full flex justify-center">
+              <ProgressApprovalCardUser progress={selectedProgressUpdate} />
             </div>
           </div>
         </div>
