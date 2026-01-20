@@ -466,6 +466,9 @@ useEffect(() => {
                   location_accuracy: c.location_accuracy || null,
                   approval_status: c.approval_status || null,
                   comment_type: c.comment_type || null,
+                  // Nested progress object for compatibility with ProgressApprovalCard
+                  progress: c.progress || null,
+                  progress_id: c.progress_id || null,
                 }))
               : [];
             const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
@@ -1245,217 +1248,6 @@ const getPriorityBadge = (priority) => {
     );
   };
 
-  const ProgressApprovalCardUser = ({ progress }) => {
-    const progressKey = progress?.id || progress?.progress_id || progress?.comment_id || progress?.progressId || progress?.progressid;
-    const percentage = progress?.progress_percentage ?? progress?.progress?.percentage ?? 0;
-    const progressStatus = (progress?.progress_status || progress?.status || "Pending").toLowerCase();
-    const approvalStatus = (progress?.approval_status || "PENDING").toUpperCase();
-    const displayName = formatAuthorName(progress?.user || progress?.email);
-    const displayTime = formatDateTime(progress?.time || progress?.created_at);
-    const hasLocation = Boolean(progress?.location_latitude && progress?.location_longitude);
-    const locationLabel = progress?.location_name || (hasLocation
-      ? `${parseFloat(progress.location_latitude).toFixed(6)}, ${parseFloat(progress.location_longitude).toFixed(6)}`
-      : null);
-    const showMap = progressKey ? Boolean(progressMapStates[progressKey]) : false;
-    const toggleMap = () => {
-      if (!hasLocation || !progressKey) return;
-      setProgressMapStates(prev => ({
-        ...prev,
-        [progressKey]: !showMap
-      }));
-    };
-
-    const approvalMeta = {
-      APPROVED: {
-        badge: "bg-green-50 text-green-700 border-green-200",
-        icon: <FiCheckCircle size={14} />,
-        label: "Approved"
-      },
-      REJECTED: {
-        badge: "bg-red-50 text-red-700 border-red-200",
-        icon: <FiXCircle size={14} />,
-        label: "Rejected"
-      },
-      PENDING: {
-        badge: "bg-yellow-50 text-yellow-700 border-yellow-200",
-        icon: <FiClock size={14} />,
-        label: "Pending Review"
-      }
-    };
-
-    const approvalBadge = approvalMeta[approvalStatus] || approvalMeta.PENDING;
-
-    const progressMeta = {
-      completed: {
-        className: "bg-green-100 text-green-700 border-green-200",
-        icon: <FiCheckCircle size={14} />,
-        label: "Completed"
-      },
-      "in progress": {
-        className: "bg-blue-100 text-blue-700 border-blue-200",
-        icon: <FiLoader size={14} className="animate-spin" />,
-        label: "In Progress"
-      },
-      default: {
-        className: "bg-yellow-100 text-yellow-700 border-yellow-200",
-        icon: <FiClock size={14} />,
-        label: "Pending"
-      }
-    };
-
-    const progressBadge = progressMeta[progressStatus] || progressMeta.default;
-
-    const mapImageUrl = hasLocation
-      ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${progress.location_longitude},${progress.location_latitude})/${progress.location_longitude},${progress.location_latitude},14,0/360x220@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`
-      : null;
-
-    return (
-      <div className="max-w-[420px] w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-        <div className="bg-gradient-to-r from-indigo-500 via-blue-600 to-sky-600 px-4 py-3 text-white">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-sm">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-white/30 rounded-full animate-ping opacity-75"></div>
-                  <FiBarChart2 className="text-white" size={20} />
-                </div>
-              </div>
-              <div>
-                <div className="font-semibold text-sm flex items-center gap-1">
-                  <FiBarChart className="opacity-90" size={14} />
-                  Your Progress Update
-                </div>
-                <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
-                  <FiPercent size={12} className="opacity-80" />
-                  {percentage || 0}% Complete
-                </div>
-              </div>
-            </div>
-            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold border shadow-sm inline-flex items-center gap-1 ${approvalBadge.badge}`}>
-              {approvalBadge.icon}
-              {approvalBadge.label}
-            </span>
-          </div>
-        </div>
-
-        {progress?.evidence_photo && (
-          <div className="relative group">
-            <img
-              src={progress.evidence_photo}
-              alt="Evidence"
-              className="w-full h-48 object-cover cursor-pointer group-hover:scale-[1.02] transition-transform duration-300"
-              onClick={() => window.open(progress.evidence_photo, '_blank')}
-            />
-            <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 shadow-lg">
-              <FiCamera size={12} />
-              Evidence
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          </div>
-        )}
-
-        <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
-          <div className="flex items-start gap-2 mb-2">
-            <FiFileText className="text-gray-400 mt-0.5 flex-shrink-0" size={14} />
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Notes</div>
-          </div>
-          <div className={`text-sm leading-relaxed break-words rounded-lg p-3 border shadow-sm ${
-            progress?.text
-              ? "text-gray-700 bg-white border-gray-100"
-              : "text-gray-400 bg-gray-50 border-gray-100 italic"
-          }`}>
-            {progress?.text || "No notes provided"}
-          </div>
-        </div>
-
-        {hasLocation && (
-          <div className="px-4 py-3 border-b border-gray-100">
-            {!showMap ? (
-              <button
-                onClick={toggleMap}
-                className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
-                    <FiMapPin className="text-blue-500" size={18} />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium flex items-center gap-1">
-                      <span>View Location</span>
-                      <FiChevronRight className="transform transition-transform duration-300" size={14} />
-                    </div>
-                    <div className="text-xs text-gray-500 font-mono mt-0.5">
-                      {locationLabel}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FiMapPin className="text-blue-500" size={16} />
-                    <span>Location Map</span>
-                  </div>
-                  <button
-                    onClick={toggleMap}
-                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
-                  >
-                    <FiX className="text-gray-500" size={18} />
-                  </button>
-                </div>
-                <div className="rounded-xl overflow-hidden border border-gray-200 shadow-lg">
-                  <img
-                    src={mapImageUrl}
-                    alt="Location Map"
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
-                    <div className="flex items-center gap-1.5">
-                      <FiMap size={12} />
-                      <span>Mapbox View</span>
-                    </div>
-                    <a
-                      href={`https://www.google.com/maps?q=${progress.location_latitude},${progress.location_longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                    >
-                      Open in Maps
-                      <FiExternalLink size={12} />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 flex items-center gap-3 border-b border-gray-100">
-          <div className="flex items-center gap-2 text-gray-600">
-            <FiActivity size={16} className="text-blue-500" />
-            <span className="text-sm font-medium">Status:</span>
-          </div>
-          <span className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-sm border ${progressBadge.className}`}>
-            {progressBadge.icon}
-            {progressBadge.label}
-          </span>
-        </div>
-
-        <div className="px-4 py-3 flex items-center justify-between text-sm text-gray-600">
-          <div>
-            <p className="font-semibold text-gray-800">{displayName || "User"}</p>
-            <p className="text-xs text-gray-500">{displayTime}</p>
-          </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold border shadow-sm ${approvalBadge.badge}`}>
-            {approvalBadge.icon}
-            {approvalBadge.label}
-          </span>
-        </div>
-      </div>
-    );
-  };
-
 //========================================================== Render Functions ==========================================================
 const renderAnnouncementCard = (announcement) => (
   <div
@@ -1900,118 +1692,156 @@ const renderCommentsModal = () => (
               const previousUserEmail = previousComment?.email;
               const showUserLabel = previousUserEmail !== comment.email;
               
+              // Check if this comment has a progress update - check both nested object and direct fields
+              const hasProgress = (comment.progress && typeof comment.progress === 'object') || 
+                                 (comment.progress_percentage !== null && comment.progress_percentage !== undefined) ||
+                                 comment.progress_id || 
+                                 comment.approval_status;
+              
               return (
-                <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-1`}>
-                  <div className={`flex max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
-                    {!isCurrentUser && (
-                      <div className="flex-shrink-0 mr-2 self-end">
-                        <Avatar 
-                          userObj={{
-                            ...commentUser,
-                            profile_image: comment.profile_image || commentUser?.profile_image
-                          }} 
-                          size={28} 
-                        />
+                <div key={comment.id}>
+                  {/* Progress Approval Card - Show if it's a progress update */}
+                  {hasProgress && (
+                    <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-3`}>
+                      <div className={`flex max-w-[90%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                        {!isCurrentUser && (
+                          <div className="flex-shrink-0 mr-2 self-start mt-2">
+                            <Avatar 
+                              userObj={{
+                                ...commentUser,
+                                profile_image: comment.profile_image || commentUser?.profile_image
+                              }} 
+                              size={28} 
+                            />
+                          </div>
+                        )}
+                        <div className={`flex flex-col ${isCurrentUser ? 'items-end' : ''}`}>
+                          {!isCurrentUser && showUserLabel && (
+                            <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
+                              {comment.user || "User"}
+                            </span>
+                          )}
+                          <ProgressApprovalCard comment={comment} />
+                        </div>
                       </div>
-                    )}
-                    
-                    <div className={`flex flex-col ${isCurrentUser ? 'items-end' : ''}`}>
-                      {!isCurrentUser && showUserLabel && (
-                        <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
-                          {comment.user || "User"}
-                        </span>
+                    </div>
+                  )}
+                  
+                  {/* Regular Comment - Skip if it's a progress update (to avoid duplicates) */}
+                  {!hasProgress && (
+                  <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-1`}>
+                    <div className={`flex max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                      {!isCurrentUser && (
+                        <div className="flex-shrink-0 mr-2 self-end">
+                          <Avatar 
+                            userObj={{
+                              ...commentUser,
+                              profile_image: comment.profile_image || commentUser?.profile_image
+                            }} 
+                            size={28} 
+                          />
+                        </div>
                       )}
                       
-                      <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
-                        isCurrentUser 
-                          ? 'bg-blue-500 text-white rounded-br-sm' 
-                          : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
-                      }`}>
-                        {/* Messenger-style tail */}
-                        {!isCurrentUser ? (
-                          <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                            <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
-                          </div>
-                        ) : (
-                          <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                            <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
-                          </div>
+                      <div className={`flex flex-col ${isCurrentUser ? 'items-end' : ''}`}>
+                        {!isCurrentUser && showUserLabel && (
+                          <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
+                            {comment.user || "User"}
+                          </span>
                         )}
                         
-                        {comment.text && (
-                          <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-                            {comment.text}
-                          </p>
-                        )}
+                        <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
+                          isCurrentUser 
+                            ? 'bg-blue-500 text-white rounded-br-sm' 
+                            : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
+                        }`}>
+                          {/* Messenger-style tail */}
+                          {!isCurrentUser ? (
+                            <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                              <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
+                            </div>
+                          ) : (
+                            <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                              <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
+                            </div>
+                          )}
+                          
+                          {comment.text && (
+                            <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                              {comment.text}
+                            </p>
+                          )}
+                          
+                          {comment.attachments && comment.attachments.length > 0 && (
+                            <div className={`space-y-2 mt-2 ${comment.text ? 'pt-2 border-t border-opacity-20' : ''} ${
+                              isCurrentUser ? 'border-white/30' : 'border-gray-200'
+                            }`}>
+                              {comment.attachments.map((att, idx) => {
+                                const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
+                                
+                                return isImage ? (
+                                  <div key={idx} className="rounded-lg overflow-hidden border border-opacity-20">
+                                    <img
+                                      src={att.path}
+                                      alt={att.name}
+                                      className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                      onClick={() => window.open(att.path, '_blank')}
+                                    />
+                                    {comment.text && (
+                                      <a
+                                        href={att.path}
+                                        download={att.name}
+                                        className={`block text-xs mt-1 px-2 py-1 ${
+                                          isCurrentUser 
+                                            ? 'text-blue-200 hover:text-white' 
+                                            : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                      >
+                                        📎 {att.name}
+                                      </a>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <a
+                                    key={idx}
+                                    href={att.path || att.data}
+                                    download={att.name}
+                                    className={`flex items-center text-sm px-3 py-2 rounded-lg transition-colors ${
+                                      isCurrentUser 
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                    }`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <FiPaperclip size={16} className="mr-2 flex-shrink-0" />
+                                    <span className="truncate flex-1">{att.name}</span>
+                                    <span className="text-xs opacity-75 ml-2">
+                                      {(att.size / 1024).toFixed(1)}KB
+                                    </span>
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                         
-                        {comment.attachments && comment.attachments.length > 0 && (
-                          <div className={`space-y-2 mt-2 ${comment.text ? 'pt-2 border-t border-opacity-20' : ''} ${
-                            isCurrentUser ? 'border-white/30' : 'border-gray-200'
-                          }`}>
-                            {comment.attachments.map((att, idx) => {
-                              const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
-                              
-                              return isImage ? (
-                                <div key={idx} className="rounded-lg overflow-hidden border border-opacity-20">
-                                  <img
-                                    src={att.path}
-                                    alt={att.name}
-                                    className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                    onClick={() => window.open(att.path, '_blank')}
-                                  />
-                                  {comment.text && (
-                                    <a
-                                      href={att.path}
-                                      download={att.name}
-                                      className={`block text-xs mt-1 px-2 py-1 ${
-                                        isCurrentUser 
-                                          ? 'text-blue-200 hover:text-white' 
-                                          : 'text-gray-500 hover:text-gray-700'
-                                      }`}
-                                    >
-                                      📎 {att.name}
-                                    </a>
-                                  )}
-                                </div>
-                              ) : (
-                                <a
-                                  key={idx}
-                                  href={att.path || att.data}
-                                  download={att.name}
-                                  className={`flex items-center text-sm px-3 py-2 rounded-lg transition-colors ${
-                                    isCurrentUser 
-                                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                                  }`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <FiPaperclip size={16} className="mr-2 flex-shrink-0" />
-                                  <span className="truncate flex-1">{att.name}</span>
-                                  <span className="text-xs opacity-75 ml-2">
-                                    {(att.size / 1024).toFixed(1)}KB
-                                  </span>
-                                </a>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                        <span className="text-[10px] text-gray-400 mr-2">
-                          {comment.time}
-                        </span>
-                        {isCurrentUser && (
-                          <div className="text-blue-500">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
-                            </svg>
-                          </div>
-                        )}
+                        <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                          <span className="text-[10px] text-gray-400 mr-2">
+                            {comment.time}
+                          </span>
+                          {isCurrentUser && (
+                            <div className="text-blue-500">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
+                              </svg>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
               );
             })}
@@ -2441,6 +2271,209 @@ const renderCommentsModal = () => (
   );
 
   // Shimmer/Skeleton Loading Component
+  // ProgressApprovalCard Component - Read-only version for user perspective
+  const ProgressApprovalCard = ({ comment }) => {
+    const [showMap, setShowMap] = useState(false);
+    
+    // Handle both nested progress object and flat fields
+    const progress = comment.progress || {
+      percentage: comment.progress_percentage,
+      status: comment.progress_status,
+      photo: comment.evidence_photo,
+      location: comment.location_latitude && comment.location_longitude ? {
+        latitude: parseFloat(comment.location_latitude),
+        longitude: parseFloat(comment.location_longitude),
+        accuracy: comment.location_accuracy
+      } : null
+    };
+    
+    const toggleMap = () => {
+      setShowMap(!showMap);
+    };
+
+    const isApproved = comment.approval_status === 'APPROVED';
+    const isRejected = comment.approval_status === 'REJECTED';
+    const isPending = comment.approval_status === 'PENDING';
+
+    return (
+      <div className="max-w-[320px] bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-sm">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-white/30 rounded-full animate-ping opacity-75"></div>
+                  <FiBarChart2 className="text-white" size={20} />
+                </div>
+              </div>
+              <div>
+                <div className="font-semibold text-sm flex items-center gap-1">
+                  <FiBarChart className="opacity-90" size={14} />
+                  Progress Update
+                </div>
+                <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
+                  <FiPercent size={12} className="opacity-80" />
+                  {progress?.percentage || 0}% Complete
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Evidence Photo */}
+        {progress?.photo && (
+          <div className="relative group">
+            <img
+              src={progress.photo}
+              alt="Evidence"
+              className="w-full h-48 object-cover cursor-pointer group-hover:scale-[1.02] transition-transform duration-300"
+              onClick={() => window.open(progress.photo, '_blank')}
+            />
+            <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 shadow-lg">
+              <FiCamera size={12} />
+              Evidence
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          </div>
+        )}
+
+        {/* Task Notes - Always show */}
+        <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
+          <div className="flex items-start gap-2 mb-2">
+            <FiFileText className="text-gray-400 mt-0.5 flex-shrink-0" size={14} />
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Notes</div>
+          </div>
+          <div className={`text-sm leading-relaxed break-words rounded-lg p-3 border shadow-sm ${
+            comment.text 
+              ? 'text-gray-700 bg-white border-gray-100' 
+              : 'text-gray-400 bg-gray-50 border-gray-100 italic'
+          }`}>
+            {comment.text || 'No notes provided'}
+          </div>
+        </div>
+
+        {/* Location */}
+        {progress?.location && (
+          <div className="px-4 py-3 border-b border-gray-100">
+            {!showMap ? (
+              <button
+                onClick={toggleMap}
+                className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
+                    <FiMapPin className="text-blue-500" size={18} />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium flex items-center gap-1">
+                      <span>View Location</span>
+                      <FiChevronRight className="transform transition-transform duration-300" size={14} />
+                    </div>
+                    <div className="text-xs text-gray-500 font-mono mt-0.5">
+                      {progress.location.latitude?.toFixed(6)}, {progress.location.longitude?.toFixed(6)}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <FiMapPin className="text-blue-500" size={16} />
+                    <span>Location Map</span>
+                  </div>
+                  <button
+                    onClick={toggleMap}
+                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <FiX className="text-gray-500" size={18} />
+                  </button>
+                </div>
+                <div className="rounded-xl overflow-hidden border border-gray-200 shadow-lg">
+                  <img
+                    src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${progress.location.longitude},${progress.location.latitude})/${progress.location.longitude},${progress.location.latitude},14,0/300x200@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`}
+                    alt="Location Map"
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
+                    <div className="flex items-center gap-1.5">
+                      <FiMap size={12} />
+                      <span>Mapbox View</span>
+                    </div>
+                    <a
+                      href={`https://www.google.com/maps?q=${progress.location.latitude},${progress.location.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                    >
+                      Open in Maps
+                      <FiExternalLink size={12} />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Status Badge */}
+        <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 flex items-center gap-3 border-b border-gray-100">
+          <div className="flex items-center gap-2 text-gray-600">
+            <FiActivity size={16} className="text-blue-500" />
+            <span className="text-sm font-medium">Status:</span>
+          </div>
+          <span className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-sm ${
+            progress?.status === 'Completed' ? 'bg-gradient-to-r from-green-100 to-green-50 text-green-700 border border-green-200' :
+            progress?.status === 'In Progress' ? 'bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 border border-blue-200' :
+            'bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 border border-gray-200'
+          }`}>
+            {progress?.status === 'Completed' ? (
+              <>
+                <FiCheckCircle size={12} />
+                Completed
+              </>
+            ) : progress?.status === 'In Progress' ? (
+              <>
+                <FiLoader className="animate-spin" size={12} />
+                In Progress
+              </>
+            ) : (
+              <>
+                <FiClock size={12} />
+                Pending
+              </>
+            )}
+          </span>
+        </div>
+
+        {/* Approval Status - Read-only for users */}
+        <div className={`px-4 py-3 text-center text-sm font-medium flex items-center justify-center gap-2 ${
+          isApproved ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-t border-green-200' : 
+          isRejected ? 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-t border-red-200' :
+          'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-700 border-t border-yellow-200'
+        }`}>
+          {isApproved ? (
+            <>
+              <FiCheckCircle size={16} />
+              <span className="font-semibold">Approved by Admin</span>
+            </>
+          ) : isRejected ? (
+            <>
+              <FiXCircle size={16} />
+              <span className="font-semibold">Rejected by Admin</span>
+            </>
+          ) : (
+            <>
+              <FiLoader className="animate-spin" size={16} />
+              <span className="font-semibold">Pending Review</span>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const ShimmerCard = () => (
     <div className="bg-white rounded-2xl p-4 mb-3 shadow-lg animate-pulse">
       <div className="h-4 bg-gray-200 rounded mb-3 w-3/4"></div>
@@ -3771,9 +3804,120 @@ const renderCommentsModal = () => (
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5 flex justify-center">
-            <div className="w-full flex justify-center">
-              <ProgressApprovalCardUser progress={selectedProgressUpdate} />
+          <div className="flex-1 overflow-y-auto p-5">
+            <div className="space-y-6">
+              {/* User Info */}
+              <div className="flex items-center gap-4">
+                {(() => {
+                  const displayName = formatAuthorName(selectedProgressUpdate.user || selectedProgressUpdate.email);
+                  const displayTime = formatDateTime(selectedProgressUpdate.time || selectedProgressUpdate.created_at);
+                  return (
+                    <>
+                      <Avatar 
+                        userObj={{
+                          name: displayName,
+                          profile_image: selectedProgressUpdate.profile_image
+                        }} 
+                        size={48} 
+                      />
+                      <div>
+                        <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
+                        <p className="text-sm text-gray-500">{displayTime}</p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* Status & Progress */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <p className={`font-semibold ${
+                    selectedProgressUpdate.progress_status === 'Completed' ? 'text-green-600' :
+                    selectedProgressUpdate.progress_status === 'In Progress' ? 'text-blue-600' :
+                    'text-yellow-600'
+                  }`}>
+                    {selectedProgressUpdate.progress_status || 'Pending'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">Progress</p>
+                  <p className="font-semibold text-blue-600">{selectedProgressUpdate.progress_percentage || 0}%</p>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all"
+                    style={{ width: `${selectedProgressUpdate.progress_percentage || 0}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedProgressUpdate.text && (
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <p className="text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">Notes</p>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedProgressUpdate.text}</p>
+                </div>
+              )}
+
+              {/* Evidence Photo */}
+              {selectedProgressUpdate.evidence_photo && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Evidence Photo</p>
+                  <img 
+                    src={selectedProgressUpdate.evidence_photo} 
+                    alt="Evidence" 
+                    className="w-full rounded-xl shadow-lg cursor-pointer hover:opacity-95 transition-opacity"
+                    onClick={() => window.open(selectedProgressUpdate.evidence_photo, '_blank')}
+                  />
+                </div>
+              )}
+
+              {/* Location */}
+              {(selectedProgressUpdate.location_latitude && selectedProgressUpdate.location_longitude) && (
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Location</p>
+                  <div className="flex items-center text-gray-600">
+                    <MdLocationOn className="text-red-500 mr-2" size={20} />
+                    <span className="text-sm">
+                      {selectedProgressUpdate.location_name || `${selectedProgressUpdate.location_latitude}, ${selectedProgressUpdate.location_longitude}`}
+                      {selectedProgressUpdate.location_accuracy && (
+                        <span className="text-xs text-gray-400 ml-2">
+                          (±{selectedProgressUpdate.location_accuracy}m)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Approval Status */}
+              {selectedProgressUpdate.approval_status && (
+                <div className={`rounded-xl p-4 border ${
+                  selectedProgressUpdate.approval_status === 'approved' ? 'bg-green-50 border-green-200' :
+                  selectedProgressUpdate.approval_status === 'rejected' ? 'bg-red-50 border-red-200' :
+                  'bg-yellow-50 border-yellow-200'
+                }`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{
+                    color: selectedProgressUpdate.approval_status === 'approved' ? '#16a34a' :
+                           selectedProgressUpdate.approval_status === 'rejected' ? '#dc2626' : '#ca8a04'
+                  }}>
+                    Approval Status
+                  </p>
+                  <p className={`font-semibold capitalize ${
+                    selectedProgressUpdate.approval_status === 'approved' ? 'text-green-700' :
+                    selectedProgressUpdate.approval_status === 'rejected' ? 'text-red-700' :
+                    'text-yellow-700'
+                  }`}>
+                    {selectedProgressUpdate.approval_status}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
