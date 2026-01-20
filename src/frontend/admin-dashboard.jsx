@@ -198,7 +198,8 @@ const AdminDashboard = ({ user, logout }) => {
     const currentScreen = getCurrentScreen();
     if (currentScreen?.screen === 'mapView') {
       fetchOtherUsersLocations();
-      const interval = setInterval(fetchOtherUsersLocations, 30000); // Refresh every 30 seconds
+      // Auto-refresh every 10 seconds for live location updates
+      const interval = setInterval(fetchOtherUsersLocations, 10000);
       return () => clearInterval(interval);
     }
   }, [navigationStack]);
@@ -468,41 +469,51 @@ const formatTimeAgo = (dateString) => {
   // Enhanced announcements data
   useEffect(() => {
     setIsLoadingAnnouncements(true);
-    fetch("/backend/announcements.php", { credentials: "include" })
-      .then(res => handleApiResponse(res))
-      .then(data => {
-        if (!Array.isArray(data)) {
-          console.error('Announcements data is not an array:', data);
+    const fetchAnnouncements = () => {
+      fetch("/backend/announcements.php", { credentials: "include" })
+        .then(res => handleApiResponse(res))
+        .then(data => {
+          if (!Array.isArray(data)) {
+            console.error('Announcements data is not an array:', data);
+            setAnnouncements([]);
+            setIsLoadingAnnouncements(false);
+            return;
+          }
+          
+          const normalized = data.map(a => ({
+            id: a.announcement_id,
+            title: a.title,
+            content: a.content,
+            type: a.type,
+            priority: a.priority,
+            author: formatAuthorName(a.author),
+            time: formatTimeAgo(a.created_at),
+            unread: a.unread === 1,
+            is_pinned: a.is_pinned === 1,
+            category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
+            important: a.priority === "high",
+            color: getColorForType(a.type),
+            icon: getIconForType(a.type),
+            created_at: a.created_at,
+          }));
+
+          setAnnouncements(normalized);
+          setIsLoadingAnnouncements(false);
+        })
+        .catch(err => {
+          console.error('Failed to fetch announcements:', err);
           setAnnouncements([]);
           setIsLoadingAnnouncements(false);
-          return;
-        }
-        
-        const normalized = data.map(a => ({
-          id: a.announcement_id,
-          title: a.title,
-          content: a.content,
-          type: a.type,
-          priority: a.priority,
-          author: formatAuthorName(a.author),
-          time: formatTimeAgo(a.created_at),
-          unread: a.unread === 1,
-          is_pinned: a.is_pinned === 1,
-          category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
-          important: a.priority === "high",
-          color: getColorForType(a.type),
-          icon: getIconForType(a.type),
-          created_at: a.created_at,
-        }));
-
-        setAnnouncements(normalized);
-        setIsLoadingAnnouncements(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch announcements:', err);
-        setAnnouncements([]);
-        setIsLoadingAnnouncements(false);
-      });
+        });
+    };
+    
+    // Initial fetch
+    fetchAnnouncements();
+    
+    // Auto-refresh every 45 seconds for live updates
+    const interval = setInterval(fetchAnnouncements, 45000);
+    
+    return () => clearInterval(interval);
   }, [logout]);
 
   // Save read comments to localStorage whenever they change
@@ -516,12 +527,22 @@ const formatTimeAgo = (dateString) => {
 
   // Fetch users
   useEffect(() => {
-    fetch("/backend/users.php", {
-      credentials: "include",
-    })
-      .then(res => handleApiResponse(res))
-      .then(data => setUsers(data))
-      .catch(err => console.error("Users error:", err));
+    const fetchUsers = () => {
+      fetch("/backend/users.php", {
+        credentials: "include",
+      })
+        .then(res => handleApiResponse(res))
+        .then(data => setUsers(data))
+        .catch(err => console.error("Users error:", err));
+    };
+    
+    // Initial fetch
+    fetchUsers();
+    
+    // Auto-refresh every 60 seconds for live updates
+    const interval = setInterval(fetchUsers, 60000);
+    
+    return () => clearInterval(interval);
   }, [logout]);
 
   // Initial loading management - hide loading screen after data is fetched
@@ -1167,7 +1188,13 @@ useEffect(() => {
     }
   };
   
+  // Initial fetch
   fetchProjectsWithComments();
+  
+  // Auto-refresh every 30 seconds for live updates
+  const interval = setInterval(fetchProjectsWithComments, 30000);
+  
+  return () => clearInterval(interval);
 }, []);
 
   //========================================================== Update location ==========================================================

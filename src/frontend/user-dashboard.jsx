@@ -159,9 +159,9 @@ const UserDashboard = ({ user, logout }) => {
         latitude: userCoordinates.latitude,
         zoom: 15
       });
-      // Disabled interval for now - only fetch once when tab changes
-      // const interval = setInterval(fetchOtherUsersLocations, 5000);
-      // return () => clearInterval(interval);
+      // Auto-refresh every 10 seconds for live location updates
+      const interval = setInterval(fetchOtherUsersLocations, 10000);
+      return () => clearInterval(interval);
     }
   }, [activeTab]);
 
@@ -364,7 +364,13 @@ const UserDashboard = ({ user, logout }) => {
     }
   };
 
+  // Initial fetch
   fetchAnnouncements();
+  
+  // Auto-refresh every 45 seconds for live updates
+  const interval = setInterval(fetchAnnouncements, 45000);
+  
+  return () => clearInterval(interval);
 }, []);
 
 // Fetch users for names/avatars
@@ -386,7 +392,13 @@ useEffect(() => {
     }
   };
 
+  // Initial fetch
   fetchUsers();
+  
+  // Auto-refresh every 60 seconds for live updates
+  const interval = setInterval(fetchUsers, 60000);
+  
+  return () => clearInterval(interval);
 }, []);
 
 // Initial loading management - hide loading screen after data is fetched
@@ -490,7 +502,13 @@ useEffect(() => {
   };
 
   if (user?.id) {
+    // Initial fetch
     fetchProjects();
+    
+    // Auto-refresh every 30 seconds for live updates
+    const interval = setInterval(fetchProjects, 30000);
+    
+    return () => clearInterval(interval);
   }
 }, [user]);
 
@@ -2753,16 +2771,18 @@ const renderCommentsModal = () => (
                         
                         <div className="space-y-4">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                            <label htmlFor="from-date" className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
                             <input
+                              id="from-date"
                               type="date"
                               className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                               onChange={(e) => setCustomDateRange({ ...customDateRange, start: e.target.value })}
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                            <label htmlFor="to-date" className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
                             <input
+                              id="to-date"
                               type="date"
                               className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                               onChange={(e) => setCustomDateRange({ ...customDateRange, end: e.target.value })}
@@ -3165,10 +3185,11 @@ const renderCommentsModal = () => (
 
           {/* Progress Percentage */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label htmlFor="progress-range" className="block text-sm font-medium text-gray-700 mb-3">
               Progress: <span className="text-blue-600 font-bold">{progressPercentage}%</span>
             </label>
             <input 
+              id="progress-range"
               type="range" 
               min="0" 
               max="100" 
@@ -3188,8 +3209,9 @@ const renderCommentsModal = () => (
 
           {/* Status Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <label htmlFor="progress-status" className="block text-sm font-medium text-gray-700 mb-2">Status</label>
             <select 
+              id="progress-status"
               value={progressStatus}
               onChange={(e) => setProgressStatus(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
@@ -3202,8 +3224,9 @@ const renderCommentsModal = () => (
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+            <label htmlFor="progress-notes" className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
             <textarea 
+              id="progress-notes"
               value={progressNotes}
               onChange={(e) => setProgressNotes(e.target.value)}
               placeholder="Add any notes about this progress update..."
