@@ -69,7 +69,10 @@ import {
   FiMap,
   FiExternalLink,
   FiActivity,
-  FiLoader
+  FiLoader,
+  FiX,
+  FiEye,
+  FiEyeOff
 } from "react-icons/fi";
 import { 
   HiOutlineChatAlt2,
@@ -122,6 +125,8 @@ const AdminDashboard = ({ user, logout }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [commentAttachments, setCommentAttachments] = useState([]);
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [progressMapStates, setProgressMapStates] = useState({});
+  const [hiddenEmployees, setHiddenEmployees] = useState(new Set());
   // State for announcements, projects, users - must be declared before useEffect hooks
   const [projects, setProjects] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -731,7 +736,14 @@ const handleBudgetChange = (e) => {
   // ProgressApprovalCard Component - for progress submissions in conversation
   const ProgressApprovalCard = ({ comment, onApprove, onReject }) => {
     const [isApproving, setIsApproving] = useState(false);
-    const [showMap, setShowMap] = useState(false);
+    const showMap = progressMapStates[comment.progress_id] || false;
+    
+    const toggleMap = () => {
+      setProgressMapStates(prev => ({
+        ...prev,
+        [comment.progress_id]: !showMap
+      }));
+    };
     
     const handleApprove = async () => {
       setIsApproving(true);
@@ -793,67 +805,79 @@ const handleBudgetChange = (e) => {
       </div>
     )}
 
-    {/* Task Info */}
-    {comment.comment && (
-      <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
-        <div className="flex items-start gap-2 mb-2">
-          <FiFileText className="text-gray-400 mt-0.5 flex-shrink-0" size={14} />
-          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Notes</div>
-        </div>
-        <div className="text-sm text-gray-700 leading-relaxed break-words bg-white rounded-lg p-3 border border-gray-100 shadow-sm">
-          {comment.comment}
-        </div>
+    {/* Task Notes - Always show */}
+    <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
+      <div className="flex items-start gap-2 mb-2">
+        <FiFileText className="text-gray-400 mt-0.5 flex-shrink-0" size={14} />
+        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Notes</div>
       </div>
-    )}
+      <div className={`text-sm leading-relaxed break-words rounded-lg p-3 border shadow-sm ${
+        comment.text 
+          ? 'text-gray-700 bg-white border-gray-100' 
+          : 'text-gray-400 bg-gray-50 border-gray-100 italic'
+      }`}>
+        {comment.text || 'No notes provided'}
+      </div>
+    </div>
 
     {/* Location */}
     {comment.progress?.location && (
       <div className="px-4 py-3 border-b border-gray-100">
-        <button
-          onClick={() => setShowMap(!showMap)}
-          className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
-              <FiMapPin className="text-blue-500" size={18} />
+        {!showMap ? (
+          <button
+            onClick={toggleMap}
+            className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
+                <FiMapPin className="text-blue-500" size={18} />
+              </div>
+              <div className="text-left">
+                <div className="font-medium flex items-center gap-1">
+                  <span>View Location</span>
+                  <FiChevronRight className="transform transition-transform duration-300" size={14} />
+                </div>
+                <div className="text-xs text-gray-500 font-mono mt-0.5">
+                  {comment.progress.location.latitude?.toFixed(6)}, {comment.progress.location.longitude?.toFixed(6)}
+                </div>
+              </div>
             </div>
-            <div className="text-left">
-              <div className="font-medium flex items-center gap-1">
-                <span>Location Captured</span>
-                <FiChevronRight className={`transform transition-transform duration-300 ${showMap ? 'rotate-90' : ''}`} size={14} />
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <FiMapPin className="text-blue-500" size={16} />
+                <span>Location Map</span>
               </div>
-              <div className="text-xs text-gray-500 font-mono mt-0.5">
-                {comment.progress.location.latitude?.toFixed(6)}, {comment.progress.location.longitude?.toFixed(6)}
-              </div>
-            </div>
-          </div>
-        </button>
-        
-        {showMap && (
-          <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 shadow-lg animate-slideDown">
-            <iframe
-              width="100%"
-              height="150"
-              frameBorder="0"
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${comment.progress.location.longitude-0.01},${comment.progress.location.latitude-0.01},${comment.progress.location.longitude+0.01},${comment.progress.location.latitude+0.01}&marker=${comment.progress.location.latitude},${comment.progress.location.longitude}`}
-              style={{ border: 0 }}
-              title="Location Map"
-              allowFullScreen
-            />
-            <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
-              <div className="flex items-center gap-1.5">
-                <FiMap size={12} />
-                <span>OpenStreetMap View</span>
-              </div>
-              <a
-                href={`https://www.openstreetmap.org/?mlat=${comment.progress.location.latitude}&mlon=${comment.progress.location.longitude}&zoom=15`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+              <button
+                onClick={toggleMap}
+                className="p-1 rounded-full hover:bg-gray-100 transition-colors"
               >
-                Open Full Map
-                <FiExternalLink size={12} />
-              </a>
+                <FiX className="text-gray-500" size={18} />
+              </button>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-gray-200 shadow-lg">
+              <img
+                src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${comment.progress.location.longitude},${comment.progress.location.latitude})/${comment.progress.location.longitude},${comment.progress.location.latitude},14,0/300x200@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`}
+                alt="Location Map"
+                className="w-full h-48 object-cover"
+              />
+              <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
+                <div className="flex items-center gap-1.5">
+                  <FiMap size={12} />
+                  <span>Mapbox View</span>
+                </div>
+                <a
+                  href={`https://www.google.com/maps?q=${comment.progress.location.latitude},${comment.progress.location.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                >
+                  Open in Maps
+                  <FiExternalLink size={12} />
+                </a>
+              </div>
             </div>
           </div>
         )}
@@ -2235,11 +2259,6 @@ useEffect(() => {
 
             {/* Comments */}
             {selectedProject.comments.map((comment, idx) => {
-              // Debug log
-              if (comment.comment_type === 'progress') {
-                console.log('Progress comment found:', comment);
-              }
-              
               const isCurrentUser = comment.email === currentUser?.email;
               const commentUser = isCurrentUser ? currentUser : users.find(u => u.email === comment.email);
               
@@ -2917,18 +2936,38 @@ useEffect(() => {
     </div>
   );
 
-  const renderEmployeeLocation = (employee) => (
+  const renderEmployeeLocation = (employee) => {
+    const isHidden = hiddenEmployees.has(employee.user_id);
+    
+    const handleCardClick = () => {
+      setViewState({
+        longitude: employee.longitude,
+        latitude: employee.latitude,
+        zoom: 16,
+        transitionDuration: 800
+      });
+    };
+
+    const handleEyeClick = () => {
+      // Toggle hide/show
+      setHiddenEmployees(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(employee.user_id)) {
+          newSet.delete(employee.user_id);
+        } else {
+          newSet.add(employee.user_id);
+        }
+        return newSet;
+      });
+      // Also center map on this employee
+      handleCardClick();
+    };
+
+    return (
     <div 
       key={employee.user_id} 
-      onClick={() => {
-        setViewState({
-          longitude: employee.longitude,
-          latitude: employee.latitude,
-          zoom: 16,
-          transitionDuration: 800
-        });
-      }}
-      className="bg-white rounded-2xl p-4 mb-3 shadow-sm hover:shadow-lg transition-all cursor-pointer active:scale-95 hover:bg-blue-50 flex items-center gap-3"
+      onClick={handleCardClick}
+      className={`bg-white rounded-2xl p-4 mb-3 shadow-sm hover:shadow-lg transition-all cursor-pointer active:scale-95 ${isHidden ? 'opacity-50 hover:bg-gray-50' : 'hover:bg-blue-50'} flex items-center gap-3`}
     >
       <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-blue-100">
         {employee.profile_image ? (
@@ -2963,11 +3002,20 @@ useEffect(() => {
           </div>
         )}
       </div>
-      <div className="p-2 bg-blue-50 text-blue-600 rounded-full flex-shrink-0 hover:bg-blue-100">
-        <MdLocationOn size={18} />
-      </div>
+      <button
+        onClick={handleEyeClick}
+        className={`p-2 rounded-full flex-shrink-0 transition-all hover:scale-110 shadow-sm border ${
+          isHidden 
+            ? 'bg-gray-50 text-gray-500 hover:bg-gray-100 border-gray-100' 
+            : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-100'
+        }`}
+        title={isHidden ? "Show on map" : "Hide from map"}
+      >
+        {isHidden ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+      </button>
     </div>
   );
+  };
 
   // Shimmer/Skeleton Loading Component
   const ShimmerCard = () => (
@@ -4268,9 +4316,13 @@ useEffect(() => {
                 mapStyle="mapbox://styles/mapbox/streets-v12"
                 mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}
               >
-                {/* Filter locations to show only project-assigned users */}
+                {/* Filter locations to show only project-assigned users and non-hidden employees */}
                 {otherUsersLocations
                   .filter(location => {
+                    // Skip hidden employees
+                    if (hiddenEmployees.has(location.user_id)) {
+                      return false;
+                    }
                     // If we have a project context, only show users assigned to this project
                     const projectData = getCurrentScreen()?.data;
                     if (projectData?.projectId && selectedProject?.assignedUsers) {
