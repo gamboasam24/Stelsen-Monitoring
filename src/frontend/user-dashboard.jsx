@@ -3109,31 +3109,28 @@ const renderCommentsModal = () => (
         <h3 className="text-xl font-bold mb-5 text-center">Quick Actions</h3>
         
         <button
-          className="w-full flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 active:bg-gray-100"
-          onClick={() => {
-            setShowReportModal(true);
-            setShowActionMenu(false);
-          }}
+          disabled
+          className="w-full flex items-center p-4 border-b border-gray-100 opacity-60 cursor-not-allowed"
         >
           <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
             <MdReportProblem size={20} className="text-blue-500" />
           </div>
           <div className="text-left">
             <div className="font-medium">Submit Report</div>
-            <div className="text-xs text-gray-500">Submit daily work report</div>
+            <div className="text-xs text-gray-500">Coming soon...</div>
           </div>
         </button>
 
         <button
-          className="w-full flex items-center p-4 hover:bg-gray-50 active:bg-gray-100"
-          onClick={() => alert("Task creation would open here")}
+          disabled
+          className="w-full flex items-center p-4 opacity-60 cursor-not-allowed"
         >
           <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
             <MdDashboard size={20} className="text-purple-500" />
           </div>
           <div className="text-left">
             <div className="font-medium">Add New Project</div>
-            <div className="text-xs text-gray-500">Create new project</div>
+            <div className="text-xs text-gray-500">Coming soon...</div>
           </div>
         </button>
       </div>
