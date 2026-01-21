@@ -520,6 +520,21 @@ useEffect(() => {
       // Fetch comment counts for each project
       const projectsWithComments = await Promise.all(
         userProjects.map(async (project) => {
+          // Auto-update status to 'completed' if progress is 100%
+          if ((project.progress || 0) >= 100 && project.status !== 'completed') {
+            project.status = 'completed';
+            // Update on backend asynchronously
+            fetch("/backend/projects.php", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                id: project.id,
+                status: 'completed'
+              })
+            }).catch(err => console.error('Failed to auto-update project status:', err));
+          }
+          
           try {
             const commentsRes = await fetch(`/backend/comments.php?project_id=${project.id}`, { 
               credentials: "include" 
@@ -2411,29 +2426,38 @@ const renderCommentsModal = () => (
     const isPending = comment.approval_status === 'PENDING';
 
     return (
-      <div className="max-w-[320px] bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
+      <div className="max-w-[500px] w-full bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
         {/* Header */}
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-            <div className="relative">
-              <img src="/img/stelsenlogo.png" alt="Stelsen" className="w-8 h-8 object-contain" />
-            </div>
+                  <img src="/img/stelsenlogo.png" alt="Stelsen" className="w-8 h-8 object-contain" />
                 </div>
                 <div>
-            <div className="font-semibold text-sm flex items-center gap-1">
-              <FiBarChart className="opacity-90" size={14} />
-              Progress Update
-            </div>
-            <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
-              <FiPercent size={12} className="opacity-80" />
-              {progress?.percentage || 0}% Complete
-            </div>
+                  <div className="font-semibold text-sm flex items-center gap-1">
+                    <FiBarChart className="opacity-90" size={14} />
+                    Progress Update
+                  </div>
+                  <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
+                    <FiPercent size={12} className="opacity-80" />
+                    {progress?.percentage || 0}% Complete
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Submission Time */}
+          {comment.created_at && (
+            <div className="px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+              <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
+                <FiClock size={12} className="text-blue-500" />
+                <span className="font-medium">Submitted:</span>
+                <span className="text-gray-700">{formatDateTime(comment.created_at)}</span>
+              </div>
+            </div>
+          )}
 
           {/* Evidence Photo */}
         {progress?.photo && (
@@ -2506,9 +2530,9 @@ const renderCommentsModal = () => (
                 </div>
                 <div className="rounded-xl overflow-hidden border border-gray-200 shadow-lg">
                   <img
-                    src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${progress.location.longitude},${progress.location.latitude})/${progress.location.longitude},${progress.location.latitude},14,0/300x200@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`}
+                    src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${progress.location.longitude},${progress.location.latitude})/${progress.location.longitude},${progress.location.latitude},14,0/500x250@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`}
                     alt="Location Map"
-                    className="w-full h-48 object-cover"
+                    className="w-full h-64 object-cover"
                   />
                   <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
                     <div className="flex items-center gap-1.5">

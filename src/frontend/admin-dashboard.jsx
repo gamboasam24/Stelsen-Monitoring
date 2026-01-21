@@ -828,7 +828,7 @@ const handleBudgetChange = (e) => {
     const isRejected = comment.approval_status === 'REJECTED';
 
    return (
-  <div className="max-w-[320px] bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
+  <div className="max-w-[500px] w-full bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
     {/* Header */}
       <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
         <div className="flex items-center justify-between">
@@ -850,6 +850,17 @@ const handleBudgetChange = (e) => {
         
         </div>
       </div>
+
+      {/* Submission Time */}
+      {comment.created_at && (
+        <div className="px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+          <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
+            <FiClock size={12} className="text-blue-500" />
+            <span className="font-medium">Submitted:</span>
+            <span className="text-gray-700">{formatDateTime(comment.created_at)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Evidence Photo */}
     {comment.progress?.photo && (
@@ -922,9 +933,9 @@ const handleBudgetChange = (e) => {
             </div>
             <div className="rounded-xl overflow-hidden border border-gray-200 shadow-lg">
               <img
-                src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${comment.progress.location.longitude},${comment.progress.location.latitude})/${comment.progress.location.longitude},${comment.progress.location.latitude},14,0/300x200@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`}
+                src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${comment.progress.location.longitude},${comment.progress.location.latitude})/${comment.progress.location.longitude},${comment.progress.location.latitude},14,0/500x250@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`}
                 alt="Location Map"
-                className="w-full h-48 object-cover"
+                className="w-full h-64 object-cover"
               />
               <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
                 <div className="flex items-center gap-1.5">
@@ -1182,11 +1193,28 @@ const markAsRead = async (id) => {
         return;
       }
 
-      const normalizedProjects = data.map(project => ({
+      const normalizedProjects = data.map(project => {
+        // Auto-update status to 'completed' if progress is 100%
+        let projectStatus = project.status || "pending";
+        if ((project.progress || 0) >= 100 && projectStatus !== 'completed') {
+          projectStatus = 'completed';
+          // Update on backend asynchronously
+          fetch("/backend/projects.php", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              id: project.id || project.project_id,
+              status: 'completed'
+            })
+          }).catch(err => console.error('Failed to auto-update project status:', err));
+        }
+        
+        return {
         id: project.id || project.project_id,
         title: project.title,
         description: project.description || "",
-        status: project.status || "pending",
+        status: projectStatus,
         progress: project.progress || 0,
         deadline: project.deadline || "",
         manager: project.manager || "",
@@ -1195,7 +1223,8 @@ const markAsRead = async (id) => {
         assignedUsers: project.assignedUsers || project.assigned_users || [],
         comments: [],
         isNew: isProjectNew(project.startDate || project.start_date || project.created_at, project.progress),
-      }));
+      };
+      });
 
       const projectsWithComments = await Promise.all(
         normalizedProjects.map(async (project) => {
