@@ -144,6 +144,24 @@ const UserDashboard = ({ user, logout }) => {
   // Comments expansion state - tracks which projects have expanded comments
   const [expandedProjectComments, setExpandedProjectComments] = useState({});
 
+  // Swipe gesture state for back navigation
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  // Offline mode detection
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Pull-to-refresh state
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const pullThreshold = 80;
+
+  // Dark mode state
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('userDashboardDarkMode');
+    return saved === 'true';
+  });
+
   // Pin state is provided by backend (persisted like admin)
 
   // Save read comments to localStorage whenever they change
@@ -164,6 +182,36 @@ const UserDashboard = ({ user, logout }) => {
       return () => clearTimeout(timer);
     }
   }, [toast.show]);
+
+  // Online/Offline detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setToast({ show: true, message: 'Back online!', type: 'success' });
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setToast({ show: true, message: 'No internet connection', type: 'error' });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Dark mode persistence
+  useEffect(() => {
+    localStorage.setItem('userDashboardDarkMode', darkMode);
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   // Fetch other users' locations when in My Location tab
   useEffect(() => {
@@ -1038,6 +1086,7 @@ const getPriorityBadge = (priority) => {
   };
 
   const handleTabChange = (tab) => {
+    triggerHaptic('light');
     setActiveTab(tab);
     if (profileOpen) setProfileOpen(false);
     if (showActionMenu) setShowActionMenu(false);
@@ -1054,6 +1103,79 @@ const getPriorityBadge = (priority) => {
 
   const getCurrentScreen = () => {
     return navigationStack[navigationStack.length - 1];
+  };
+
+  // Haptic feedback helper
+  const triggerHaptic = (style = 'light') => {
+    if ('vibrate' in navigator) {
+      const patterns = {
+        light: [10],
+        medium: [20],
+        heavy: [30],
+        success: [10, 50, 10],
+        error: [50, 100, 50]
+      };
+      navigator.vibrate(patterns[style] || patterns.light);
+    }
+  };
+
+  // Swipe gesture handlers for back navigation
+  const minSwipeDistance = 50; // minimum distance for a swipe
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    // Right swipe = go back
+    if (isRightSwipe && navigationStack.length > 0) {
+      triggerHaptic('light');
+      popScreen();
+    }
+  };
+
+  // Pull-to-refresh handlers
+  const handlePullStart = (e) => {
+    if (window.scrollY === 0) {
+      setPullDistance(0);
+      setIsPulling(true);
+    }
+  };
+
+  const handlePullMove = (e) => {
+    if (isPulling && window.scrollY === 0) {
+      const touch = e.touches[0];
+      const distance = Math.max(0, touch.clientY - (touchStart || touch.clientY));
+      setPullDistance(Math.min(distance, pullThreshold * 1.5));
+    }
+  };
+
+  const handlePullEnd = async () => {
+    if (isPulling) {
+      if (pullDistance >= pullThreshold) {
+        triggerHaptic('medium');
+        // Refresh based on current tab
+        if (activeTab === 'Home') {
+          await fetchAnnouncements();
+        } else if (activeTab === 'My Project') {
+          await fetchProjects();
+        }
+        setToast({ show: true, message: 'Refreshed!', type: 'success' });
+      }
+      setIsPulling(false);
+      setPullDistance(0);
+    }
   };
 
   const viewProjectDetails = async (project) => {
@@ -1533,27 +1655,40 @@ const renderAnnouncementCard = (announcement) => (
   };
 
   const renderProjectDetailsModal = () => (
-    <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
-      {/* Header with Back Button */}
-      <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-        <button 
-          onClick={popScreen}
-          className="p-2 rounded-full hover:bg-gray-100 mr-3"
-        >
-          <FiChevronLeft size={24} className="text-gray-700" />
-        </button>
-        <h3 className="flex-1 text-lg font-bold text-gray-800">Tasks Details</h3>
-        {selectedProject && (
-          <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block flex-shrink-0`}>
-            {selectedProject.status}
-          </span>
-        )}
+    <div 
+      className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Header with Back Button and Breadcrumb */}
+      <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-2">
+          <button 
+            onClick={popScreen}
+            className="p-2 rounded-full hover:bg-gray-100 mr-3"
+          >
+            <FiChevronLeft size={24} className="text-gray-700" />
+          </button>
+          <h3 className="flex-1 text-lg font-bold text-gray-800">Tasks Details</h3>
+          {selectedProject && (
+            <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block flex-shrink-0`}>
+              {selectedProject.status}
+            </span>
+          )}
+        </div>
+        {/* Breadcrumb Navigation */}
+        <div className="flex items-center text-xs text-gray-500 ml-14">
+          <button onClick={() => { popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
+          <FiChevronRight size={14} className="mx-1" />
+          <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Projects</button>
+          <FiChevronRight size={14} className="mx-1" />
+          <span className="text-gray-800 font-medium truncate max-w-[150px]">{selectedProject?.title}</span>
+        </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-5">
-
-        
         {selectedProject && (
           <>
             <div className="flex flex-row items-start sm:items-center justify-between gap-2 mb-6 pb-4 border-b border-gray-200">
@@ -1709,37 +1844,52 @@ const renderAnnouncementCard = (announcement) => (
   ); 
 
 const renderCommentsModal = () => (
-  <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
+  <div 
+    className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right"
+    onTouchStart={onTouchStart}
+    onTouchMove={onTouchMove}
+    onTouchEnd={onTouchEnd}
+  >
     {/* Messenger-style Header */}
-    <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
-      <button 
-        onClick={popScreen}
-        className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
-      >
-        <FiChevronLeft size={24} className="text-gray-700" />
-      </button>
+    <div className="sticky top-0 z-20 bg-white px-4 py-3 border-b border-gray-200 shadow-sm">
+      <div className="flex items-center mb-2">
+        <button 
+          onClick={popScreen}
+          className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
+        >
+          <FiChevronLeft size={24} className="text-gray-700" />
+        </button>
+        
+        <Avatar 
+          userObj={user}
+          size={40}
+          className="flex-shrink-0 mr-4"
+        />
       
-      <Avatar 
-        userObj={user}
-        size={40}
-        className="flex-shrink-0 mr-4"
-      />
-      
-      <div className="flex-1 min-w-0 ml-2">
-        <h3 className="text-base font-bold text-gray-900 truncate">{selectedProject?.title}</h3>
-        <p className="text-xs text-gray-500 truncate flex items-center gap-1">
-          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-          Active now
-        </p>
+        <div className="flex-1 min-w-0 ml-2">
+          <h3 className="text-base font-bold text-gray-900 truncate">{selectedProject?.title}</h3>
+          <p className="text-xs text-gray-500 truncate flex items-center gap-1">
+            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+            Active now
+          </p>
+        </div>
+        
+        <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+          <FiSearch size={20} className="text-gray-600" />
+        </button>
+        
+        <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+          <MdPeople size={20} className="text-gray-600" />
+        </button>
       </div>
-      
-      <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
-        <FiSearch size={20} className="text-gray-600" />
-      </button>
-      
-      <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
-        <MdPeople size={20} className="text-gray-600" />
-      </button>
+      {/* Breadcrumb for Comments */}
+      <div className="flex items-center text-xs text-gray-500 ml-14 mt-1">
+        <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
+        <FiChevronRight size={14} className="mx-1" />
+        <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
+        <FiChevronRight size={14} className="mx-1" />
+        <span className="text-gray-800 font-medium">Comments</span>
+      </div>
     </div>
 
     {/* Messenger Chat Area */}
@@ -2652,6 +2802,30 @@ const renderCommentsModal = () => (
     
     switch (activeTab) {
       case "Home":
+        // Show skeleton during initial load
+        if (isLoading) {
+          return (
+            <div className="p-5">
+              <div className="mb-6 space-y-3">
+                <div className="h-12 bg-gray-200 rounded-2xl animate-pulse"></div>
+                <div className="flex gap-2">
+                  <div className="h-10 w-20 bg-gray-200 rounded-full animate-pulse"></div>
+                  <div className="h-10 w-20 bg-gray-200 rounded-full animate-pulse"></div>
+                  <div className="h-10 w-24 bg-gray-200 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+              <div className="mb-6">
+                <ShimmerStatsCard />
+              </div>
+              <div className="space-y-3">
+                <ShimmerCard />
+                <ShimmerCard />
+                <ShimmerCard />
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <div className="p-5">
 
@@ -2668,6 +2842,14 @@ const renderCommentsModal = () => (
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                         />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            <IoMdClose size={20} />
+                          </button>
+                        )}
                       </div>
                       
                       {/* Compact Date Filter Icon Button */}
@@ -2943,12 +3125,20 @@ const renderCommentsModal = () => (
               ) : filteredAnnouncements.length > 0 ? (
                 filteredAnnouncements.map(renderAnnouncementCard)
               ) : (
-                <div className="text-center py-10">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FiBell size={24} className="text-gray-400" />
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-10 text-center shadow-sm border border-gray-200">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FiBell size={32} className="text-blue-400" />
                   </div>
-                  <h3 className="text-gray-600 font-medium">No announcements found</h3>
-                  <p className="text-gray-400 text-sm mt-1">Try a different search or filter</p>
+                  <h3 className="text-gray-700 font-semibold text-lg mb-2">No announcements found</h3>
+                  <p className="text-gray-500 text-sm mb-4 max-w-xs mx-auto">Try adjusting your search terms or date filters to see more results</p>
+                  {(searchQuery || dateFilter !== 'all') && (
+                    <button 
+                      onClick={() => { setSearchQuery(''); setDateFilter('all'); }}
+                      className="text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -3086,8 +3276,11 @@ const renderCommentsModal = () => (
 
               {/* Location History - Bottom Sheet with Isolated Scroll */}
               <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-1/2 flex flex-col z-30" style={{ touchAction: 'none', overscrollBehavior: 'contain' }}>
-                <div className="px-5 pt-5 pb-0 flex-shrink-0 pointer-events-auto">
-                  <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+                {/* Drag Handle - More Prominent and Interactive */}
+                <div className="pt-3 pb-2 flex-shrink-0 pointer-events-auto cursor-grab active:cursor-grabbing">
+                  <div className="w-12 h-1.5 bg-gray-400 rounded-full mx-auto transition-all hover:bg-gray-500 hover:w-16"></div>
+                </div>
+                <div className="px-5 pb-0 flex-shrink-0 pointer-events-auto">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-gray-800">Recent Locations</h3>
                     <button className="text-blue-500 text-sm font-medium">View All</button>
@@ -3185,10 +3378,18 @@ const renderCommentsModal = () => (
                   {filteredProjects.map(renderProjectCard)}
                 </div>
               ) : selectedFilter !== "all" ? (
-                <div className="text-center py-10">
-                  <MdDashboard size={40} className="mx-auto text-gray-300 mb-2" />
-                  <p className="text-gray-600 font-medium">No {selectedFilter} tasks found</p>
-                  <p className="text-sm text-gray-400 mt-1">Try selecting a different filter</p>
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 text-center shadow-sm border border-gray-200">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MdDashboard size={32} className="text-blue-400" />
+                  </div>
+                  <p className="text-gray-700 font-semibold text-lg mb-2">No {selectedFilter} tasks found</p>
+                  <p className="text-sm text-gray-500 mb-4">Try selecting a different filter to see your tasks</p>
+                  <button 
+                    onClick={() => setSelectedFilter('all')}
+                    className="text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors"
+                  >
+                    Show all tasks
+                  </button>
                 </div>
               ) : (
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 text-center shadow-sm border border-gray-200">
@@ -3648,19 +3849,45 @@ const renderCommentsModal = () => (
   const unreadCount = announcements.filter(a => a.unread).length;
 
   return (
-    <div className={`min-h-screen ${activeTab === "My Location" ? "overflow-hidden" : "pb-20"} bg-gray-100 relative`}>
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center z-50">
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-800 text-2xl font-bold">Loading...</p>
+    <div className={`min-h-screen ${activeTab === "My Location" ? "overflow-hidden" : "pb-20"} ${darkMode ? 'bg-gray-900' : 'bg-gray-100'} relative`}>
+      {/* Offline Mode Indicator */}
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white px-4 py-2 text-center text-sm font-medium z-[100] flex items-center justify-center gap-2 shadow-lg">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          No internet connection - Working in offline mode
+        </div>
+      )}
+      
+      {/* Pull to Refresh Indicator */}
+      {isPulling && pullDistance > 0 && (
+        <div 
+          className="fixed top-0 left-1/2 transform -translate-x-1/2 z-50 transition-all"
+          style={{ 
+            transform: `translate(-50%, ${Math.min(pullDistance - 40, 40)}px)`,
+            opacity: Math.min(pullDistance / pullThreshold, 1)
+          }}
+        >
+          <div className={`bg-white rounded-full p-3 shadow-lg ${
+            pullDistance >= pullThreshold ? 'bg-blue-500' : 'bg-white'
+          }`}>
+            <FiRefreshCw 
+              size={24} 
+              className={`${
+                pullDistance >= pullThreshold 
+                  ? 'text-white animate-spin' 
+                  : 'text-blue-500'
+              }`}
+              style={{ transform: `rotate(${(pullDistance / pullThreshold) * 360}deg)` }}
+            />
           </div>
         </div>
       )}
+
       {/* Main Header */}
       {activeTab !== "My Location" && (
-        <div className="sticky top-0 z-20 bg-blue-500 px-5 py-4 flex justify-between items-center text-white">
+        <div className={`sticky z-20 px-5 py-4 flex justify-between items-center text-white ${
+          darkMode ? 'bg-gray-800' : 'bg-blue-500'
+        }`} style={{ top: isOnline ? '0' : '36px' }}>
           <div className="flex items-center">
             {isMobile && activeTab !== "Profile" && (
              <button 
@@ -3689,11 +3916,32 @@ const renderCommentsModal = () => (
               </div>
             </div>
           </div>
-          <div className="relative">
-            <div
-              className="w-10 h-10 rounded-full border-2 border-white cursor-pointer overflow-hidden"
-              onClick={handleProfileClick}
+          <div className="flex items-center gap-3">
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={() => {
+                triggerHaptic('light');
+                setDarkMode(!darkMode);
+              }}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors"
+              title={darkMode ? 'Light mode' : 'Dark mode'}
             >
+              {darkMode ? (
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                </svg>
+              )}
+            </button>
+            
+            <div className="relative">
+              <div
+                className="w-10 h-10 rounded-full border-2 border-white cursor-pointer overflow-hidden"
+                onClick={handleProfileClick}
+              >
               <Avatar
                 userObj={{
                   ...user,
@@ -3706,12 +3954,18 @@ const renderCommentsModal = () => (
             {unreadCount > 0 && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
             )}
+            </div>
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div className={`transition-all duration-300 ${(profileOpen || showActionMenu) && isMobile ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+      <div 
+        className={`transition-all duration-300 ${(profileOpen || showActionMenu) && isMobile ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
+        onTouchStart={handlePullStart}
+        onTouchMove={handlePullMove}
+        onTouchEnd={handlePullEnd}
+      >
         <div className={activeTab === "My Location" ? "overflow-hidden" : "overflow-auto"}>
           {renderTabContent()}
         </div>
@@ -3722,8 +3976,9 @@ const renderCommentsModal = () => (
         <div className={`fixed bottom-0 left-0 w-full bg-white border-t border-gray-300 flex items-center justify-around py-2 z-10 transition-all duration-300 ${(profileOpen || showActionMenu) ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'}`}>
           {/* Home Button */}
           <button
-            className={`flex flex-col items-center relative ${activeTab === "Home" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "Home" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("Home")}
+            onTouchStart={() => triggerHaptic('light')}
           >
             <IoMdHome size={24} />
             <span className="text-xs mt-1">Home</span>
@@ -3731,8 +3986,9 @@ const renderCommentsModal = () => (
 
           {/* My Project Button */}
           <button
-            className={`flex flex-col items-center relative ${activeTab === "My Project" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "My Project" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("My Project")}
+            onTouchStart={() => triggerHaptic('light')}
           >
             <MdDashboard size={24} />
             <span className="text-xs mt-1">Projects</span>
@@ -3741,17 +3997,24 @@ const renderCommentsModal = () => (
           {/* Centered Add Button */}
           <div className="relative -top-6">
             <button
-              onClick={() => setShowActionMenu(true)}
-              className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 transition-all"
+              onClick={() => {
+                triggerHaptic('medium');
+                setShowActionMenu(true);
+              }}
+              onTouchStart={() => triggerHaptic('medium')}
+              title="Quick Actions"
+              className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 transition-all group"
             >
               <MdAdd size={32} />
+              <span className="absolute -top-10 bg-gray-800 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Quick Actions</span>
             </button>
           </div>
         
           {/* My Location Button */}
           <button
-            className={`flex flex-col items-center relative ${activeTab === "My Location" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "My Location" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("My Location")}
+            onTouchStart={() => triggerHaptic('light')}
           >
             <MdLocationOn size={24} />
             <span className="text-xs mt-1">Location</span>
@@ -3759,8 +4022,9 @@ const renderCommentsModal = () => (
 
           {/* Profile Button */}
           <button
-            className={`flex flex-col items-center relative ${activeTab === "Profile" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "Profile" ? "text-blue-500" : "text-gray-500"}`}
             onClick={handleProfileClick}
+            onTouchStart={() => triggerHaptic('light')}
           >
             <FaUser size={24} />
             <span className="text-xs mt-1">Profile</span>
