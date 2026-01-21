@@ -2885,7 +2885,7 @@ useEffect(() => {
                   </div>
                 );
               }) : (
-                <p className="text-sm text-gray-500">No employees assigned</p>
+                <p className="text-sm text-gray-500">Select Assigned Users</p>
               )}
             </div>
           </div>
@@ -2922,7 +2922,7 @@ useEffect(() => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Manager *
+                  Managed by: *
                 </label>
                 <input
                   type="text"
