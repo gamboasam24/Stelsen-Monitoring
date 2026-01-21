@@ -1040,6 +1040,32 @@ const markAsRead = async (id) => {
     return formatTimeAgo(timestamp);
   };
 
+  // Get color based on status for consistent visual theme
+  const getProgressColor = (status) => {
+    if (status === 'Completed') return { 
+      bg: 'from-green-500 to-emerald-600', 
+      text: 'text-green-700', 
+      badge: 'bg-green-100', 
+      border: 'border-green-200',
+      cardBg: 'bg-green-50'
+    };
+    if (status === 'In Progress') return { 
+      bg: 'from-blue-500 to-indigo-600', 
+      text: 'text-blue-700', 
+      badge: 'bg-blue-100', 
+      border: 'border-blue-200',
+      cardBg: 'bg-blue-50'
+    };
+    // Pending or other statuses
+    return { 
+      bg: 'from-orange-500 to-amber-600', 
+      text: 'text-orange-700', 
+      badge: 'bg-orange-100', 
+      border: 'border-orange-200',
+      cardBg: 'bg-orange-50'
+    };
+  };
+
   // Location history
   const [locationHistory, setLocationHistory] = useState([
     { id: "1", location: "Main Office", time: "09:00 AM", date: "2024-12-10" },
@@ -1100,7 +1126,7 @@ const markAsRead = async (id) => {
   }, []);
 
 
-useEffect(() => {
+// Reusable function to fetch projects with comments
   const fetchProjectsWithComments = async () => {
     setIsLoadingProjects(true);
     try {
@@ -1181,13 +1207,23 @@ useEffect(() => {
       );
 
       setProjects(projectsWithComments);
+      
+      // Also update selectedProject if it exists
+      if (selectedProject) {
+        const updatedProject = projectsWithComments.find(p => p.id === selectedProject.id);
+        if (updatedProject) {
+          setSelectedProject(updatedProject);
+        }
+      }
+      
       setIsLoadingProjects(false);
     } catch (err) {
       console.error("Projects error:", err);
       setIsLoadingProjects(false);
     }
   };
-  
+
+useEffect(() => {
   // Initial fetch
   fetchProjectsWithComments();
   
@@ -1414,6 +1450,9 @@ useEffect(() => {
               }))
             });
 
+            // Refresh projects list to update progress percentage
+            await fetchProjectsWithComments();
+
             Swal.fire({
               title: 'Approved!',
               text: 'Progress update has been approved.',
@@ -1479,6 +1518,9 @@ useEffect(() => {
                 approval_status: c.approval_status
               }))
             });
+
+            // Refresh projects list
+            await fetchProjectsWithComments();
 
             Swal.fire({
               title: 'Rejected',
@@ -4128,9 +4170,13 @@ useEffect(() => {
               </div>
             ) : taskProgressList && taskProgressList.length > 0 ? (
               <div className="space-y-4">
-                {taskProgressList.map(progress => {
+                {taskProgressList.map((progress, index) => {
                   const displayName = formatAuthorName(progress.user || progress.email);
                   const displayTime = formatDateTime(progress.time || progress.created_at);
+                  const status = progress.progress_status || 'Pending';
+                  const progressColor = getProgressColor(status);
+                  const isLatest = index === 0; // First item is the latest
+                  
                   return (
                     <button
                       key={progress.id}
@@ -4141,51 +4187,74 @@ useEffect(() => {
                           return [...filtered, { screen: "progressDetail", data: { progressId: progress.id } }];
                         });
                       }}
-                      className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
+                      className={`w-full ${progressColor.cardBg} border ${progressColor.border} rounded-xl p-4 hover:shadow-lg transition-all text-left relative overflow-hidden`}
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar
-                            user={{
-                              name: displayName,
-                              email: progress.email,
-                              profile_image: progress.profile_image
-                            }}
-                            size={40}
-                          />
-                          <div>
-                            <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
-                            <p className="text-xs text-gray-500">{displayTime}</p>
+                      {/* Progress indicator ribbon */}
+                      <div className={`absolute top-0 left-0 w-2 h-full bg-gradient-to-b ${progressColor.bg}`}></div>
+                      
+                      {isLatest && (
+                        <div className="absolute top-2 right-2">
+                          <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-sm">
+                            Latest
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="pl-2">
+                        {/* Header with Update Number */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${progressColor.bg}`}></div>
+                          <span className={`text-xs font-semibold ${progressColor.text}`}>
+                            Update #{taskProgressList.length - index}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar
+                              user={{
+                                name: displayName,
+                                email: progress.email,
+                                profile_image: progress.profile_image
+                              }}
+                              size={40}
+                            />
+                            <div>
+                              <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
+                              <p className="text-xs text-gray-500">{displayTime}</p>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                            status === 'Completed' ? 'bg-green-100 text-green-700' :
+                            status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                            'bg-orange-100 text-orange-700'
+                          }`}>
+                            {status}
+                          </span>
+                        </div>
+
+                        <div className="mb-3">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-700">Progress Update</span>
+                            <span className={`text-lg font-bold ${progressColor.text}`}>
+                              {progress.progress_percentage || 0}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                            <div
+                              className={`bg-gradient-to-r ${progressColor.bg} h-3 rounded-full transition-all shadow-sm`}
+                              style={{ width: `${progress.progress_percentage || 0}%` }}
+                            ></div>
                           </div>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                          progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
-                          progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {progress.progress_status || 'Pending'}
-                        </span>
-                      </div>
 
-                      <div className="mb-3">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium text-gray-700">Progress</span>
-                          <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
+                        {progress.text && (
+                          <p className="text-sm text-gray-600 line-clamp-2 mb-2">{progress.text}</p>
+                        )}
+
+                        <div className="flex items-center justify-end mt-2">
+                          <FiChevronRight size={20} className={progressColor.text} />
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
-                            style={{ width: `${progress.progress_percentage || 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-
-                      {progress.text && (
-                        <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
-                      )}
-
-                      <div className="flex items-center justify-end mt-2">
-                        <FiChevronRight size={20} className="text-blue-500" />
                       </div>
                     </button>
                   );

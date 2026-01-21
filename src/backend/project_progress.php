@@ -466,6 +466,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'review_progre
                 $comment_stmt->close();
             }
 
+            // If APPROVED, update the projects table with the latest approved progress percentage
+            if ($approval_status === 'APPROVED') {
+                // Get the progress_percentage and project_id from the approved progress
+                $get_progress_stmt = $conn->prepare("
+                    SELECT project_id, progress_percentage 
+                    FROM project_progress 
+                    WHERE id = ?
+                ");
+                if ($get_progress_stmt) {
+                    $get_progress_stmt->bind_param("i", $progress_id);
+                    $get_progress_stmt->execute();
+                    $result = $get_progress_stmt->get_result();
+                    
+                    if ($row = $result->fetch_assoc()) {
+                        $project_id = $row['project_id'];
+                        $progress_percentage = $row['progress_percentage'];
+                        
+                        // Update the projects table with the approved progress percentage
+                        $update_project_stmt = $conn->prepare("
+                            UPDATE projects 
+                            SET progress = ? 
+                            WHERE id = ?
+                        ");
+                        if ($update_project_stmt) {
+                            $update_project_stmt->bind_param("ii", $progress_percentage, $project_id);
+                            $update_project_stmt->execute();
+                            $update_project_stmt->close();
+                        }
+                    }
+                    $get_progress_stmt->close();
+                }
+            }
+
             echo json_encode([
                 'status' => 'success',
                 'message' => 'Progress update ' . strtolower($approval_status) . ' successfully!'

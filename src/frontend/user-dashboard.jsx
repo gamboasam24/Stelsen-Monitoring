@@ -137,6 +137,9 @@ const UserDashboard = ({ user, logout }) => {
   const [showTaskProgressModal, setShowTaskProgressModal] = useState(false);
   const [taskProgressList, setTaskProgressList] = useState([]);
   const [progressMapStates, setProgressMapStates] = useState({});
+  
+  // Toast notification state
+  const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
   // Pin state is provided by backend (persisted like admin)
 
@@ -148,6 +151,16 @@ const UserDashboard = ({ user, logout }) => {
       console.error('Error saving read comments:', err);
     }
   }, [readComments]);
+
+  // Auto-hide toast after 4 seconds
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => {
+        setToast({ show: false, message: '', type: '' });
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
 
   // Fetch other users' locations when in My Location tab
   useEffect(() => {
@@ -276,6 +289,32 @@ const UserDashboard = ({ user, logout }) => {
   const getCommentTimeAgo = (timestamp) => {
     if (!timestamp) return "Just now";
     return formatTimeAgo(timestamp);
+  };
+
+  // Get color based on status for consistent visual theme
+  const getProgressColor = (status) => {
+    if (status === 'Completed') return { 
+      bg: 'bg-green-50', 
+      text: 'text-green-700', 
+      badge: 'bg-gradient-to-r from-green-500 to-emerald-600', 
+      border: 'border-green-200',
+      progressBar: 'bg-gradient-to-r from-green-500 to-emerald-600'
+    };
+    if (status === 'In Progress') return { 
+      bg: 'bg-blue-50', 
+      text: 'text-blue-700', 
+      badge: 'bg-gradient-to-r from-blue-500 to-indigo-600', 
+      border: 'border-blue-200',
+      progressBar: 'bg-gradient-to-r from-blue-500 to-indigo-600'
+    };
+    // Pending or other statuses
+    return { 
+      bg: 'bg-orange-50', 
+      text: 'text-orange-700', 
+      badge: 'bg-gradient-to-r from-orange-500 to-amber-600', 
+      border: 'border-orange-200',
+      progressBar: 'bg-gradient-to-r from-orange-500 to-amber-600'
+    };
   };
 
   const formatAuthorName = (email) => {
@@ -3280,7 +3319,7 @@ const renderCommentsModal = () => (
 
   const submitProgressUpdate = async () => {
     if (!capturedPhoto || !taskLocation) {
-      alert("Please capture photo and location before submitting");
+      setToast({ show: true, message: 'Please capture photo and location before submitting', type: 'error' });
       return;
     }
 
@@ -3320,7 +3359,7 @@ const renderCommentsModal = () => (
 
       const data = await response.json();
       if (data.status === 'success') {
-        alert("✅ Progress update submitted successfully!");
+        setToast({ show: true, message: 'Progress update submitted successfully!', type: 'success' });
         setShowPhotoModal(false);
         setCapturedPhoto(null);
         setTaskLocation(null);
@@ -3334,11 +3373,11 @@ const renderCommentsModal = () => (
           cameraVideoRef.current.srcObject.getTracks().forEach(track => track.stop());
         }
       } else {
-        alert("❌ " + (data.message || "Failed to submit progress"));
+        setToast({ show: true, message: data.message || 'Failed to submit progress', type: 'error' });
       }
     } catch (error) {
       console.error('Error submitting progress:', error);
-      alert("Error submitting progress: " + error.message);
+      setToast({ show: true, message: 'Error submitting progress: ' + error.message, type: 'error' });
     }
   };
 
@@ -3735,9 +3774,13 @@ const renderCommentsModal = () => (
           <div className="flex-1 overflow-y-auto p-5">
             {taskProgressList && taskProgressList.length > 0 ? (
               <div className="space-y-4">
-                {taskProgressList.map(progress => {
+                {taskProgressList.map((progress, index) => {
                   const displayName = formatAuthorName(progress.user || progress.email);
                   const displayTime = formatDateTime(progress.time || progress.created_at);
+                  const status = progress.progress_status || 'Pending';
+                  const colors = getProgressColor(status);
+                  const isLatest = index === 0;
+                  
                   return (
                     <button
                       key={progress.id}
@@ -3745,52 +3788,74 @@ const renderCommentsModal = () => (
                         setSelectedProgressUpdate(progress);
                         pushScreen("progressDetail");
                       }}
-                      className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-lg hover:border-blue-300 transition-all text-left"
+                      className={`w-full ${colors.bg} border ${colors.border} rounded-xl p-4 hover:shadow-lg transition-all text-left relative overflow-hidden`}
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar 
-                            userObj={{
-                              name: displayName,
-                              profile_image: progress.profile_image
-                            }} 
-                            size={40} 
-                          />
-                          <div>
-                            <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
-                            <p className="text-xs text-gray-500">{displayTime}</p>
-                          </div>
+                      {/* Left Ribbon */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${colors.badge}`}></div>
+                      
+                      {/* Latest Badge */}
+                      {isLatest && (
+                        <div className="absolute top-2 right-2">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${colors.badge} text-white shadow-sm`}>
+                            Latest
+                          </span>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                          progress.progress_status === 'Completed' ? 'bg-green-100 text-green-700' :
-                          progress.progress_status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {progress.progress_status || 'Pending'}
-                        </span>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="mb-3">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium text-gray-700">Progress</span>
-                          <span className="text-sm font-bold text-blue-600">{progress.progress_percentage || 0}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all"
-                            style={{ width: `${progress.progress_percentage || 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-
-                      {/* Notes Preview */}
-                      {progress.text && (
-                        <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
                       )}
 
-                      <div className="flex items-center justify-end mt-2">
-                        <FiChevronRight size={20} className="text-blue-500" />
+                      <div className="pl-2">
+                        {/* Header with Update Number */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className={`w-2 h-2 rounded-full ${colors.badge}`}></div>
+                          <span className={`text-xs font-semibold ${colors.text}`}>
+                            Update #{taskProgressList.length - index}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar 
+                              userObj={{
+                                name: displayName,
+                                profile_image: progress.profile_image
+                              }} 
+                              size={40} 
+                            />
+                            <div>
+                              <p className="font-semibold text-gray-900">{displayName || 'User'}</p>
+                              <p className="text-xs text-gray-500">{displayTime}</p>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                            status === 'Completed' ? 'bg-green-100 text-green-700' :
+                            status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                            'bg-orange-100 text-orange-700'
+                          }`}>
+                            {status}
+                          </span>
+                        </div>
+
+                        {/* Status-Based Progress Bar */}
+                        <div className="mb-3">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-sm font-medium text-gray-700">Progress</span>
+                            <span className={`text-sm font-bold ${colors.text}`}>{progress.progress_percentage || 0}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div
+                              className={`${colors.progressBar} h-2.5 rounded-full transition-all`}
+                              style={{ width: `${progress.progress_percentage || 0}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        {/* Notes Preview */}
+                        {progress.text && (
+                          <p className="text-sm text-gray-600 line-clamp-2">{progress.text}</p>
+                        )}
+
+                        <div className="flex items-center justify-end mt-2">
+                          <FiChevronRight size={20} className={colors.text} />
+                        </div>
                       </div>
                     </button>
                   );
@@ -4139,6 +4204,36 @@ const renderCommentsModal = () => (
 
       {/* Photo Evidence Modal */}
       {showPhotoModal && renderPhotoEvidenceModal()}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div 
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 rounded-2xl shadow-2xl animate-slide-down flex items-center gap-3 min-w-[300px] max-w-[90%] ${
+            toast.type === 'success' 
+              ? 'bg-green-500 text-white' 
+              : toast.type === 'error' 
+              ? 'bg-red-500 text-white' 
+              : 'bg-blue-500 text-white'
+          }`}
+        >
+          <div className="flex-shrink-0">
+            {toast.type === 'success' ? (
+              <MdCheckCircle size={28} />
+            ) : toast.type === 'error' ? (
+              <MdReportProblem size={28} />
+            ) : (
+              <IoMdNotifications size={28} />
+            )}
+          </div>
+          <p className="flex-1 font-medium text-base">{toast.message}</p>
+          <button
+            onClick={() => setToast({ show: false, message: '', type: '' })}
+            className="flex-shrink-0 p-1 hover:bg-white/20 rounded-full transition-colors"
+          >
+            <IoMdClose size={20} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
