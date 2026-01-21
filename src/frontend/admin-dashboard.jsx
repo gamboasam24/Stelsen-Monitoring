@@ -3094,11 +3094,23 @@ useEffect(() => {
     const isHidden = hiddenEmployees.has(employee.user_id);
     
     const handleCardClick = () => {
+      // Calculate the visible map area accounting for the bottom sheet (65% of screen height)
+      // The map occupies: top (header ~80px) to bottom - (65% sheet height)
+      // Center point should be at the middle of the available map space, not the screen center
+      const viewportHeight = window.innerHeight;
+      const bottomSheetHeight = viewportHeight * 0.65;
+      const availableMapHeight = viewportHeight - bottomSheetHeight - 80; // 80px for top header
+      const mapCenterOffset = availableMapHeight / 2;
+      
+      // This will cause the marker to appear centered in the visible map area
+      // Mapbox will automatically adjust the latitude offset to account for viewport
       setViewState({
         longitude: employee.longitude,
         latitude: employee.latitude,
         zoom: 16,
-        transitionDuration: 800
+        transitionDuration: 800,
+        pitch: 0,
+        bearing: 0
       });
     };
 
@@ -3113,8 +3125,10 @@ useEffect(() => {
         }
         return newSet;
       });
-      // Also center map on this employee
-      handleCardClick();
+      // Also center map on this employee with proper offset
+      setTimeout(() => {
+        handleCardClick();
+      }, 100);
     };
 
     return (
@@ -4581,7 +4595,7 @@ useEffect(() => {
               </div>
 
               {/* Employee Locations Panel */}
-              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-[40%] flex flex-col z-30" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch', touchAction: 'none' }}>
+              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-[45%] flex flex-col z-30" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch', touchAction: 'none' }}>
                 <div className="px-5 pt-5 pb-0 flex-shrink-0">
                   <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
                   <div className="flex justify-between items-center mb-4">

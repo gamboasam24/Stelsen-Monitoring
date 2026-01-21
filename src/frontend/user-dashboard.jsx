@@ -2573,7 +2573,7 @@ const renderCommentsModal = () => (
               </>
             ) : progress?.status === 'In Progress' ? (
               <>
-                <FiLoader className="animate-spin" size={12} />
+                <FiLoader size={12} />
                 In Progress
               </>
             ) : (
@@ -2957,7 +2957,7 @@ const renderCommentsModal = () => (
 
        case "My Location":
         return (
-          <div className="relative h-screen w-full overflow-hidden" style={{ overscrollBehavior: 'none', touchAction: 'pan-x pan-y' }}>
+          <div className="fixed inset-0 w-full h-screen overflow-hidden" style={{ overscrollBehavior: 'contain', touchAction: 'none' }}>
             {/* MAP */}
             <div className="absolute inset-0 overflow-hidden">
               <Map
@@ -3084,16 +3084,16 @@ const renderCommentsModal = () => (
                 </div>
               </div>
 
-              {/* Location History */}
-              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-[40%] flex flex-col z-30" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch', touchAction: 'none' }}>
-                <div className="px-5 pt-5 pb-0 flex-shrink-0">
+              {/* Location History - Bottom Sheet with Isolated Scroll */}
+              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl h-1/2 flex flex-col z-30" style={{ touchAction: 'none', overscrollBehavior: 'contain' }}>
+                <div className="px-5 pt-5 pb-0 flex-shrink-0 pointer-events-auto">
                   <div className="w-16 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-gray-800">Recent Locations</h3>
                     <button className="text-blue-500 text-sm font-medium">View All</button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'none', touchAction: 'pan-y', overscrollBehaviorY: 'none' }}>
+                <div className="flex-1 overflow-y-auto px-5 pb-5 pointer-events-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
                   {locationHistory.length > 0 ? (
                     locationHistory.map(renderLocationHistory)
                   ) : (
@@ -3648,7 +3648,7 @@ const renderCommentsModal = () => (
   const unreadCount = announcements.filter(a => a.unread).length;
 
   return (
-    <div className="min-h-screen pb-20 bg-gray-100 relative">
+    <div className={`min-h-screen ${activeTab === "My Location" ? "overflow-hidden" : "pb-20"} bg-gray-100 relative`}>
       {/* Loading Overlay */}
       {isLoading && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center z-50">
@@ -3712,7 +3712,7 @@ const renderCommentsModal = () => (
 
       {/* Main Content */}
       <div className={`transition-all duration-300 ${(profileOpen || showActionMenu) && isMobile ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
-        <div className="overflow-auto">
+        <div className={activeTab === "My Location" ? "overflow-hidden" : "overflow-auto"}>
           {renderTabContent()}
         </div>
       </div>
