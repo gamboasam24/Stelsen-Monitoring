@@ -146,6 +146,9 @@ const AdminDashboard = ({ user, logout }) => {
   const [taskProgressList, setTaskProgressList] = useState([]);
   const [selectedProgressUpdate, setSelectedProgressUpdate] = useState(null);
   const [isLoadingTaskProgress, setIsLoadingTaskProgress] = useState(false);
+  
+  // Comments expansion state - tracks which projects have expanded comments
+  const [expandedProjectComments, setExpandedProjectComments] = useState({});
 
   // Prevent body scroll when date picker modal is open
   useEffect(() => {
@@ -387,6 +390,48 @@ const AdminDashboard = ({ user, logout }) => {
     const num = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
     if (isNaN(num)) return "₱0";
     return "₱" + num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  };
+
+  // Helper function to group comments by date (for Messenger-style display)
+  const groupCommentsByDate = (comments) => {
+    const groups = {};
+    
+    comments.forEach(comment => {
+      const date = new Date(comment.created_at);
+      const today = new Date();
+      
+      // Reset times to compare dates only
+      today.setHours(0, 0, 0, 0);
+      date.setHours(0, 0, 0, 0);
+      
+      const diffTime = today - date;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      let dateLabel;
+      if (diffDays === 0) {
+        dateLabel = "Today";
+      } else if (diffDays === 1) {
+        dateLabel = "Yesterday";
+      } else if (diffDays < 7) {
+        dateLabel = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+      } else if (diffDays < 30) {
+        const weeks = Math.floor(diffDays / 7);
+        dateLabel = `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
+      } else if (diffDays < 365) {
+        const months = Math.floor(diffDays / 30);
+        dateLabel = `${months} month${months !== 1 ? 's' : ''} ago`;
+      } else {
+        const years = Math.floor(diffDays / 365);
+        dateLabel = `${years} year${years !== 1 ? 's' : ''} ago`;
+      }
+      
+      if (!groups[dateLabel]) {
+        groups[dateLabel] = [];
+      }
+      groups[dateLabel].push(comment);
+    });
+    
+    return groups;
   };
 
   // Treat tasks as new for 3 days from start date; if no date, assume new when progress is 0
@@ -2269,203 +2314,218 @@ useEffect(() => {
       {/* Messenger Chat Area */}
     <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4">
       <div className="max-w-3xl mx-auto space-y-1">
-        {/* Date Separator */}
-        <div className="flex justify-center my-6">
-          <div className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
-            {(() => {
-              if (!selectedProject?.comments || selectedProject.comments.length === 0) {
-                return "Today";
-              }
-              
-              // Get the earliest comment date
-              const oldestComment = selectedProject.comments.reduce((oldest, current) => {
-                const oldestDate = new Date(oldest.created_at);
-                const currentDate = new Date(current.created_at);
-                return currentDate < oldestDate ? current : oldest;
-              });
-              
-              const commentDate = new Date(oldestComment.created_at);
-              const today = new Date();
-              
-              // Reset times to compare dates only
-              today.setHours(0, 0, 0, 0);
-              commentDate.setHours(0, 0, 0, 0);
-              
-              const diffTime = today - commentDate;
-              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-              
-              if (diffDays === 0) {
-                return "Today";
-              } else if (diffDays === 1) {
-                return "Yesterday";
-              } else if (diffDays < 7) {
-                return `${diffDays} days ago`;
-              } else if (diffDays < 30) {
-                const weeks = Math.floor(diffDays / 7);
-                return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
-              } else if (diffDays < 365) {
-                const months = Math.floor(diffDays / 30);
-                return `${months} month${months !== 1 ? 's' : ''} ago`;
-              } else {
-                const years = Math.floor(diffDays / 365);
-                return `${years} year${years !== 1 ? 's' : ''} ago`;
-              }
-            })()}
-          </div>
-        </div>
-        
         {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
           <>
-            {/* Previous comments indicator */}
-            <div className="text-center my-4">
-              <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                View previous comments
-              </button>
-            </div>
-
-            {/* Comments */}
-            {selectedProject.comments.map((comment, idx) => {
-              const isCurrentUser = comment.email === currentUser?.email;
-              const commentUser = isCurrentUser ? currentUser : users.find(u => u.email === comment.email);
+            {/* Group comments by date and render with Messenger-style separators */}
+            {(() => {
+              const groupedComments = groupCommentsByDate(selectedProject.comments);
+              const dateLabels = Object.keys(groupedComments);
               
-              // Check if previous comment is from the same user
-              const previousComment = idx > 0 ? selectedProject.comments[idx - 1] : null;
-              const previousUserEmail = previousComment?.email;
-              const showUserLabel = previousUserEmail !== comment.email;
+              // Check if we should show the "View Previous" button
+              // Only show if there are more than 3 dates
+              const isExpanded = expandedProjectComments[selectedProject.id] || false;
+              const shouldShowViewPrevious = dateLabels.length > 3;
               
-              // Render Progress Approval Card for progress comments
-              if (comment.comment_type === 'progress' && comment.progress) {
-                return (
-                  <div key={comment.id} className="flex justify-start mb-4">
-                    <div className="flex max-w-[90%]">
-                      <div className="flex-shrink-0 mr-2 self-start mt-2">
-                        <Avatar 
-                          user={{
-                            ...commentUser,
-                            profile_image: comment.profile_image || commentUser?.profile_image
-                          }} 
-                          size={32} 
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
-                          {comment.user || "User"}
-                        </span>
-                        <ProgressApprovalCard
-                          comment={comment}
-                          onApprove={handleApproveProgress}
-                          onReject={handleRejectProgress}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
+              // Determine how many date groups to show
+              let visibleDateLabels = dateLabels;
+              if (shouldShowViewPrevious && !isExpanded) {
+                // Show only the most recent dates
+                visibleDateLabels = dateLabels.slice(-3);
               }
               
-              // Regular text/attachment messages
-              return (
-                <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-1`}>
-                  <div className={`flex max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
-                    {!isCurrentUser && (
-                      <div className="flex-shrink-0 mr-2 self-end">
-                        <Avatar 
-                          user={{
-                            ...commentUser,
-                            profile_image: comment.profile_image || commentUser?.profile_image
-                          }} 
-                          size={28} 
-                        />
-                      </div>
-                    )}
+              return visibleDateLabels.map((dateLabel, dateIdx) => (
+                <div key={dateLabel}>
+                  {/* Date separator */}
+                  {dateIdx > 0 && (
+                    <div className="flex items-center my-6">
+                      <div className="flex-1 border-t border-gray-300"></div>
+                      <span className="mx-3 text-xs text-gray-600 font-medium">{dateLabel}</span>
+                      <div className="flex-1 border-t border-gray-300"></div>
+                    </div>
+                  )}
+                  {dateIdx === 0 && dateLabels.length > 1 && (
+                    <div className="flex items-center my-6">
+                      <div className="flex-1 border-t border-gray-300"></div>
+                      <span className="mx-3 text-xs text-gray-600 font-medium">{dateLabel}</span>
+                      <div className="flex-1 border-t border-gray-300"></div>
+                    </div>
+                  )}
+                  
+                  {/* Comments for this date */}
+                  {groupedComments[dateLabel].map((comment, idx) => {
+                    const isCurrentUser = comment.email === currentUser?.email;
+                    const commentUser = isCurrentUser ? currentUser : users.find(u => u.email === comment.email);
                     
-                    <div className={`flex flex-col ${isCurrentUser ? 'items-end' : ''}`}>
-                      {!isCurrentUser && showUserLabel && (
-                        <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
-                          {comment.user || "User"}
-                        </span>
-                      )}
-                      
-                      {/* Text message with bubble */}
-                      {comment.text && (
-                        <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
-                          isCurrentUser 
-                            ? 'bg-blue-500 text-white rounded-br-sm' 
-                            : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
-                        }`}>
-                          {/* Messenger-style tail */}
-                          {!isCurrentUser ? (
-                            <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                              <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
+                    // Check if previous comment is from the same user
+                    const previousComment = idx > 0 ? groupedComments[dateLabel][idx - 1] : null;
+                    const previousUserEmail = previousComment?.email;
+                    const showUserLabel = previousUserEmail !== comment.email;
+                    
+                    // Render Progress Approval Card for progress comments
+                    if (comment.comment_type === 'progress' && comment.progress) {
+                      return (
+                        <div key={comment.id} className="flex justify-start mb-4">
+                          <div className="flex max-w-[90%]">
+                            <div className="flex-shrink-0 mr-2 self-start mt-2">
+                              <Avatar 
+                                user={{
+                                  ...commentUser,
+                                  profile_image: comment.profile_image || commentUser?.profile_image
+                                }} 
+                                size={32} 
+                              />
                             </div>
-                          ) : (
-                            <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                              <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
+                            <div className="flex flex-col">
+                              {showUserLabel && (
+                                <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
+                                  {comment.user || "User"}
+                                </span>
+                              )}
+                              <ProgressApprovalCard
+                                comment={comment}
+                                onApprove={handleApproveProgress}
+                                onReject={handleRejectProgress}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Regular text/attachment messages
+                    return (
+                      <div key={comment.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-1`}>
+                        <div className={`flex max-w-[80%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                          {!isCurrentUser && (
+                            <div className="flex-shrink-0 mr-2 self-end">
+                              <Avatar 
+                                user={{
+                                  ...commentUser,
+                                  profile_image: comment.profile_image || commentUser?.profile_image
+                                }} 
+                                size={28} 
+                              />
                             </div>
                           )}
                           
-                          <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-                            {comment.text}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {/* Images and attachments - NO bubble, Messenger style */}
-                      {comment.attachments && comment.attachments.length > 0 && (
-                        <div className={`space-y-2 ${comment.text ? 'mt-2' : ''} max-w-[280px]`}>
-                          {comment.attachments.map((att, idx) => {
-                            const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
+                          <div className={`flex flex-col ${isCurrentUser ? 'items-end' : ''}`}>
+                            {!isCurrentUser && showUserLabel && (
+                              <span className="text-xs text-gray-600 font-medium mb-1 ml-1">
+                                {comment.user || "User"}
+                              </span>
+                            )}
                             
-                            return isImage ? (
-                              <div key={idx} className="rounded-2xl overflow-hidden shadow-md">
-                                <img
-                                  src={att.path}
-                                  alt={att.name}
-                                  className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                  onClick={() => window.open(att.path, '_blank')}
-                                />
-                              </div>
-                            ) : (
-                              <div key={idx} className={`relative rounded-2xl px-4 py-2 ${
+                            {/* Text message with bubble */}
+                            {comment.text && (
+                              <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
                                 isCurrentUser 
                                   ? 'bg-blue-500 text-white rounded-br-sm' 
                                   : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
                               }`}>
-                                <a
-                                  href={att.path || att.data}
-                                  download={att.name}
-                                  className="flex items-center text-sm"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <FiPaperclip size={16} className="mr-2 flex-shrink-0" />
-                                  <span className="truncate flex-1">{att.name}</span>
-                                  <span className="text-xs opacity-75 ml-2">
-                                    {(att.size / 1024).toFixed(1)}KB
-                                  </span>
-                                </a>
+                                {/* Messenger-style tail */}
+                                {!isCurrentUser ? (
+                                  <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                                    <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
+                                  </div>
+                                ) : (
+                                  <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                                    <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
+                                  </div>
+                                )}
+                                
+                                <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                                  {comment.text}
+                                </p>
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      
-                      <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                        <span className="text-[10px] text-gray-400 mr-2">
-                          {comment.time}
-                        </span>
-                        {isCurrentUser && (
-                          <div className="text-blue-500">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-                              <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
-                            </svg>
+                            )}
+                            
+                            {/* Images and attachments - NO bubble, Messenger style */}
+                            {comment.attachments && comment.attachments.length > 0 && (
+                              <div className={`space-y-2 ${comment.text ? 'mt-2' : ''} max-w-[280px]`}>
+                                {comment.attachments.map((att, idx) => {
+                                  const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
+                                  
+                                  return isImage ? (
+                                    <div key={idx} className="rounded-2xl overflow-hidden shadow-md">
+                                      <img
+                                        src={att.path}
+                                        alt={att.name}
+                                        className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                        onClick={() => window.open(att.path, '_blank')}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div key={idx} className={`relative rounded-2xl px-4 py-2 ${
+                                      isCurrentUser 
+                                        ? 'bg-blue-500 text-white rounded-br-sm' 
+                                        : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
+                                    }`}>
+                                      <a
+                                        href={att.path || att.data}
+                                        download={att.name}
+                                        className="flex items-center text-sm"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <FiPaperclip size={16} className="mr-2 flex-shrink-0" />
+                                        <span className="truncate flex-1">{att.name}</span>
+                                        <span className="text-xs opacity-75 ml-2">
+                                          {(att.size / 1024).toFixed(1)}KB
+                                        </span>
+                                      </a>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            
+                            <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                              <span className="text-[10px] text-gray-400 mr-2">
+                                {comment.time}
+                              </span>
+                              {isCurrentUser && (
+                                <div className="text-blue-500">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })}
+                </div>
+              ));
+            })()}
+            
+            {/* View Previous Comments Button - Only show if collapsed and there are hidden comments */}
+            {(() => {
+              const groupedComments = groupCommentsByDate(selectedProject.comments);
+              const dateLabels = Object.keys(groupedComments);
+              const shouldShowViewPrevious = dateLabels.length > 3;
+              const isExpanded = expandedProjectComments[selectedProject.id] || false;
+              
+              return shouldShowViewPrevious && !isExpanded && (
+                <div className="flex justify-center my-6">
+                  <button
+                    onClick={() => {
+                      setExpandedProjectComments({
+                        ...expandedProjectComments,
+                        [selectedProject.id]: true
+                      });
+                    }}
+                    className="flex items-center text-xs text-blue-600 hover:text-blue-700 font-medium px-4 py-2 rounded-full hover:bg-blue-50 transition-colors"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4" />
+                    </svg>
+                    View {dateLabels.length - 3} previous day{dateLabels.length - 3 !== 1 ? 's' : ''} of comments
+                  </button>
                 </div>
               );
-            })}
+            })()}
           </>
         ) : (
           // Empty state with Messenger-style design
@@ -2800,7 +2860,6 @@ useEffect(() => {
               <option value="pending">Pending</option>
               <option value="ongoing">Ongoing</option>
               <option value="scheduled">Scheduled</option>
-              <option value="completed">Completed</option>
             </select>
           </div>
 
