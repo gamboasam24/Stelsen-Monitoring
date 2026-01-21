@@ -785,31 +785,28 @@ const handleBudgetChange = (e) => {
    return (
   <div className="max-w-[320px] bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
     {/* Header */}
-    <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
-      <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
+        <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-sm">
-            <div className="relative">
-              <div className="absolute inset-0 bg-white/30 rounded-full animate-ping opacity-75"></div>
-              <FiBarChart2 className="text-white" size={20} />
-            </div>
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+          <img src="/img/stelsenlogo.png" alt="Stelsen" className="w-8 h-8 object-contain" />
           </div>
           <div>
-            <div className="font-semibold text-sm flex items-center gap-1">
-              <FiBarChart className="opacity-90" size={14} />
-              Progress Update
-            </div>
-            <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
-              <FiPercent size={12} className="opacity-80" />
-              {comment.progress?.percentage || 0}% Complete
-            </div>
+          <div className="font-semibold text-sm flex items-center gap-1">
+            <FiBarChart className="opacity-90" size={14} />
+            Progress Update
+          </div>
+          <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
+            <FiPercent size={12} className="opacity-80" />
+            {comment.progress?.percentage || 0}% Complete
+          </div>
           </div>
         </div>
         
+        </div>
       </div>
-    </div>
 
-    {/* Evidence Photo */}
+      {/* Evidence Photo */}
     {comment.progress?.photo && (
       <div className="relative group">
         <img
