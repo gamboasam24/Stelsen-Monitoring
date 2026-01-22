@@ -727,7 +727,7 @@ const formatTimeAgo = (dateString) => {
   const filteredAnnouncements = announcements.filter(ann => {
     if (selectedFilter === "unread") return ann.unread;
     if (selectedFilter === "important") return ann.important;
-    if (selectedFilter === "pinned") return ann.pinned;
+    if (selectedFilter === "pinned") return ann.is_pinned;
     if (selectedFilter === "all") return true;
     return true;
   }).filter(ann => {
@@ -1215,8 +1215,8 @@ const markAsRead = async (id) => {
         return;
       }
       setAnnouncements(prev => {
-        const updated = prev.map(a => a.id === id ? { ...a, pinned: nextPinned } : a);
-        return [...updated].sort((a, b) => (b.pinned - a.pinned));
+        const updated = prev.map(a => a.id === id ? { ...a, is_pinned: nextPinned } : a);
+        return [...updated].sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned));
       });
     } catch (err) {
       console.error("Toggle pin error:", err);
@@ -2079,9 +2079,9 @@ useEffect(() => {
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
           )}
           <button 
-            onClick={() => togglePin(announcement.id, !announcement.pinned)}
-            className={(announcement.pinned ? "text-red-500" : "text-gray-400") + " hover:text-yellow-600"}
-            title={announcement.pinned ? "Unpin" : "Pin"}
+            onClick={() => togglePin(announcement.id, !announcement.is_pinned)}
+            className={(announcement.is_pinned ? "text-red-500" : "text-gray-400") + " hover:text-yellow-600"}
+            title={announcement.is_pinned ? "Unpin" : "Pin"}
           >
             <MdPushPin size={18} />
           </button>
@@ -3624,18 +3624,15 @@ useEffect(() => {
                        <FiChevronRight size={16} className={`transition-transform ${showAnnouncementFilterMenu ? 'rotate-90' : ''}`} />
                     </button>
 
-                    {/* Backdrop Overlay */}
+                    {/* Dropdown and Backdrop Overlay - fixed and sibling for full coverage */}
                     {showAnnouncementFilterMenu && (
-                      <div 
-                        className="fixed inset-0 bg-black/30 z-40"
-                        onClick={() => setShowAnnouncementFilterMenu(false)}
-                      ></div>
-                    )}
-
-                    {/* Dropdown Menu */}
-                    {showAnnouncementFilterMenu && (
-                      <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden animate-slide-up">
-                        <button
+                      <>
+                        <div 
+                          className="fixed inset-0 bg-black/30 z-40"
+                          onClick={() => setShowAnnouncementFilterMenu(false)}
+                        ></div>
+                        <div className="fixed top-[110px] right-6 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden animate-slide-up">
+                          <button
                           onClick={() => {
                             setSelectedFilter("unread");
                             setShowAnnouncementFilterMenu(false);
@@ -3714,7 +3711,8 @@ useEffect(() => {
                           <span>Mark all as read</span>
                         </button>
                       </div>
-                    )}
+                    </>
+                  )}
                 </div>
               </div>
               
