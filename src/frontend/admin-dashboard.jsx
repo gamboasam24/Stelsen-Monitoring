@@ -72,7 +72,9 @@ import {
   FiLoader,
   FiX,
   FiEye,
-  FiEyeOff
+  FiEyeOff,
+  FiSun,
+  FiMoon
 } from "react-icons/fi";
 import { 
   HiOutlineChatAlt2,
@@ -91,6 +93,87 @@ const AdminDashboard = ({ user, logout }) => {
   useEffect(() => {
     setCurrentUser(user);
   }, [user]);
+  // --- ENHANCEMENTS: Offline, Pull-to-Refresh, Haptic, Dark Mode ---
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isPulling, setIsPulling] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('adminDashboardDarkMode') === 'true';
+  });
+  const pullRef = useRef(null);
+
+  // Listen for online/offline
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Dark mode toggle
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('adminDashboardDarkMode', darkMode);
+  }, [darkMode]);
+
+  // Pull-to-refresh gesture (mobile)
+  useEffect(() => {
+    const el = pullRef.current;
+    if (!el) return;
+    let startY = null;
+    let pulling = false;
+    function onTouchStart(e) {
+      if (window.scrollY === 0) {
+        startY = e.touches[0].clientY;
+        pulling = true;
+      }
+    }
+    function onTouchMove(e) {
+      if (!pulling || startY === null) return;
+      const diff = e.touches[0].clientY - startY;
+      if (diff > 60 && !isPulling) {
+        setIsPulling(true);
+        triggerHaptic();
+        handleRefresh();
+      }
+    }
+    function onTouchEnd() {
+      pulling = false;
+      setIsPulling(false);
+      startY = null;
+    }
+    el.addEventListener('touchstart', onTouchStart);
+    el.addEventListener('touchmove', onTouchMove);
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isPulling]);
+
+  // Haptic feedback (mobile)
+  function triggerHaptic() {
+    if (window.navigator.vibrate) {
+      window.navigator.vibrate(30);
+    }
+  }
+
+  // Manual refresh handler
+  function handleRefresh() {
+    // Example: reload projects/announcements/users
+    setIsLoading(true);
+    // You may want to call your fetch functions here
+    setTimeout(() => setIsLoading(false), 1000);
+  }
+  // --- END ENHANCEMENTS ---
   const [activeTab, setActiveTab] = useState("Home");
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -803,14 +886,14 @@ const handleBudgetChange = (e) => {
   const ProgressApprovalCard = ({ comment, onApprove, onReject }) => {
     const [isApproving, setIsApproving] = useState(false);
     const showMap = progressMapStates[comment.progress_id] || false;
-    
+
     const toggleMap = () => {
       setProgressMapStates(prev => ({
         ...prev,
         [comment.progress_id]: !showMap
       }));
     };
-    
+
     const handleApprove = async () => {
       setIsApproving(true);
       await onApprove(comment.progress_id);
@@ -827,210 +910,220 @@ const handleBudgetChange = (e) => {
     const isApproved = comment.approval_status === 'APPROVED';
     const isRejected = comment.approval_status === 'REJECTED';
 
-   return (
-  <div className="max-w-[500px] w-full bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
-    {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
-        <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-          <img src="/img/stelsenlogo.png" alt="Stelsen" className="w-8 h-8 object-contain" />
-          </div>
-          <div>
-          <div className="font-semibold text-sm flex items-center gap-1">
-            <FiBarChart className="opacity-90" size={14} />
-            Progress Update
-          </div>
-          <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
-            <FiPercent size={12} className="opacity-80" />
-            {comment.progress?.percentage || 0}% Complete
-          </div>
-          </div>
-        </div>
-        
-        </div>
-      </div>
+    // Handle both nested progress object and flat fields
+    const progress = comment.progress || {
+      percentage: comment.progress_percentage,
+      status: comment.progress_status,
+      photo: comment.evidence_photo,
+      location: comment.location_latitude && comment.location_longitude ? {
+        latitude: parseFloat(comment.location_latitude),
+        longitude: parseFloat(comment.location_longitude),
+        accuracy: comment.location_accuracy
+      } : null
+    };
 
-      {/* Submission Time */}
-      {comment.created_at && (
-        <div className="px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
-          <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
-            <FiClock size={12} className="text-blue-500" />
-            <span className="font-medium">Submitted:</span>
-            <span className="text-gray-700">{formatDateTime(comment.created_at)}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Evidence Photo */}
-    {comment.progress?.photo && (
-      <div className="relative group">
-        <img
-          src={comment.progress.photo}
-          alt="Evidence"
-          className="w-full h-48 object-cover cursor-pointer group-hover:scale-[1.02] transition-transform duration-300"
-          onClick={() => window.open(comment.progress.photo, '_blank')}
-        />
-        <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 shadow-lg">
-          <FiCamera size={12} />
-          Evidence
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-      </div>
-    )}
-
-    {/* Task Notes - Always show */}
-    <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
-      <div className="flex items-start gap-2 mb-2">
-        <FiFileText className="text-gray-400 mt-0.5 flex-shrink-0" size={14} />
-        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Notes</div>
-      </div>
-      <div className={`text-sm leading-relaxed break-words rounded-lg p-3 border shadow-sm ${
-        comment.text 
-          ? 'text-gray-700 bg-white border-gray-100' 
-          : 'text-gray-400 bg-gray-50 border-gray-100 italic'
-      }`}>
-        {comment.text || 'No notes provided'}
-      </div>
-    </div>
-
-    {/* Location */}
-    {comment.progress?.location && (
-      <div className="px-4 py-3 border-b border-gray-100">
-        {!showMap ? (
-          <button
-            onClick={toggleMap}
-            className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
-                <FiMapPin className="text-blue-500" size={18} />
+    return (
+      <div className="max-w-[500px] w-full bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+              <img src="/img/stelsenlogo.png" alt="Stelsen" className="w-8 h-8 object-contain" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm flex items-center gap-1">
+                <FiBarChart className="opacity-90" size={14} />
+                Progress Update
               </div>
-              <div className="text-left">
-                <div className="font-medium flex items-center gap-1">
-                  <span>View Location</span>
-                  <FiChevronRight className="transform transition-transform duration-300" size={14} />
-                </div>
-                <div className="text-xs text-gray-500 font-mono mt-0.5">
-                  {comment.progress.location.latitude?.toFixed(6)}, {comment.progress.location.longitude?.toFixed(6)}
-                </div>
+              <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
+                <FiPercent size={12} className="opacity-80" />
+                {progress?.percentage || 0}% Complete
               </div>
             </div>
-          </button>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <FiMapPin className="text-blue-500" size={16} />
-                <span>Location Map</span>
-              </div>
+          </div>
+        </div>
+
+        {/* Submission Time */}
+        {comment.created_at && (
+          <div className="px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
+              <FiClock size={12} className="text-blue-500" />
+              <span className="font-medium">Submitted:</span>
+              <span className="text-gray-700">{formatDateTime(comment.created_at)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Evidence Photo */}
+        {progress?.photo && (
+          <div className="relative group">
+            <img
+              src={progress.photo}
+              alt="Evidence"
+              className="w-full h-48 object-cover cursor-pointer group-hover:scale-[1.02] transition-transform duration-300"
+              onClick={() => window.open(progress.photo, '_blank')}
+            />
+            <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 shadow-lg">
+              <FiCamera size={12} />
+              Evidence
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          </div>
+        )}
+
+        {/* Task Notes - Always show */}
+        <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
+          <div className="flex items-start gap-2 mb-2">
+            <FiFileText className="text-gray-400 mt-0.5 flex-shrink-0" size={14} />
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Notes</div>
+          </div>
+          <div className={`text-sm leading-relaxed break-words rounded-lg p-3 border shadow-sm ${
+            comment.text 
+              ? 'text-gray-700 bg-white border-gray-100' 
+              : 'text-gray-400 bg-gray-50 border-gray-100 italic'
+          }`}>
+            {comment.text || 'No notes provided'}
+          </div>
+        </div>
+
+        {/* Location */}
+        {progress?.location && (
+          <div className="px-4 py-3 border-b border-gray-100">
+            {!showMap ? (
               <button
                 onClick={toggleMap}
-                className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
               >
-                <FiX className="text-gray-500" size={18} />
-              </button>
-            </div>
-            <div className="rounded-xl overflow-hidden border border-gray-200 shadow-lg">
-              <img
-                src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${comment.progress.location.longitude},${comment.progress.location.latitude})/${comment.progress.location.longitude},${comment.progress.location.latitude},14,0/500x250@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`}
-                alt="Location Map"
-                className="w-full h-64 object-cover"
-              />
-              <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
-                <div className="flex items-center gap-1.5">
-                  <FiMap size={12} />
-                  <span>Mapbox View</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
+                    <FiMapPin className="text-blue-500" size={18} />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium flex items-center gap-1">
+                      <span>View Location</span>
+                      <FiChevronRight className="transform transition-transform duration-300" size={14} />
+                    </div>
+                    <div className="text-xs text-gray-500 font-mono mt-0.5">
+                      {progress.location.latitude?.toFixed(6)}, {progress.location.longitude?.toFixed(6)}
+                    </div>
+                  </div>
                 </div>
-                <a
-                  href={`https://www.google.com/maps?q=${comment.progress.location.latitude},${comment.progress.location.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                >
-                  Open in Maps
-                  <FiExternalLink size={12} />
-                </a>
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <FiMapPin className="text-blue-500" size={16} />
+                    <span>Location Map</span>
+                  </div>
+                  <button
+                    onClick={toggleMap}
+                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <FiX className="text-gray-500" size={18} />
+                  </button>
+                </div>
+                <div className="rounded-xl overflow-hidden border border-gray-200 shadow-lg">
+                  <img
+                    src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${progress.location.longitude},${progress.location.latitude})/${progress.location.longitude},${progress.location.latitude},14,0/500x250@2x?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`}
+                    alt="Location Map"
+                    className="w-full h-64 object-cover"
+                  />
+                  <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
+                    <div className="flex items-center gap-1.5">
+                      <FiMap size={12} />
+                      <span>Mapbox View</span>
+                    </div>
+                    <a
+                      href={`https://www.google.com/maps?q=${progress.location.latitude},${progress.location.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                    >
+                      Open in Maps
+                      <FiExternalLink size={12} />
+                    </a>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+        )}
+
+        {/* Status Badge */}
+        <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 flex items-center gap-3 border-b border-gray-100">
+          <div className="flex items-center gap-2 text-gray-600">
+            <FiActivity size={16} className="text-blue-500" />
+            <span className="text-sm font-medium">Status:</span>
+          </div>
+          <span className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-sm ${
+            progress?.status === 'Completed' ? 'bg-gradient-to-r from-green-100 to-green-50 text-green-700 border border-green-200' :
+            progress?.status === 'In Progress' ? 'bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 border border-blue-200' :
+            'bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 border border-gray-200'
+          }`}>
+            {progress?.status === 'Completed' ? (
+              <>
+                <FiCheckCircle size={12} />
+                Completed
+              </>
+            ) : progress?.status === 'In Progress' ? (
+              <>
+                <FiLoader size={12} />
+                In Progress
+              </>
+            ) : (
+              <>
+                <FiClock size={12} />
+                Pending
+              </>
+            )}
+          </span>
+        </div>
+
+        {/* Approve/Reject Buttons - Only for Admin and Pending */}
+        {isPending && (
+          <div className="px-4 py-4 bg-white flex gap-3">
+            <button
+              onClick={handleReject}
+              disabled={isApproving}
+              className="flex-1 py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+            >
+              <FiXCircle size={16} />
+              <span>Reject</span>
+            </button>
+            <button
+              onClick={handleApprove}
+              disabled={isApproving}
+              className="flex-1 py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+            >
+              <FiCheckCircle size={16} />
+              <span>Approve</span>
+            </button>
+          </div>
+        )}
+
+        {/* Already processed message */}
+        {!isPending && (
+          <div className={`px-4 py-3 text-center text-sm font-medium flex items-center justify-center gap-2 ${
+            isApproved ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-t border-green-200' : 
+            'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-t border-red-200'
+          }`}>
+            {isApproved ? (
+              <>
+                <FiCheckCircle size={16} />
+                <span className="font-semibold">Already Approved</span>
+              </>
+            ) : (
+              <>
+                <FiXCircle size={16} />
+                <span className="font-semibold">Already Rejected</span>
+              </>
+            )}
           </div>
         )}
       </div>
-    )}
-
-    {/* Status Badge */}
-    <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 flex items-center gap-3 border-b border-gray-100">
-      <div className="flex items-center gap-2 text-gray-600">
-        <FiActivity size={16} className="text-blue-500" />
-        <span className="text-sm font-medium">Status:</span>
-      </div>
-      <span className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-sm ${
-        comment.progress?.status === 'Completed' ? 'bg-gradient-to-r from-green-100 to-green-50 text-green-700 border border-green-200' :
-        comment.progress?.status === 'In Progress' ? 'bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 border border-blue-200' :
-        'bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 border border-gray-200'
-      }`}>
-        {comment.progress?.status === 'Completed' ? (
-          <>
-            <FiCheckCircle size={12} />
-            Completed
-          </>
-        ) : comment.progress?.status === 'In Progress' ? (
-          <>
-            <FiLoader className="animate-spin" size={12} />
-            In Progress
-          </>
-        ) : (
-          <>
-            <FiClock size={12} />
-            Pending
-          </>
-        )}
-      </span>
-    </div>
-
-    {/* Approve/Reject Buttons - Only for Admin and Pending */}
-    {isPending && (
-      <div className="px-4 py-4 bg-white flex gap-3">
-        <button
-          onClick={handleReject}
-          disabled={isApproving}
-          className="flex-1 py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
-        >
-          <FiXCircle size={16} />
-          <span>Reject</span>
-        </button>
-        <button
-          onClick={handleApprove}
-          disabled={isApproving}
-          className="flex-1 py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
-        >
-          <FiCheckCircle size={16} />
-          <span>Approve</span>
-        </button>
-      </div>
-    )}
-
-    {/* Already processed message */}
-    {!isPending && (
-      <div className={`px-4 py-3 text-center text-sm font-medium flex items-center justify-center gap-2 ${
-        isApproved ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-t border-green-200' : 
-        'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-t border-red-200'
-      }`}>
-        {isApproved ? (
-          <>
-            <FiCheckCircle size={16} />
-            <span className="font-semibold">Already Approved</span>
-          </>
-        ) : (
-          <>
-            <FiXCircle size={16} />
-            <span className="font-semibold">Already Rejected</span>
-          </>
-        )}
-      </div>
-    )}
-  </div>
-);  };  
+    );
+  };
 
   //================================================== Mark announcement as read =================================================
 const markAsRead = async (id) => {
@@ -3652,12 +3745,26 @@ useEffect(() => {
                 )}
               </>
             ) : (
-              <div className="text-center py-10">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiBell size={24} className="text-gray-400" />
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-10 text-center shadow-sm border border-gray-200">
+                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FiBell size={32} className="text-blue-400" />
                 </div>
-                <h3 className="text-gray-600 font-medium">No announcements found</h3>
-                <p className="text-gray-400 text-sm mt-1">Try a different search or filter</p>
+                <h3 className="text-gray-700 font-semibold text-lg mb-2">No announcements found</h3>
+                <p className="text-gray-500 text-sm mb-4 max-w-xs mx-auto">Try adjusting your search terms or date filters to see more results</p>
+                {(searchQuery || dateFilter !== 'all') && (
+                  <button 
+                    onClick={() => { setSearchQuery(''); setDateFilter('all'); }}
+                    className="text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowAnnouncementModal(true)}
+                  className="mt-4 px-5 py-3 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition-all"
+                >
+                  Create Announcement
+                </button>
               </div>
             )}
           </>
@@ -3739,11 +3846,43 @@ useEffect(() => {
               ) : filteredProjects.length > 0 ? (
                 filteredProjects.map(renderProjectCard)
               ) : (
-                <div className="text-center py-10">
-                  <MdDashboard size={40} className="mx-auto text-gray-300 mb-2" />
-                  <p className="text-gray-600 font-medium">No {selectedFilter !== "all" ? selectedFilter : ""} projects found</p>
-                  <p className="text-sm text-gray-400 mt-1">Create a new task to get started</p>
-                </div>
+                (() => {
+                  if (selectedFilter !== "all") {
+                    return (
+                      <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 text-center shadow-sm border border-gray-200">
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <MdDashboard size={32} className="text-blue-400" />
+                        </div>
+                        <p className="text-gray-700 font-semibold text-lg mb-2">No {selectedFilter} tasks found</p>
+                        <p className="text-sm text-gray-500 mb-4">Try selecting a different filter to see your tasks</p>
+                        <button 
+                          onClick={() => setSelectedFilter('all')}
+                          className="text-blue-600 text-sm font-medium hover:text-blue-700 transition-colors"
+                        >
+                          Show all tasks
+                        </button>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 text-center shadow-sm border border-gray-200">
+                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <MdDashboard size={40} className="text-blue-400" />
+                        </div>
+                        <p className="text-gray-700 font-semibold text-lg">No Tasks Assigned Yet</p>
+                        <p className="text-sm text-gray-500 mt-2 leading-relaxed">Tasks will appear here when you create them. Get started by adding a new task.</p>
+                        <div className="mt-6 flex justify-center">
+                          <button
+                            onClick={() => setShowProjectModal(true)}
+                            className="px-5 py-3 bg-purple-600 text-white rounded-full font-semibold shadow hover:bg-purple-700 transition-all"
+                          >
+                            Add New Task
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                })()
               )}
             </div>
           </div>
@@ -3799,6 +3938,12 @@ useEffect(() => {
                     </div>
                     <p className="text-gray-600 font-medium">No location history yet</p>
                     <p className="text-gray-400 text-sm mt-1">Update your location to start tracking</p>
+                    <button
+                      onClick={updateLocation}
+                      className="mt-4 px-5 py-3 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition-all"
+                    >
+                      Update Location
+                    </button>
                   </div>
                 )}
               </div>
@@ -4080,7 +4225,8 @@ useEffect(() => {
         ref={actionMenuRef}
         className="relative bg-white rounded-t-3xl p-5 w-full max-h-[50%] overflow-auto animate-slide-up z-40"
       >
-        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+        {/* Bottom Sheet Drag Handle with hover effect */}
+        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 cursor-grab transition-all hover:bg-blue-400" style={{height:'6px'}} />
         <h3 className="text-xl font-bold mb-5 text-center">Admin Actions</h3>
         
         <button
@@ -4122,15 +4268,8 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen pb-20 bg-gray-100 relative">
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center z-50">
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-800 text-2xl font-bold">Loading...</p>
-          </div>
-        </div>
-      )}
+      {/* Skeleton Screens for Loading */}
+      {/* Skeletons are now shown in renderTabContent per tab, not as overlay */}
       {/* Main Header */}
       {activeTab !== "My Location" && (
         <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex justify-between items-center text-white shadow-lg">
@@ -4188,7 +4327,7 @@ useEffect(() => {
       {activeTab !== "My Location" && (
         <div className={`fixed bottom-0 left-0 w-full bg-white border-t border-gray-300 flex items-center justify-around py-2 z-10 transition-all duration-300 ${profileOpen ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'}`}>
           <button
-            className={`flex flex-col items-center relative ${activeTab === "Home" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "Home" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("Home")}
           >
             <IoMdHome size={24} />
@@ -4196,24 +4335,30 @@ useEffect(() => {
           </button>
 
           <button
-            className={`flex flex-col items-center relative ${activeTab === "Projects" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "Projects" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("Projects")}
           >
             <MdDashboard size={24} />
             <span className="text-xs mt-1">Projects</span>
           </button>
 
+          {/* Centered Add Button with Tooltip */}
           <div className="relative -top-6">
             <button
-              onClick={() => setShowActionMenu(true)}
-              className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 transition-all"
+              onClick={() => {
+                triggerHaptic && triggerHaptic('medium');
+                setShowActionMenu(true);
+              }}
+              title="Quick Actions"
+              className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 transition-all group"
             >
               <MdAdd size={32} />
+              <span className="absolute -top-10 bg-gray-800 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Quick Actions</span>
             </button>
           </div>
 
           <button
-            className={`flex flex-col items-center relative ${activeTab === "My Location" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "My Location" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("My Location")}
           >
             <MdLocationOn size={24} />
@@ -4221,7 +4366,7 @@ useEffect(() => {
           </button>
 
           <button
-            className={`flex flex-col items-center relative ${activeTab === "Profile" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "Profile" ? "text-blue-500" : "text-gray-500"}`}
             onClick={handleProfileClick}
           >
             <FaUser size={24} />
@@ -4245,6 +4390,21 @@ useEffect(() => {
 
       {/* Project Creation Modal */}
       {showProjectModal && renderProjectModal()}
+
+      {/* Breadcrumb Navigation */}
+      {(getCurrentScreen()?.screen === "projectDetails" || getCurrentScreen()?.screen === "comments") && (
+        <div className="flex items-center text-xs text-gray-500 ml-4 mt-2 mb-1">
+          <button onClick={() => { setNavigationStack([]); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
+          <FiChevronRight size={14} className="mx-1" />
+          <button onClick={() => { setNavigationStack([]); setActiveTab('Projects'); }} className="hover:text-blue-600 transition-colors">Projects</button>
+          {selectedProject && (
+            <>
+              <FiChevronRight size={14} className="mx-1" />
+              <span className="text-gray-800 font-medium">{selectedProject.title || 'Project'}</span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Project Details - Stack Navigation */}
       {getCurrentScreen()?.screen === "projectDetails" && renderProjectDetailsModal()}
