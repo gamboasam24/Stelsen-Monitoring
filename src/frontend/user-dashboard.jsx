@@ -1504,7 +1504,7 @@ const renderAnnouncementCard = (announcement) => (
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center">
-          <div className={`w-10 h-10 rounded-xl ${getCategoryColor(announcement.color)} flex items-center justify-center mr-3`}>
+          <div className={`w-11 h-11 rounded-xl ${getCategoryColor(announcement.color)} flex items-center justify-center mr-3`}>
             {announcement.icon}
           </div>
           <div>
@@ -1518,7 +1518,7 @@ const renderAnnouncementCard = (announcement) => (
       <div className="flex items-center space-x-2">
         <button
           onClick={(e) => { e.stopPropagation(); togglePin(announcement.id, !announcement.is_pinned); }}
-          className={`p-2 rounded-full hover:bg-gray-100 transition ${announcement.is_pinned ? "text-red-500" : "text-gray-500"}`}
+          className={`p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition ${announcement.is_pinned ? "text-red-500" : "text-gray-500"}`}
           aria-label={announcement.is_pinned ? "Unpin announcement" : "Pin announcement"}
           title={announcement.is_pinned ? "Unpin" : "Pin"}
         >
@@ -1666,7 +1666,7 @@ const renderAnnouncementCard = (announcement) => (
         <div className="flex items-center justify-between mb-2">
           <button 
             onClick={popScreen}
-            className="p-2 rounded-full hover:bg-gray-100 mr-3"
+            className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-3"
           >
             <FiChevronLeft size={24} className="text-gray-700" />
           </button>
@@ -1855,7 +1855,7 @@ const renderCommentsModal = () => (
       <div className="flex items-center mb-2">
         <button 
           onClick={popScreen}
-          className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
+          className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
         >
           <FiChevronLeft size={24} className="text-gray-700" />
         </button>
@@ -1874,11 +1874,11 @@ const renderCommentsModal = () => (
           </p>
         </div>
         
-        <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+        <button className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors ml-2">
           <FiSearch size={20} className="text-gray-600" />
         </button>
         
-        <button className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2">
+        <button className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors ml-2">
           <MdPeople size={20} className="text-gray-600" />
         </button>
       </div>
@@ -2130,7 +2130,7 @@ const renderCommentsModal = () => (
           // Empty state with Messenger-style design
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
             <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <svg className="w-10 h-10 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-11 h-11 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12h-8v-2h8v2zm0-4h-8V8h8v2z"/>
               </svg>
             </div>
@@ -2304,7 +2304,7 @@ const renderCommentsModal = () => (
 
   const renderLocationHistory = (item) => (
     <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center">
-      <div className="w-10 h-10 rounded-full bg-blue-50 flex justify-center items-center mr-3">
+      <div className="w-11 h-11 rounded-full bg-blue-50 flex justify-center items-center mr-3">
         <MdLocationOn size={24} className="text-blue-500" />
       </div>
       <div className="flex-1">
@@ -2378,7 +2378,7 @@ const renderCommentsModal = () => (
         </div>
         <button 
           onClick={() => setProfileOpen(false)}
-          className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          className="p-3 rounded-full min-w-[44px] min-h-[44px] bg-white/20 hover:bg-white/30 transition-colors"
         >
           <IoMdClose size={24} />
         </button>
@@ -2401,7 +2401,7 @@ const renderCommentsModal = () => (
                 />
               </div>
               <button 
-                className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full border-4 border-white hover:bg-blue-600"
+                className="absolute bottom-0 right-0 bg-blue-500 text-white p-3 rounded-full min-w-[44px] min-h-[44px] border-4 border-white hover:bg-blue-600"
                 onClick={() => fileInputRef.current.click()}
               >
                 <FiCamera size={16} />
@@ -2581,7 +2581,7 @@ const renderCommentsModal = () => (
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-sm">
                   <img src="/img/stelsenlogo.png" alt="Stelsen" className="w-8 h-8 object-contain" />
                 </div>
                 <div>
@@ -2650,7 +2650,7 @@ const renderCommentsModal = () => (
                 className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
+                  <div className="w-11 h-11 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
                     <FiMapPin className="text-blue-500" size={18} />
                   </div>
                   <div className="text-left">
@@ -2673,7 +2673,7 @@ const renderCommentsModal = () => (
                   </div>
                   <button
                     onClick={toggleMap}
-                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                    className="p-2 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors"
                   >
                     <FiX className="text-gray-500" size={18} />
                   </button>
@@ -3170,7 +3170,7 @@ const renderCommentsModal = () => (
                         <img
                           src={location.profile_image}
                           alt={location.email}
-                          className="w-10 h-10 rounded-full border-3 border-white shadow-md object-cover"
+                          className="w-11 h-11 rounded-full border-3 border-white shadow-md object-cover"
                           referrerPolicy="no-referrer"
                           onError={(e) => {
                             e.target.style.display = 'none';
@@ -3178,7 +3178,7 @@ const renderCommentsModal = () => (
                           title={location.email}
                         />
                       ) : (
-                        <div className="w-10 h-10 bg-gray-400 rounded-full border-3 border-white shadow-md flex items-center justify-center" title={location.email}>
+                        <div className="w-11 h-11 bg-gray-400 rounded-full border-3 border-white shadow-md flex items-center justify-center" title={location.email}>
                           <span className="text-white font-bold text-sm">
                             {location.email?.charAt(0).toUpperCase() || '?'}
                           </span>
@@ -3453,7 +3453,7 @@ const renderCommentsModal = () => (
           disabled
           className="w-full flex items-center p-4 border-b border-gray-100 opacity-60 cursor-not-allowed"
         >
-          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+          <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center mr-3">
             <MdReportProblem size={20} className="text-blue-500" />
           </div>
           <div className="text-left">
@@ -3466,7 +3466,7 @@ const renderCommentsModal = () => (
           disabled
           className="w-full flex items-center p-4 opacity-60 cursor-not-allowed"
         >
-          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+          <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center mr-3">
             <MdDashboard size={20} className="text-purple-500" />
           </div>
           <div className="text-left">
@@ -3849,7 +3849,7 @@ const renderCommentsModal = () => (
   const unreadCount = announcements.filter(a => a.unread).length;
 
   return (
-    <div className={`min-h-screen ${activeTab === "My Location" ? "overflow-hidden" : "pb-20"} ${darkMode ? 'bg-gray-900' : 'bg-gray-100'} relative`}>
+    <div className={`min-h-screen ${activeTab === "My Location" ? "overflow-hidden" : "pb-20"} ${darkMode ? 'bg-gray-900' : 'bg-gray-100'} relative ${!isOnline ? 'pt-10' : ''}`}>
       {/* Offline Mode Indicator */}
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 bg-red-600 text-white px-4 py-2 text-center text-sm font-medium z-[100] flex items-center justify-center gap-2 shadow-lg">
@@ -3918,28 +3918,30 @@ const renderCommentsModal = () => (
           </div>
           <div className="flex items-center gap-3">
             {/* Dark Mode Toggle */}
+            <div className="flex items-center">
             <button
               onClick={() => {
-                triggerHaptic('light');
+                triggerHaptic && triggerHaptic('light');
                 setDarkMode(!darkMode);
               }}
-              className="p-2 rounded-full hover:bg-white/20 transition-colors"
-              title={darkMode ? 'Light mode' : 'Dark mode'}
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="p-0 ml-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/20 dark:bg-white/5 hover:bg-white/30 dark:hover:bg-white/10 border border-white/10"
             >
               {darkMode ? (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
                 </svg>
               ) : (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
                 </svg>
               )}
             </button>
-            
-            <div className="relative">
+            </div>
+            <div className="relative flex items-center">
               <div
-                className="w-10 h-10 rounded-full border-2 border-white cursor-pointer overflow-hidden"
+                className="w-11 h-11 rounded-full border-2 border-white cursor-pointer overflow-hidden"
                 onClick={handleProfileClick}
               >
               <Avatar
@@ -4108,7 +4110,7 @@ const renderCommentsModal = () => (
           <div className="sticky top-0 z-20 bg-gradient-to-r from-sky-500 to-cyan-600 text-white px-5 py-4 border-b border-sky-400 flex items-center">
             <button 
               onClick={popScreen}
-              className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
+              className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
             >
               <FiChevronLeft size={24} />
             </button>
@@ -4226,7 +4228,7 @@ const renderCommentsModal = () => (
           <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-4 border-b border-blue-400 flex items-center">
             <button 
               onClick={popScreen}
-              className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
+              className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
             >
               <FiChevronLeft size={24} />
             </button>

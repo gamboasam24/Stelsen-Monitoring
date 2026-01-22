@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,jsx,ts,tsx}", // scans your React files
@@ -22,10 +23,7 @@ module.exports = {
           light: '#FFFFFF',
         }
       },
-      spacing: {
-        'screen': Dimensions.get('window').width,
-        'screen-h': Dimensions.get('window').height,
-      }
+      // removed platform-specific spacing entries
     },
   },
   plugins: [],

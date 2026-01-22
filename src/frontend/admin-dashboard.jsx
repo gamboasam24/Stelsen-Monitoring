@@ -321,6 +321,48 @@ const AdminDashboard = ({ user, logout }) => {
     }
   };
 
+  // Swipe-right to go back (stack navigation) on touch devices
+  useEffect(() => {
+    const el = pullRef.current || window;
+    let startX = null;
+    let startY = null;
+    const threshold = 70;
+
+    function onTouchStart(e) {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }
+
+    function onTouchMove(e) {
+      if (startX === null) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = Math.abs(e.touches[0].clientY - startY);
+      if (dx > threshold && dy < 80) {
+        if (navigationStack.length > 0) {
+          triggerHaptic && triggerHaptic('light');
+          popScreen();
+        }
+        startX = null;
+        startY = null;
+      }
+    }
+
+    function onTouchEnd() {
+      startX = null;
+      startY = null;
+    }
+
+    el.addEventListener && el.addEventListener('touchstart', onTouchStart);
+    el.addEventListener && el.addEventListener('touchmove', onTouchMove);
+    el.addEventListener && el.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+      el.removeEventListener && el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener && el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener && el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [navigationStack]);
+
   const refreshLocation = async () => {
     setIsRefreshingLocation(true);
     if (navigator.geolocation) {
@@ -927,7 +969,7 @@ const handleBudgetChange = (e) => {
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+            <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-sm">
               <img src="/img/stelsenlogo.png" alt="Stelsen" className="w-8 h-8 object-contain" />
             </div>
             <div>
@@ -995,7 +1037,7 @@ const handleBudgetChange = (e) => {
                 className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
+                  <div className="w-11 h-11 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
                     <FiMapPin className="text-blue-500" size={18} />
                   </div>
                   <div className="text-left">
@@ -1018,7 +1060,7 @@ const handleBudgetChange = (e) => {
                   </div>
                   <button
                     onClick={toggleMap}
-                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                    className="p-2 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors"
                   >
                     <FiX className="text-gray-500" size={18} />
                   </button>
@@ -2019,7 +2061,7 @@ useEffect(() => {
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center">
-          <div className={`w-10 h-10 rounded-xl ${getCategoryColor(announcement.color)} flex items-center justify-center mr-3`}>
+          <div className={`w-11 h-11 rounded-xl ${getCategoryColor(announcement.color)} flex items-center justify-center mr-3`}>
             {announcement.icon}
           </div>
           <div>
@@ -2151,7 +2193,7 @@ useEffect(() => {
       <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 flex items-center justify-between">
         <button 
           onClick={popScreen}
-          className="p-2 rounded-full hover:bg-gray-100 mr-3"
+          className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-3"
         >
           <FiChevronLeft size={24} className="text-gray-700" />
         </button>
@@ -2290,7 +2332,7 @@ useEffect(() => {
       <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
         <button 
         onClick={() => popScreen()}
-        className="p-2 rounded-full hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
+        className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
         >
         <FiChevronLeft size={24} className="text-gray-700" />
         </button>
@@ -2311,7 +2353,7 @@ useEffect(() => {
         
         <button 
         onClick={openProjectMapView}
-        className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2"
+        className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors ml-2"
         title="View project locations"
         >
         <MdLocationOn size={20} className="text-gray-600" />
@@ -2319,7 +2361,7 @@ useEffect(() => {
         
         <button 
         onClick={() => pushScreen("projectUsers")}
-        className="p-2 rounded-full hover:bg-gray-100 transition-colors ml-2"
+        className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors ml-2"
         title="View and manage project users"
         >
         <MdPeople size={20} className="text-gray-600" />
@@ -2339,7 +2381,7 @@ useEffect(() => {
             <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 flex items-center">
               <button 
                 onClick={popScreen}
-                className="p-2 rounded-full hover:bg-gray-100 mr-3"
+                className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-3"
               >
                 <FiChevronLeft size={24} className="text-gray-700" />
               </button>
@@ -2653,7 +2695,7 @@ useEffect(() => {
           // Empty state with Messenger-style design
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
             <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <svg className="w-10 h-10 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-11 h-11 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12h-8v-2h8v2zm0-4h-8V8h8v2z"/>
               </svg>
             </div>
@@ -2839,7 +2881,7 @@ useEffect(() => {
           <h3 className="text-xl font-bold text-gray-800">Create New Announcement</h3>
           <button 
             onClick={() => setShowAnnouncementModal(false)}
-            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
+            className="p-3 rounded-full min-w-[44px] min-h-[44px] bg-gray-100 hover:bg-gray-200"
           >
             <IoMdClose size={24} className="text-gray-600" />
           </button>
@@ -2931,7 +2973,7 @@ useEffect(() => {
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 md:px-5 py-3 md:py-4 flex items-center text-white shadow-lg">
         <button 
           onClick={() => setShowProjectModal(false)}
-          className="p-2 rounded-full hover:bg-white/20 mr-3 transition-colors flex-shrink-0"
+          className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white/20 mr-3 transition-colors flex-shrink-0"
         >
           <FiChevronLeft size={24} />
         </button>
@@ -3170,7 +3212,7 @@ useEffect(() => {
 
   const renderLocationHistory = (item) => (
     <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center">
-      <div className="w-10 h-10 rounded-full bg-blue-50 flex justify-center items-center mr-3">
+      <div className="w-11 h-11 rounded-full bg-blue-50 flex justify-center items-center mr-3">
         <MdLocationOn size={24} className="text-blue-500" />
       </div>
       <div className="flex-1">
@@ -3400,6 +3442,12 @@ useEffect(() => {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
+                {/* Results counter (announcements) */}
+                {(searchQuery || dateFilter !== 'all') && (
+                  <div className="flex items-center text-sm text-gray-600 px-2">
+                    {filteredAnnouncements.length} result{filteredAnnouncements.length !== 1 ? 's' : ''}
+                  </div>
+                )}
                 
                 {/* Compact Date Filter Icon Button */}
                 <div className="relative">
@@ -4023,7 +4071,7 @@ useEffect(() => {
     {/* Profile Header */}
     <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex justify-between items-center text-white">
       <div className="flex items-center">
-        <div className="w-10 h-10 rounded-full border-2 border-white mr-3 overflow-hidden">
+        <div className="w-11 h-11 rounded-full border-2 border-white mr-3 overflow-hidden">
           <Avatar
             user={{
               ...currentUser,
@@ -4043,7 +4091,7 @@ useEffect(() => {
       </div>
       <button 
         onClick={() => setProfileOpen(false)}
-        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+        className="p-3 rounded-full min-w-[44px] min-h-[44px] bg-white/20 hover:bg-white/30 transition-colors"
       >
         <IoMdClose size={24} />
       </button>
@@ -4066,7 +4114,7 @@ useEffect(() => {
                 />
               </div>
               <button 
-                className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full border-4 border-white hover:bg-blue-600"
+                className="absolute bottom-0 right-0 bg-blue-500 text-white p-3 rounded-full border-4 border-white hover:bg-blue-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
                 onClick={() => fileInputRef.current.click()}
               >
                 <FiCamera size={16} />
@@ -4236,7 +4284,7 @@ useEffect(() => {
             setShowActionMenu(false);
           }}
         >
-          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+          <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center mr-3">
             <IoMdMegaphone size={20} className="text-blue-500" />
           </div>
           <div className="text-left">
@@ -4252,7 +4300,7 @@ useEffect(() => {
             setShowActionMenu(false); 
           }}
         >
-          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+          <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center mr-3">
             <MdDashboard size={20} className="text-purple-500" />
           </div>
           <div className="text-left">
@@ -4267,12 +4315,18 @@ useEffect(() => {
   const unreadCount = announcements.filter(a => a.unread).length;
 
   return (
-    <div className="min-h-screen pb-20 bg-gray-100 relative">
+    <div className={`min-h-screen pb-20 bg-gray-100 dark:bg-gray-900 relative ${isOffline ? 'pt-10' : ''}`}>
+      {/* Offline banner (auto-detect) */}
+      {isOffline && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-2 text-sm font-medium">
+          You are offline — changes will sync when connection restores
+        </div>
+      )}
       {/* Skeleton Screens for Loading */}
       {/* Skeletons are now shown in renderTabContent per tab, not as overlay */}
       {/* Main Header */}
       {activeTab !== "My Location" && (
-        <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex justify-between items-center text-white shadow-lg">
+        <div className={`sticky top-0 z-20 px-5 py-4 flex justify-between items-center text-white shadow-lg ${darkMode ? 'bg-gradient-to-r from-slate-800 to-slate-900' : 'bg-gradient-to-r from-blue-600 to-blue-700'}`}>
           <div className="flex items-center">
             {isMobile && activeTab !== "Profile" && (
                <button 
@@ -4298,9 +4352,9 @@ useEffect(() => {
               </div>
             </div>
           </div>
-          <div className="relative">
+            <div className="relative flex items-center">
             <div
-              className="w-10 h-10 rounded-full border-2 border-white cursor-pointer shadow overflow-hidden"
+              className="w-11 h-11 rounded-full border-2 border-white cursor-pointer shadow overflow-hidden mr-2"
               onClick={handleProfileClick}
             >
               <Avatar
@@ -4312,13 +4366,22 @@ useEffect(() => {
                 size={40}
               />
             </div>
+            {/* Dark mode toggle (persistent) */}
+            <button
+              onClick={() => setDarkMode(prev => !prev)}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              className="ml-2 w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/20 dark:bg-white/5 hover:bg-white/30 dark:hover:bg-white/10 border border-white/10"
+            >
+              {darkMode ? <FiSun size={18} className="text-yellow-400" /> : <FiMoon size={18} className="text-white" />}
+            </button>
           </div>
         </div>
       )}
 
       {/* Main Content */}
       <div className={`transition-all duration-300 ${profileOpen && isMobile ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
-        <div className="overflow-auto">
+        <div ref={pullRef} className="overflow-auto">
           {renderTabContent()}
         </div>
       </div>
@@ -4415,7 +4478,7 @@ useEffect(() => {
           <div className="sticky top-0 z-20 bg-gradient-to-r from-sky-500 to-cyan-600 text-white px-5 py-4 border-b border-sky-400 flex items-center">
             <button
               onClick={popScreen}
-              className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
+              className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
             >
               <FiChevronLeft size={24} />
             </button>
@@ -4538,7 +4601,7 @@ useEffect(() => {
           <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-4 border-b border-blue-400 flex items-center">
             <button
               onClick={popScreen}
-              className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
+              className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
             >
               <FiChevronLeft size={24} />
             </button>
