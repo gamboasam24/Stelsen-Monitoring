@@ -1865,31 +1865,21 @@ const renderCommentsModal = () => (
           size={40}
           className="flex-shrink-0 mr-4"
         />
-      
-        <div className="flex-1 min-w-0 ml-2">
-          <h3 className="text-base font-bold text-gray-900 truncate">{selectedProject?.title}</h3>
-          <p className="text-xs text-gray-500 truncate flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-            Active now
-          </p>
+
+        {/* Breadcrumb for Comments */}
+        <div className="flex items-center text-xs text-gray-500 ml-14 mt-1">
+          <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
+          <FiChevronRight size={14} className="mx-1" />
+          <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
+          <FiChevronRight size={14} className="mx-1" />
+          <span className="text-gray-800 font-medium">Comments</span>
         </div>
-        
-        <button className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors ml-2">
-          <FiSearch size={20} className="text-gray-600" />
-        </button>
-        
+
         <button className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors ml-2">
           <MdPeople size={20} className="text-gray-600" />
         </button>
       </div>
-      {/* Breadcrumb for Comments */}
-      <div className="flex items-center text-xs text-gray-500 ml-14 mt-1">
-        <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
-        <FiChevronRight size={14} className="mx-1" />
-        <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
-        <FiChevronRight size={14} className="mx-1" />
-        <span className="text-gray-800 font-medium">Comments</span>
-      </div>
+      
     </div>
 
     {/* Messenger Chat Area */}

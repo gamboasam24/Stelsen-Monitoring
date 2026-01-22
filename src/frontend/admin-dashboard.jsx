@@ -965,11 +965,11 @@ const handleBudgetChange = (e) => {
     };
 
     return (
-      <div className="max-w-[500px] w-full bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
+      <div className="max-w-[500px] w-full bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden border border-gray-200 my-2 hover:shadow-xl transition-shadow duration-300">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 text-white">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-sm">
+            <div className="w-11 h-11 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center shadow-sm">
               <img src="/img/stelsenlogo.png" alt="Stelsen" className="w-8 h-8 object-contain" />
             </div>
             <div>
@@ -1021,8 +1021,8 @@ const handleBudgetChange = (e) => {
           </div>
           <div className={`text-sm leading-relaxed break-words rounded-lg p-3 border shadow-sm ${
             comment.text 
-              ? 'text-gray-700 bg-white border-gray-100' 
-              : 'text-gray-400 bg-gray-50 border-gray-100 italic'
+              ? 'text-gray-700 bg-white dark:bg-slate-800 border-gray-100' 
+              : 'text-gray-400 bg-gray-50 dark:bg-slate-800 border-gray-100 italic'
           }`}>
             {comment.text || 'No notes provided'}
           </div>
@@ -1071,7 +1071,7 @@ const handleBudgetChange = (e) => {
                     alt="Location Map"
                     className="w-full h-64 object-cover"
                   />
-                  <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
+                  <div className="bg-gray-50 dark:bg-slate-800 px-3 py-2 text-xs text-gray-600 flex items-center justify-between border-t border-gray-200">
                     <div className="flex items-center gap-1.5">
                       <FiMap size={12} />
                       <span>Mapbox View</span>
@@ -1124,7 +1124,7 @@ const handleBudgetChange = (e) => {
 
         {/* Approve/Reject Buttons - Only for Admin and Pending */}
         {isPending && (
-          <div className="px-4 py-4 bg-white flex gap-3">
+          <div className="px-4 py-4 bg-white dark:bg-slate-800 flex gap-3">
             <button
               onClick={handleReject}
               disabled={isApproving}
@@ -2054,7 +2054,7 @@ useEffect(() => {
   const renderAnnouncementCard = (announcement) => (
     <div 
       key={announcement.id} 
-      className={`relative bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all duration-300 ${
+      className={`relative bg-white dark:bg-slate-800 rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all duration-300 ${
         announcement.unread ? 'border-l-4 border-blue-500' : ''
       }`}
     >
@@ -2128,7 +2128,7 @@ useEffect(() => {
   const renderProjectCard = (item) => {
     const unreadCount = getUnreadCommentCount(item.id);
     return (
-      <div key={item.id} className="relative bg-white rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
+      <div key={item.id} className="relative bg-white dark:bg-slate-800 rounded-2xl p-4 mb-3 shadow-lg hover:shadow-xl transition-all">
         {item.isNew && (
           <span className="absolute -top-1 -left-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg z-10">
             New
@@ -2188,9 +2188,9 @@ useEffect(() => {
   };
 
   const renderProjectDetailsModal = () => (
-    <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
+    <div className="fixed inset-0 bg-white dark:bg-slate-900 z-[60] flex flex-col animate-slide-in-right transition-colors duration-300">
       {/* Header with Back Button */}
-      <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+      <div className="sticky top-0 z-20 bg-white dark:bg-slate-800 px-5 py-4 border-b border-gray-200 flex items-center justify-between transition-colors duration-300">
         <button 
           onClick={popScreen}
           className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-3"
@@ -2203,6 +2203,14 @@ useEffect(() => {
             {selectedProject.status}
           </span>
         )}
+      </div>
+      {/* Breadcrumb Navigation */}
+      <div className="flex items-center text-xs text-gray-500 ml-14">
+        <button onClick={() => { popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
+        <FiChevronRight size={14} className="mx-1" />
+        <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Projects</button>
+        <FiChevronRight size={14} className="mx-1" />
+        <span className="text-gray-800 font-medium truncate max-w-[150px]">{selectedProject?.title}</span>
       </div>
 
       {/* Content */}
@@ -2222,7 +2230,7 @@ useEffect(() => {
                 {/* Assigned Employees */}
                 <div>
                   <p className="text-xs font-semibold text-gray-600 mb-2 sm:mb-3 uppercase tracking-wide">Assigned Employees</p>
-                  <div className="bg-white rounded-lg p-2 sm:p-3 border border-gray-200 min-h-[150px] sm:min-h-[200px] overflow-y-auto flex flex-wrap gap-1 sm:gap-2 items-start content-start">
+                  <div className="bg-white dark:bg-slate-800 rounded-lg p-2 sm:p-3 border border-gray-200 min-h-[150px] sm:min-h-[200px] overflow-y-auto flex flex-wrap gap-1 sm:gap-2 items-start content-start transition-colors duration-300">
                     {users.length > 0 && selectedProject.assignedUsers && selectedProject.assignedUsers.length > 0 ? selectedProject.assignedUsers.map(userId => {
                       const user = users.find(u => String(u.id) === String(userId));
                       return user ? (
@@ -2238,32 +2246,32 @@ useEffect(() => {
                 {/* Description - Hidden on Mobile, Shown on Desktop */}
                 <div className="hidden sm:block">
                   <p className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">Description</p>
-                  <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3 border border-gray-200">{selectedProject.description}</p>
+                  <p className="text-gray-600 dark:text-gray-200 text-sm bg-gray-50 dark:bg-slate-800 rounded-lg p-3 border border-gray-200 transition-colors duration-300">{selectedProject.description}</p>
                 </div>
               </div>
 
               {/* Right Column */}
               <div className="space-y-3 sm:space-y-5">
                 {/* Manager */}
-                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-2 sm:p-4 border border-gray-200 transition-colors duration-300">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Manager</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{selectedProject.manager}</p>
                 </div>
 
                 {/* Team Users */}
-                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-2 sm:p-4 border border-gray-200 transition-colors duration-300">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Team Users</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.team_users || 0} users</p>
                 </div>
 
                 {/* Budget */}
-                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-2 sm:p-4 border border-gray-200 transition-colors duration-300">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Budget</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{formatPeso(selectedProject.budget)}</p>
                 </div>
 
                 {/* Deadline */}
-                <div className="bg-white rounded-lg p-2 sm:p-4 border border-gray-200">
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-2 sm:p-4 border border-gray-200 transition-colors duration-300">
                   <p className="text-xs font-semibold text-gray-600 mb-1 sm:mb-2 uppercase tracking-wide">Deadline</p>
                   <p className="font-semibold text-gray-800 text-xs sm:text-sm">{selectedProject.deadline}</p>
                 </div>
@@ -2273,7 +2281,7 @@ useEffect(() => {
             {/* Description - Full Width on Mobile */}
             <div className="sm:hidden mb-6">
               <p className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">Description</p>
-              <p className="text-gray-600 text-sm bg-gray-50 rounded-lg p-3 border border-gray-200">{selectedProject.description}</p>
+              <p className="text-gray-600 dark:text-gray-200 text-sm bg-gray-50 dark:bg-slate-800 rounded-lg p-3 border border-gray-200 transition-colors duration-300">{selectedProject.description}</p>
             </div>
 
             {/* Comments Section - Preview */}
@@ -2326,10 +2334,12 @@ useEffect(() => {
         )}
       </div>
     </div>
-  );const renderCommentsModal = () => (
-  <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
+  );
+  
+  const renderCommentsModal = () => (
+  <div className="fixed inset-0 bg-white dark:bg-slate-900 z-[60] flex flex-col animate-slide-in-right transition-colors duration-300">
     {/* Messenger-style Header */}
-      <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-20 bg-white dark:bg-slate-800 px-4 py-3 flex items-center border-b border-gray-200 shadow-sm transition-colors duration-300">
         <button 
         onClick={() => popScreen()}
         className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
@@ -2343,21 +2353,14 @@ useEffect(() => {
         className="flex-shrink-0 mr-2"
         />
         
-         <div className="flex-1 min-w-0 ml-2">
-        <h3 className="text-base font-bold text-gray-900 truncate">{selectedProject?.title}</h3>
-        <p className="text-xs text-gray-500 truncate flex items-center gap-1">
-          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-          Active now
-        </p>
+        {/* Breadcrumb for Comments */}
+        <div className="flex items-center text-xs text-gray-500 ml-14 mt-1">
+          <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
+          <FiChevronRight size={14} className="mx-1" />
+          <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
+          <FiChevronRight size={14} className="mx-1" />
+          <span className="text-gray-800 font-medium">Comments</span>
         </div>
-        
-        <button 
-        onClick={openProjectMapView}
-        className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors ml-2"
-        title="View project locations"
-        >
-        <MdLocationOn size={20} className="text-gray-600" />
-        </button>
         
         <button 
         onClick={() => pushScreen("projectUsers")}
@@ -2367,8 +2370,7 @@ useEffect(() => {
         <MdPeople size={20} className="text-gray-600" />
         </button>
       </div>
-
-      {/* Navigation Stack - Screen-based Navigation */}
+    
       {(() => {
         const currentScreen = getCurrentScreen();
         const isNestedCommentScreen = currentScreen?.screen === "projectUsers" || currentScreen?.screen === "addUserToProject";
@@ -2412,7 +2414,7 @@ useEffect(() => {
                         selectedProject.assignedUsers.map(userId => {
                           const user = users.find(u => String(u.id) === String(userId));
                           return user ? (
-                            <div key={userId} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <div key={userId} className="flex items-center justify-between bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200">
                               <div className="flex items-center flex-1">
                                 <Avatar user={user} size={40} />
                                 <div className="ml-3 flex-1">
@@ -2450,7 +2452,7 @@ useEffect(() => {
                       <button
                         key={user.id}
                         onClick={() => addUserToProject(user.id, formatAuthorName(user.email || user.name))}
-                        className="w-full flex items-center p-4 bg-gray-50 hover:bg-blue-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all"
+                        className="w-full flex items-center p-4 bg-gray-50 dark:bg-slate-800 hover:bg-blue-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all"
                       >
                         <Avatar user={user} size={40} />
                         <div className="ml-3 flex-1 text-left">
@@ -2476,7 +2478,7 @@ useEffect(() => {
       })()}
 
       {/* Messenger Chat Area */}
-    <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 p-4">
+    <div className="flex-1 overflow-y-auto bg-contain bg-gray-50 dark:bg-slate-900 p-4">
       <div className="max-w-3xl mx-auto space-y-1">
         {selectedProject && selectedProject.comments && selectedProject.comments.length > 0 ? (
           <>
@@ -2502,15 +2504,15 @@ useEffect(() => {
                   {/* Date separator */}
                   {dateIdx > 0 && (
                     <div className="flex items-center my-6">
-                      <div className="flex-1 border-t border-gray-300"></div>
-                      <span className="mx-3 text-xs text-gray-600 font-medium">{dateLabel}</span>
+                      <div className="flex-1 border-t border-gray-300 dark:border-slate-700"></div>
+                      <span className="mx-3 text-xs text-gray-600 dark:text-gray-200 font-medium">{dateLabel}</span>
                       <div className="flex-1 border-t border-gray-300"></div>
                     </div>
                   )}
                   {dateIdx === 0 && dateLabels.length > 1 && (
                     <div className="flex items-center my-6">
                       <div className="flex-1 border-t border-gray-300"></div>
-                      <span className="mx-3 text-xs text-gray-600 font-medium">{dateLabel}</span>
+                      <span className="mx-3 text-xs text-gray-600 dark:text-gray-200 font-medium">{dateLabel}</span>
                       <div className="flex-1 border-t border-gray-300"></div>
                     </div>
                   )}
@@ -2876,7 +2878,7 @@ useEffect(() => {
 
   const renderAnnouncementModal = () => (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-end z-50">
-      <div className="bg-white rounded-t-3xl p-5 w-full max-h-[90%] overflow-auto">
+      <div className="bg-white dark:bg-slate-800 rounded-t-3xl p-5 w-full max-h-[90%] overflow-auto">
         <div className="flex justify-between items-center mb-5">
           <h3 className="text-xl font-bold text-gray-800">Create New Announcement</h3>
           <button 
@@ -2984,7 +2986,7 @@ useEffect(() => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-5 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-4 md:p-5 bg-gray-50 dark:bg-slate-900">
         <div className="space-y-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -3008,11 +3010,11 @@ useEffect(() => {
               onChange={(e) => setProjectDescription(e.target.value)}
               placeholder="Enter project description"
               rows={3}
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
             />
           </div>
 
-          <div className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Status
             </label>
@@ -3027,7 +3029,7 @@ useEffect(() => {
             </select>
           </div>
 
-          <div className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Employees
             </label>
@@ -3054,7 +3056,7 @@ useEffect(() => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -3064,7 +3066,7 @@ useEffect(() => {
                   type="date"
                   value={projectStartDate}
                   onChange={(e) => setProjectStartDate(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
                 />
               </div>
 
@@ -3076,13 +3078,13 @@ useEffect(() => {
                   type="date"
                   value={projectDeadline}
                   onChange={(e) => setProjectDeadline(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
                 />
               </div>
           </div>
           </div>
 
-          <div className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -3093,7 +3095,7 @@ useEffect(() => {
                   value={projectManager}
                   onChange={(e) => setProjectManager(e.target.value)}
                   placeholder="Project manager"
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
                 />
               </div>
             
@@ -3109,7 +3111,7 @@ useEffect(() => {
                     value={projectBudget}
                     onChange={handleBudgetChange}
                     placeholder="50,000"
-                    className="w-full p-3 pl-8 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+                    className="w-full p-3 pl-8 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
                   />
                 </div>
               </div>
@@ -3134,7 +3136,7 @@ useEffect(() => {
                 const options = Array.from(e.target.selectedOptions, option => option.value);
                 setSelectedUsers(options);
               }}
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
             >
               {users.map(user => (
                 <option key={user.id} value={user.id}>
@@ -4328,33 +4330,32 @@ useEffect(() => {
       {activeTab !== "My Location" && (
         <div className={`sticky top-0 z-20 px-5 py-4 flex justify-between items-center text-white shadow-lg ${darkMode ? 'bg-gradient-to-r from-slate-800 to-slate-900' : 'bg-gradient-to-r from-blue-600 to-blue-700'}`}>
           <div className="flex items-center">
-            {isMobile && activeTab !== "Profile" && (
-               <button 
-            onClick={() => setProfileOpen(true)}
-                className="mr-3 p-1 rounded-full bg-white/90 hover:bg-white transition-colors shadow"
-                >
-                <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center">
-                    <img
-                    src="/img/stelsenlogo.png"
-                    alt="Menu"
-                    className="w-8 h-8 object-contain"
-                    />
-                </div>
-            </button>
-            )}
+            <img
+              src="/img/stelsenlogo.png"
+              alt="Logo"
+              className="w-10 h-10 rounded-full mr-3 border-2 border-white shadow"
+            />
             <div>
-              <div className="text-xl font-bold">
-               <h3 className="text-xl font-bold mb-1"> {currentUser?.email ? currentUser.email.split("@")[0].replace(/\b\w/g, c => c.toUpperCase()) : "N/A"}</h3> 
+              <div className="text-xl font-bold flex items-center gap-2">
+                {currentUser?.name || (currentUser?.email ? currentUser.email.split("@")[0].replace(/\b\w/g, c => c.toUpperCase()) : "N/A")}
               </div>
               <div className="flex items-center mt-1 text-xs">
-                <div className="w-2 h-2 rounded-full bg-green-400 mr-2"></div>
-                Statusssss: {userStatus}
+                <span className="w-2 h-2 rounded-full bg-green-400 mr-2"></span>
+                Status: <span className="ml-1 font-semibold text-green-100">{userStatus}</span>
               </div>
             </div>
           </div>
-            <div className="relative flex items-center">
+          <div className="flex items-center">
+            <button
+              onClick={() => setDarkMode(prev => !prev)}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              className="mr-2 w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/20 dark:bg-white/5 hover:bg-white/30 dark:hover:bg-white/10 border border-white/10"
+            >
+              {darkMode ? <FiSun size={18} className="text-yellow-400" /> : <FiMoon size={18} className="text-white" />}
+            </button>
             <div
-              className="w-11 h-11 rounded-full border-2 border-white cursor-pointer shadow overflow-hidden mr-2"
+              className="w-11 h-11 rounded-full border-2 border-white cursor-pointer shadow overflow-hidden"
               onClick={handleProfileClick}
             >
               <Avatar
@@ -4366,21 +4367,12 @@ useEffect(() => {
                 size={40}
               />
             </div>
-            {/* Dark mode toggle (persistent) */}
-            <button
-              onClick={() => setDarkMode(prev => !prev)}
-              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              className="ml-2 w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/20 dark:bg-white/5 hover:bg-white/30 dark:hover:bg-white/10 border border-white/10"
-            >
-              {darkMode ? <FiSun size={18} className="text-yellow-400" /> : <FiMoon size={18} className="text-white" />}
-            </button>
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div className={`transition-all duration-300 ${profileOpen && isMobile ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+      <div className={`transition-all duration-300 ${profileOpen && isMobile ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
         <div ref={pullRef} className="overflow-auto">
           {renderTabContent()}
         </div>
