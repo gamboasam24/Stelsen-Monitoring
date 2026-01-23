@@ -3599,7 +3599,10 @@ useEffect(() => {
               
               {/* Announcement Header */}
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-800 font-serif">Announcements</h3>
+               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 font-serif">
+                        <div className="w-1.5 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
+                        Announcements
+                      </h2>
                 {/* Announcement Status Filter Dropdown */}
                 <div className="relative">
                     <button

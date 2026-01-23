@@ -3050,13 +3050,7 @@ const renderCommentsModal = () => (
                         </span>
                       </div>
                     </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-700 font-medium">
-                            <span className="text-lg font-extrabold text-gray-900 mr-2">{filteredAnnouncements.length}</span>
-                            <span className="align-middle">{selectedFilter === "all" ? "total announcements" : selectedFilter}</span>
-                          </p>
-                        </div>
+                      <div>
                       {!isLoading && announcements.filter(a => a.unread).length > 0 && (
                         <button 
                           className="px-4 py-2 bg-blue-500 text-white text-xs font-semibold rounded-full hover:bg-blue-600 active:scale-95 transition-all flex items-center gap-2 shadow-sm"
