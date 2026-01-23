@@ -1303,7 +1303,7 @@ const markAsRead = async (id) => {
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      (pos) => {  
         setCenter({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
