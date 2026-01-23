@@ -345,11 +345,11 @@ const UserDashboard = ({ user, logout }) => {
   // Get color based on status for consistent visual theme
   const getProgressColor = (status) => {
     if (status === 'Completed') return { 
-      bg: 'bg-green-50', 
-      text: 'text-green-700', 
-      badge: 'bg-gradient-to-r from-green-500 to-emerald-600', 
-      border: 'border-green-200',
-      progressBar: 'bg-gradient-to-r from-green-500 to-emerald-600'
+      bg: 'bg-blue-50', 
+      text: 'text-blue-700', 
+      badge: 'bg-gradient-to-r from-blue-500 to-indigo-600', 
+      border: 'border-blue-200',
+      progressBar: 'bg-gradient-to-r from-blue-500 to-indigo-600'
     };
     if (status === 'In Progress') return { 
       bg: 'bg-blue-50', 

@@ -1099,7 +1099,7 @@ const handleBudgetChange = (e) => {
             <span className="text-sm font-medium">Status:</span>
           </div>
           <span className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-sm ${
-            progress?.status === 'Completed' ? 'bg-gradient-to-r from-green-100 to-green-50 text-green-700 border border-green-200' :
+            progress?.status === 'Completed' ? 'bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 border border-blue-200' :
             progress?.status === 'In Progress' ? 'bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 border border-blue-200' :
             'bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 border border-gray-200'
           }`}>
@@ -1147,7 +1147,7 @@ const handleBudgetChange = (e) => {
         {/* Already processed message */}
         {!isPending && (
           <div className={`px-4 py-3 text-center text-sm font-medium flex items-center justify-center gap-2 ${
-            isApproved ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-t border-green-200' : 
+            isApproved ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border-t border-blue-200' : 
             'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-t border-red-200'
           }`}>
             {isApproved ? (
@@ -1231,11 +1231,11 @@ const markAsRead = async (id) => {
   // Get color based on status for consistent visual theme
   const getProgressColor = (status) => {
     if (status === 'Completed') return { 
-      bg: 'from-green-500 to-emerald-600', 
-      text: 'text-green-700', 
-      badge: 'bg-green-100', 
-      border: 'border-green-200',
-      cardBg: 'bg-green-50'
+      bg: 'from-blue-500 to-indigo-600', 
+      text: 'text-blue-700', 
+      badge: 'bg-blue-100', 
+      border: 'border-blue-200',
+      cardBg: 'bg-blue-50'
     };
     if (status === 'In Progress') return { 
       bg: 'from-blue-500 to-indigo-600', 
@@ -4506,7 +4506,7 @@ useEffect(() => {
                       
                       {isLatest && (
                         <div className="absolute top-2 right-2">
-                          <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-sm">
+                          <span className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded-full shadow-sm">
                             Latest
                           </span>
                         </div>
