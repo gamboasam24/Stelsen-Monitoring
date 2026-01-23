@@ -4465,7 +4465,7 @@ useEffect(() => {
       {/* Task Progress - Stack Navigation */}
       {getCurrentScreen()?.screen === "taskProgress" && (
         <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
-          <div className="sticky top-0 z-20 bg-gradient-to-r from-sky-500 to-cyan-600 text-white px-5 py-4 border-b border-sky-400 flex items-center">
+          <div className="sticky top-0 z-20 bg-white text-gray-800 px-5 py-4 border-b border-gray-200 flex items-center">
             <button
               onClick={popScreen}
               className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"

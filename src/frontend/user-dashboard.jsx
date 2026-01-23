@@ -3022,9 +3022,9 @@ const renderCommentsModal = () => (
                         <div className="w-1.5 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
                         Announcements
                       </h2>
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg flex-shrink-0">
-                        <MdCalendarToday size={14} className="text-blue-500" />
-                        <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                      <div className="flex items-center gap-3 px-4 py-2 bg-white border border-gray-300 rounded-xl flex-shrink-0">
+                        <MdCalendarToday size={18} className="text-blue-500" />
+                        <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
                           {dateFilter === "all" && new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           {dateFilter === "today" && "Today"}
                           {dateFilter === "week" && "This Week"}
@@ -3033,12 +3033,13 @@ const renderCommentsModal = () => (
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-500 font-medium">
-                          {filteredAnnouncements.length} {selectedFilter === "all" ? "total announcements" : selectedFilter}
-                        </p>
-                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-700 font-medium">
+                            <span className="text-lg font-extrabold text-gray-900 mr-2">{filteredAnnouncements.length}</span>
+                            <span className="align-middle">{selectedFilter === "all" ? "total announcements" : selectedFilter}</span>
+                          </p>
+                        </div>
                       {!isLoading && announcements.filter(a => a.unread).length > 0 && (
                         <button 
                           className="px-4 py-2 bg-blue-500 text-white text-xs font-semibold rounded-full hover:bg-blue-600 active:scale-95 transition-all flex items-center gap-2 shadow-sm"
@@ -4097,7 +4098,7 @@ const renderCommentsModal = () => (
       {getCurrentScreen()?.screen === "taskProgress" && (
         <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
           {/* Header */}
-          <div className="sticky top-0 z-20 bg-gradient-to-r from-sky-500 to-cyan-600 text-white px-5 py-4 border-b border-sky-400 flex items-center">
+          <div className="sticky top-0 z-20 bg-white text-gray-800 px-5 py-4 border-b border-gray-200 flex items-center">
             <button 
               onClick={popScreen}
               className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
