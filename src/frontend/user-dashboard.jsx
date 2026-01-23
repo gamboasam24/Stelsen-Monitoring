@@ -248,6 +248,17 @@ const UserDashboard = ({ user, logout }) => {
     }
   };
 
+  // Detect first user interaction so vibration is allowed by the browser
+  useEffect(() => {
+    const setInteracted = () => setUserInteracted(true);
+    window.addEventListener('pointerdown', setInteracted, { once: true });
+    window.addEventListener('touchstart', setInteracted, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', setInteracted);
+      window.removeEventListener('touchstart', setInteracted);
+    };
+  }, []);
+
   const [viewState, setViewState] = useState({
     longitude: 120.9842,
     latitude: 14.5995,
@@ -982,6 +993,7 @@ const getPriorityBadge = (priority) => {
   const [projects, setProjects] = useState([]);
 
   const [locationHistory, setLocationHistory] = useState([]);
+  const [userInteracted, setUserInteracted] = useState(false);
 
   // Progress Update States
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -1107,15 +1119,20 @@ const getPriorityBadge = (priority) => {
 
   // Haptic feedback helper
   const triggerHaptic = (style = 'light') => {
-    if ('vibrate' in navigator) {
-      const patterns = {
-        light: [10],
-        medium: [20],
-        heavy: [30],
-        success: [10, 50, 10],
-        error: [50, 100, 50]
-      };
-      navigator.vibrate(patterns[style] || patterns.light);
+    try {
+      if (!userInteracted) return; // Avoid vibration until user has interacted with the page
+      if ('vibrate' in navigator) {
+        const patterns = {
+          light: [10],
+          medium: [20],
+          heavy: [30],
+          success: [10, 50, 10],
+          error: [50, 100, 50]
+        };
+        navigator.vibrate(patterns[style] || patterns.light);
+      }
+    } catch (e) {
+      // ignore any vibration/intervention errors
     }
   };
 
@@ -2292,8 +2309,8 @@ const renderCommentsModal = () => (
   </div>
 );
 
-  const renderLocationHistory = (item) => (
-    <div key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center">
+  const renderLocationHistory = (item, idx) => (
+    <div key={`${item.id}-${idx}`} className="bg-white rounded-2xl p-4 mb-3 shadow-sm flex items-center">
       <div className="w-11 h-11 rounded-full bg-blue-50 flex justify-center items-center mr-3">
         <MdLocationOn size={24} className="text-blue-500" />
       </div>
