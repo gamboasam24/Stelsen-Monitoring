@@ -2306,6 +2306,9 @@ const renderCommentsModal = () => (
     </div>
   );
 
+  // Collect active users from locations array.
+  
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file && file.type.startsWith('image/')) {
@@ -3224,7 +3227,7 @@ const renderCommentsModal = () => (
                     className="bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow flex-shrink-0"
                     onClick={() => handleTabChange("Home")}
                   >
-                    <FiChevronLeft size={24} />
+                    <IoMdArrowBack size={24} />
                   </button>
                   
                   <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-2 shadow flex-1">
@@ -3316,21 +3319,21 @@ const renderCommentsModal = () => (
                 <div className="pt-3 pb-2 flex-shrink-0 pointer-events-auto cursor-grab active:cursor-grabbing">
                   <div className="w-12 h-1.5 bg-gray-400 rounded-full mx-auto transition-all hover:bg-gray-500 hover:w-16"></div>
                 </div>
-                <div className="px-5 pb-0 flex-shrink-0 pointer-events-auto">
+                  <div className="px-5 pb-0 flex-shrink-0 pointer-events-auto">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-gray-800">Recent Locations</h3>
                     <button className="text-blue-500 text-sm font-medium">View All</button>
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-5 pb-5 pointer-events-auto" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
-                  {locationHistory.length > 0 ? (
+                  {locationHistory && locationHistory.length > 0 ? (
                     locationHistory.map(renderLocationHistory)
                   ) : (
                     <div className="text-center py-10">
                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <MdLocationOn size={24} className="text-gray-400" />
                       </div>
-                      <p className="text-gray-600">No location history yet</p>
+                      <p className="text-gray-600">No recent locations</p>
                     </div>
                   )}
                 </div>

@@ -1332,6 +1332,26 @@ const markAsRead = async (id) => {
     { id: "4", location: "Site B", time: "04:45 PM", date: "2024-12-10" },
   ]);
 
+  // Collect active users from locations array.
+  // thresholdMinutes: consider user active if their location.updated_at is within this many minutes
+  const collectActiveUsers = (locations = [], thresholdMinutes = 2) => {
+    if (!Array.isArray(locations)) return [];
+    const now = Date.now();
+    const threshold = thresholdMinutes * 60 * 1000;
+    return locations
+      .map(loc => ({
+        ...loc,
+        updated_at: loc.updated_at || null,
+        isActive: loc.updated_at ? (now - new Date(loc.updated_at).getTime()) <= threshold : false,
+      }))
+      .filter(l => l.isActive)
+      .map(l => ({
+        ...l,
+        profile_image: l.profile_image || (users.find(u => String(u.id) === String(l.user_id)) || {}).profile_image || null,
+        email: l.email || (users.find(u => String(u.id) === String(l.user_id)) || {}).email || `user_${l.user_id}`
+      }));
+  };
+
   //========================================================== useEffect ==========================================================
   // Close action menu when clicking outside
   useEffect(() => {
@@ -4103,27 +4123,30 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Location History */}
+            {/* Active Locations (uses live active users) */}
             <div className="p-5">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Recent Locations</h3>
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Active Locations</h3>
               <div>
-                {locationHistory.length > 0 ? (
-                  locationHistory.map(renderLocationHistory)
-                ) : (
-                  <div className="text-center py-10">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <MdLocationOn size={24} className="text-gray-400" />
+                {(() => {
+                  const actives = collectActiveUsers(otherUsersLocations, 2);
+                  return actives.length > 0 ? (
+                    actives.map(renderEmployeeLocation)
+                  ) : (
+                    <div className="text-center py-10">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MdLocationOn size={24} className="text-gray-400" />
+                      </div>
+                      <p className="text-gray-600 font-medium">No active locations</p>
+                      <p className="text-gray-400 text-sm mt-1">No users currently online or updating location</p>
+                      <button
+                        onClick={fetchOtherUsersLocations}
+                        className="mt-4 px-5 py-3 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition-all"
+                      >
+                        Refresh
+                      </button>
                     </div>
-                    <p className="text-gray-600 font-medium">No location history yet</p>
-                    <p className="text-gray-400 text-sm mt-1">Update your location to start tracking</p>
-                    <button
-                      onClick={updateLocation}
-                      className="mt-4 px-5 py-3 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition-all"
-                    >
-                      Update Location
-                    </button>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>
