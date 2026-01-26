@@ -35,4 +35,44 @@ try {
         return false;
     }
 }
+
+function sendGenericEmail($toEmail, $subject, $htmlBody, $plainBody = '') {
+    $mail = new PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'stelsenintegratedsysteminc@gmail.com';
+        $mail->Password   = 'qkemmedlmdvdioic';
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
+
+        $mail->setFrom('stelsenintegratedsysteminc@gmail.com', 'Stelsen System');
+        $mail->addAddress($toEmail);
+
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body    = $htmlBody;
+        if ($plainBody) $mail->AltBody = $plainBody;
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+function sendAnnouncementNotification($toEmail, $title, $content) {
+    $subject = "New Announcement: " . $title;
+    $html = "<p>Hello,</p><p>A new announcement has been posted:</p><h3>" . htmlspecialchars($title) . "</h3><p>" . nl2br(htmlspecialchars($content)) . "</p><p>Please check your dashboard for details.</p>";
+    $plain = "New announcement: $title\n\n" . strip_tags($content);
+    return sendGenericEmail($toEmail, $subject, $html, $plain);
+}
+
+function sendProjectAssignmentNotification($toEmail, $projectTitle, $projectDesc = '') {
+    $subject = "Assigned to project: " . $projectTitle;
+    $html = "<p>Hello,</p><p>You have been assigned to a project:</p><h3>" . htmlspecialchars($projectTitle) . "</h3>" . ($projectDesc ? "<p>" . nl2br(htmlspecialchars($projectDesc)) . "</p>" : "") . "<p>Please check your dashboard for details.</p>";
+    $plain = "You have been assigned to project: $projectTitle\n\n" . strip_tags($projectDesc);
+    return sendGenericEmail($toEmail, $subject, $html, $plain);
+}
 ?>

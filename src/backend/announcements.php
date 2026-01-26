@@ -5,6 +5,7 @@ session_save_path($tempDir);
 session_start();
 header('Content-Type: application/json');
 require_once 'db.php';
+require_once 'send_email.php';
 
 /* 🔐 Auth check */
 if (!isset($_SESSION['user_id'])) {
@@ -157,6 +158,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $stmt->bind_param("ssssi", $title, $content, $type, $priority, $user_id);
     $stmt->execute();
+
+    // Notify all users via email (best-effort, don't fail request on email errors)
+    try {
+        $announcement_id = $conn->insert_id;
+        $users_res = $conn->query("SELECT email FROM login WHERE account_type = 'user'");
+        if ($users_res) {
+            while ($u = $users_res->fetch_assoc()) {
+                if (!empty($u['email'])) {
+                    // fire-and-forget best-effort
+                    @sendAnnouncementNotification($u['email'], $title, $content);
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // ignore email errors
+    }
 
     echo json_encode([
         'status' => 'success',

@@ -6,7 +6,8 @@ import {
   IoMdMegaphone,
   IoMdCheckmarkCircle,
   IoMdTime,
-  IoMdSend
+  IoMdSend,
+  IoMdArrowBack
 } from "react-icons/io";
 import {
   MdDashboard,
@@ -1662,30 +1663,39 @@ const renderAnnouncementCard = (announcement) => (
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Header with Back Button and Breadcrumb */}
-      <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-2">
-          <button 
-            onClick={popScreen}
-            className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-3"
-          >
-            <FiChevronLeft size={24} className="text-gray-700" />
-          </button>
-          <h3 className="flex-1 text-lg font-bold text-gray-800">Tasks Details</h3>
+      {/* Header (clean) */}
+      <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={popScreen}
+              className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-0"
+              aria-label="Back"
+            >
+              <IoMdArrowBack size={20} className="text-gray-700" />
+            </button>
+            <div className="flex flex-col">
+              <h3 className="text-lg font-semibold text-gray-900 leading-tight">Task Details</h3>
+            </div>
+          </div>
+
           {selectedProject && (
             <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block flex-shrink-0`}>
               {selectedProject.status}
             </span>
           )}
         </div>
-        {/* Breadcrumb Navigation */}
-        <div className="flex items-center text-xs text-gray-500 ml-14">
+      </div>
+
+      {/* Sub-header / Breadcrumb bar (outside sticky header for clearer layout) */}
+      <div className="pl-8 pr-2 py-2 bg-gray-50 border-b border-gray-100 text-xs text-gray-600">
+        <nav className="flex items-center gap-2">
           <button onClick={() => { popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
-          <FiChevronRight size={14} className="mx-1" />
+          <FiChevronRight size={12} className="text-gray-400" />
           <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Projects</button>
-          <FiChevronRight size={14} className="mx-1" />
-          <span className="text-gray-800 font-medium truncate max-w-[150px]">{selectedProject?.title}</span>
-        </div>
+          <FiChevronRight size={12} className="text-gray-400" />
+          <span className="text-gray-800 font-medium truncate max-w-[260px]">Details</span>
+        </nav>
       </div>
 
       {/* Content */}
@@ -1858,7 +1868,7 @@ const renderCommentsModal = () => (
           onClick={popScreen}
           className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
         >
-          <FiChevronLeft size={24} className="text-gray-700" />
+          <IoMdArrowBack size={24} className="text-gray-700" />
         </button>
         
         <Avatar 
@@ -1867,13 +1877,15 @@ const renderCommentsModal = () => (
           className="flex-shrink-0 mr-4"
         />
 
-        {/* Breadcrumb for Comments */}
-        <div className="flex items-center text-xs text-gray-500 ml-14 mt-1">
-          <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
-          <FiChevronRight size={14} className="mx-1" />
-          <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
-          <FiChevronRight size={14} className="mx-1" />
-          <span className="text-gray-800 font-medium">Comments</span>
+        {/* Breadcrumb for Comments - single-line with horizontal scroll */}
+        <div className="flex-1 flex items-center text-sm text-gray-500 ml-3 mt-1 whitespace-nowrap overflow-x-auto pr-2">
+          <div className="inline-flex items-center gap-1 flex-none">
+            <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
+            <FiChevronRight size={14} className="mx-1 flex-none" />
+            <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
+            <FiChevronRight size={14} className="mx-1 flex-none" />
+            <span className="text-gray-800 font-medium flex-none">Comments</span>
+          </div>
         </div>
 
         <button className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 transition-colors ml-2">
@@ -2329,7 +2341,7 @@ const renderCommentsModal = () => (
   const renderProfile = () => (
     <div className="h-full flex flex-col">
       {/* Profile Header */}
-      <div className="bg-blue-500 px-5 py-4 flex justify-between items-center text-white">
+      <div className="bg-white-500 px-5 py-4 flex justify-between items-center text-balck">
         <div className="flex items-center">
           <div className="w-12 h-12 rounded-full border-2 border-white mr-3 overflow-hidden">
             <Avatar
@@ -2354,7 +2366,7 @@ const renderCommentsModal = () => (
         </div>
         <button 
           onClick={() => setProfileOpen(false)}
-          className="p-3 rounded-full min-w-[44px] min-h-[44px] bg-white/20 hover:bg-white/30 transition-colors"
+          className="p-3 rounded-full min-w-[44px] min-h-[44px] bg-gray-800/20 hover:bg-gray-900/30 transition-colors"
         >
           <IoMdClose size={24} />
         </button>
@@ -3859,44 +3871,34 @@ const renderCommentsModal = () => (
       )}
 
       {/* Main Header */}
-      {activeTab !== "My Location" && activeTab !== "Profile" && !(profileOpen && isMobile) && (
-        <div className={`sticky z-20 px-5 py-4 flex justify-between items-center text-white bg-blue-500`} style={{ top: isOnline ? '0' : '36px' }}>
+      {activeTab !== "My Location" && (
+        <div className={
+          (activeTab === "Home" || activeTab === "Profile" || activeTab === "Projects" || activeTab === "My Project")
+            ? "sticky top-0 z-20 px-5 py-4 flex justify-between items-center bg-white text-gray-800 shadow-lg"
+            : "sticky top-0 z-20 px-5 py-4 flex justify-between items-center text-white shadow-lg bg-gradient-to-r from-blue-600 to-blue-700"
+        }>
           <div className="flex items-center">
-            {isMobile && activeTab !== "Profile" && (
-             <button 
-            onClick={() => setProfileOpen(true)}
-                className="mr-3 p-1 rounded-full bg-white/90 hover:bg-white transition-colors shadow"
-                >
-                <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center">
-                    <img
-                    src="/img/stelsenlogo.png"
-                    alt="Menu"
-                    className="w-8 h-8 object-contain"
-                    />
-                </div>
-            </button>
-            )}
+            <img
+              src="/img/stelsenlogo.png"
+              alt="Logo"
+              className="w-10 h-10 rounded-full mr-3 border-2 border-white shadow"
+            />
             <div>
-              <div className="text-xl font-bold">
-              {formatAuthorName(user?.email)}!
+              <div className="text-xl font-bold flex items-center gap-2">
+                {user?.name || (user?.email ? formatAuthorName(user.email) : "N/A")}
               </div>
-              <div className="flex items-center mt-1 text-xs">
-                <div
-                  className={`w-2 h-2 rounded-full mr-2`}
-                  style={{ backgroundColor: userStatus === "Active" ? "#44eb4a" : "#F44336" }}
-                ></div>
-                Status: {userStatus}
+              <div className="flex items-center mt-1 text-xs text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-green-500 mr-2 shadow-sm"></span>
+                <span className="font-medium text-gray-700 mr-1">Status:</span>
+                <span className="font-semibold text-green-700">{userStatus}</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Dark Mode Toggle */}
-            {/* dark mode toggle removed */}
-            <div className="relative flex items-center">
-              <div
-                className="w-11 h-11 rounded-full border-2 border-white cursor-pointer overflow-hidden"
-                onClick={handleProfileClick}
-              >
+          <div className="flex items-center">
+            <div
+              className="w-11 h-11 rounded-full border-2 border-white cursor-pointer shadow overflow-hidden"
+              onClick={handleProfileClick}
+            >
               <Avatar
                 userObj={{
                   ...user,
@@ -3905,10 +3907,6 @@ const renderCommentsModal = () => (
                 }}
                 size={40}
               />
-            </div>
-            {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
-            )}
             </div>
           </div>
         </div>
@@ -4065,7 +4063,7 @@ const renderCommentsModal = () => (
               onClick={popScreen}
               className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
             >
-              <FiChevronLeft size={24} />
+              <IoMdArrowBack size={24} />
             </button>
             <h3 className="flex-1 text-lg font-bold">Task Progress</h3>
           </div>
@@ -4178,12 +4176,12 @@ const renderCommentsModal = () => (
       {getCurrentScreen()?.screen === "progressDetail" && selectedProgressUpdate && (
         <div className="fixed inset-0 bg-white z-[70] flex flex-col animate-slide-in-right">
           {/* Header */}
-          <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-4 border-b border-blue-400 flex items-center">
+          <div className="sticky top-0 z-20 px-5 py-4 flex items-center justify-between bg-white text-gray-800 border-b border-gray-200 shadow-sm">
             <button 
               onClick={popScreen}
               className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
             >
-              <FiChevronLeft size={24} />
+              <IoMdArrowBack size={24} />
             </button>
             <h3 className="flex-1 text-lg font-bold">Progress Details</h3>
           </div>
@@ -4393,9 +4391,9 @@ const renderCommentsModal = () => (
       {/* Progress Detail View Modal */}
       {showProgressDetailView && selectedProgressUpdate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
             {/* Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-4 flex items-center justify-between">
+            <div className="sticky top-0 px-6 py-4 flex items-center justify-between bg-white text-gray-800 border-b border-gray-200">
               <h2 className="text-xl font-bold">Progress Update Details</h2>
               <button 
                 onClick={() => {

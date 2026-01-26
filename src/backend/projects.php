@@ -5,6 +5,7 @@ session_save_path($tempDir);
 session_start();
 header('Content-Type: application/json');
 require_once 'db.php';
+require_once 'send_email.php';
 
 /* 🔐 Auth check */
 if (!isset($_SESSION['user_id'])) {
@@ -173,12 +174,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $email = $user_info['email'];
                 $project_title = $proj_info['title'] ?? 'Your Project';
 
-                $subject = "New Project Assignment: " . $project_title;
-                $message = "Hello,\n\nYou have been assigned to a new project: $project_title\n\nPlease check your dashboard for more details.\n\nBest regards,\nMonitoring System";
-                $headers = "Content-Type: text/plain; charset=UTF-8";
-                
-                // Silently attempt to send email
-                @mail($email, $subject, $message, $headers);
+                // Use PHPMailer helper (best-effort)
+                @sendProjectAssignmentNotification($email, $project_title, $proj_info['description'] ?? '');
             }
 
             echo json_encode([
@@ -244,6 +241,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $stmt->bind_param("sssssssss", $title, $description, $status, $deadline, $manager, $team_users, $budget, $start_date, $assigned_users_json);
     $stmt->execute();
+
+    // If assigned users exist, notify them (best-effort)
+    $new_project_id = $stmt->insert_id;
+    if (!empty($assigned_users)) {
+        $placeholders = str_repeat('?,', count($assigned_users) - 1) . '?';
+        $query = "SELECT email, login_id FROM login WHERE account_type = 'user' AND login_id IN ($placeholders)";
+        $stmt2 = $conn->prepare($query);
+        if ($stmt2) {
+            $stmt2->bind_param(str_repeat('i', count($assigned_users)), ...$assigned_users);
+            $stmt2->execute();
+            $res = $stmt2->get_result();
+            while ($row = $res->fetch_assoc()) {
+                if (!empty($row['email'])) {
+                    @sendProjectAssignmentNotification($row['email'], $title, $description);
+                }
+            }
+        }
+    }
 
     echo json_encode([
         'status' => 'success',

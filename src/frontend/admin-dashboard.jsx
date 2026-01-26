@@ -7,7 +7,8 @@ import {
   IoMdCheckmarkCircle,
   IoMdTime,
   IoMdSend,
-  IoMdCreate
+  IoMdCreate,
+  IoMdArrowBack
 } from "react-icons/io";
 import { 
   MdDashboard, 
@@ -51,7 +52,6 @@ import {
   FiSettings, 
   FiChevronRight, 
   FiPlus, 
-  FiChevronLeft, 
   FiCamera,
   FiPaperclip,
   FiBell,
@@ -2217,7 +2217,7 @@ useEffect(() => {
               onClick={() => viewProjectDetails(item)}
               className="text-blue-500 text-sm font-medium flex items-center"
             >
-              Details <FiChevronRight size={16} className="ml-1" />
+              Task Details <FiChevronRight size={16} className="ml-1" />
             </button>
           </div>
         </div>
@@ -2227,28 +2227,40 @@ useEffect(() => {
 
   const renderProjectDetailsModal = () => (
     <div className="fixed inset-0 bg-white dark:bg-slate-900 z-[60] flex flex-col animate-slide-in-right transition-colors duration-300">
-      {/* Header with Back Button */}
-      <div className="sticky top-0 z-20 bg-white dark:bg-slate-800 px-5 py-4 border-b border-gray-200 flex items-center justify-between transition-colors duration-300">
-        <button 
-          onClick={popScreen}
-          className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-3"
-        >
-          <FiChevronLeft size={24} className="text-gray-700" />
-        </button>
-        <h3 className="flex-1 text-lg font-bold text-gray-800">Tasks Details</h3>
-        {selectedProject && (
-          <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block flex-shrink-0`}>
-            {selectedProject.status}
-          </span>
-        )}
+      {/* Messenger-style Header (back, avatar, inline breadcrumb, status + users button) */}
+      <div className="sticky top-0 z-20 bg-transparent px-4 py-3 border-b-0 shadow-none transition-colors duration-300">
+        <div className="w-full">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={popScreen}
+                className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-0"
+              >
+                <IoMdArrowBack size={20} className="text-gray-700" />
+              </button>
+              <h3 className="text-lg font-bold">Task Details</h3>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {selectedProject && (
+                <span className={`px-3 py-1 rounded-full ${getStatusColor(selectedProject.status)} text-white text-xs inline-block flex-shrink-0`}>
+                  {selectedProject.status}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-      {/* Breadcrumb Navigation */}
-      <div className="flex items-center text-xs text-gray-500 ml-14">
-        <button onClick={() => { popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
-        <FiChevronRight size={14} className="mx-1" />
-        <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Projects</button>
-        <FiChevronRight size={14} className="mx-1" />
-        <span className="text-gray-800 font-medium truncate max-w-[150px]">{selectedProject?.title}</span>
+
+   {/* Sub-header / Breadcrumb bar (outside sticky header for clearer layout) */}
+      <div className="pl-8 pr-2 py-2 bg-transparent border-b-0 text-xs text-gray-600">
+        <nav className="flex items-center gap-2">
+          <button onClick={() => { popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
+          <FiChevronRight size={12} className="text-gray-400" />
+          <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Projects</button>
+          <FiChevronRight size={12} className="text-gray-400" />
+          <span className="text-gray-800 font-medium truncate max-w-[260px]">Details</span>
+        </nav>
       </div>
 
       {/* Content */}
@@ -2382,7 +2394,7 @@ useEffect(() => {
         onClick={() => popScreen()}
         className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
         >
-        <FiChevronLeft size={24} className="text-gray-700" />
+        <IoMdArrowBack size={24} className="text-gray-700" />
         </button>
         
         <Avatar 
@@ -2392,13 +2404,13 @@ useEffect(() => {
         />
         
         {/* Breadcrumb for Comments (inline beside avatar) */}
-        <div className="flex-1 flex items-center text-xs text-gray-500 ml-2">
-          <div className="truncate flex items-center gap-1">
-            <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors truncate">Home</button>
-            <FiChevronRight size={14} className="mx-1" />
-            <button onClick={popScreen} className="hover:text-blue-600 transition-colors truncate">Project</button>
-            <FiChevronRight size={14} className="mx-1" />
-            <span className="text-gray-800 font-medium truncate max-w-[160px]">Comments</span>
+        <div className="flex-1 flex items-center text-sm text-gray-500 ml-2 whitespace-nowrap overflow-x-auto pr-2">
+          <div className="inline-flex items-center gap-1 flex-none">
+            <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
+            <FiChevronRight size={14} className="mx-1 flex-none" />
+            <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
+            <FiChevronRight size={14} className="mx-1 flex-none" />
+            <span className="text-gray-800 font-medium flex-none">Comments</span>
           </div>
         </div>
         
@@ -2425,7 +2437,7 @@ useEffect(() => {
                 onClick={popScreen}
                 className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-3"
               >
-                <FiChevronLeft size={24} className="text-gray-700" />
+                <IoMdArrowBack size={24} className="text-gray-700" />
               </button>
               <h3 className="text-lg font-bold text-gray-800">
                 {currentScreen?.screen === "projectUsers" ? "Project Team" : "Add Users to Project"}
@@ -3012,11 +3024,11 @@ useEffect(() => {
     <div className="fixed inset-0 bg-white z-50 flex flex-col animate-slide-in-right">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 md:px-5 py-3 md:py-4 flex items-center text-white shadow-lg">
-        <button 
+          <button 
           onClick={() => setShowProjectModal(false)}
           className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white/20 mr-3 transition-colors flex-shrink-0"
         >
-          <FiChevronLeft size={24} />
+          <IoMdArrowBack size={24} />
         </button>
         <div className="flex-1">
           <h3 className="text-base md:text-lg font-bold">Create New Task</h3>
@@ -3991,7 +4003,7 @@ useEffect(() => {
                     aria-label="Back"
                     title="Back"
                   >
-                    <FiChevronLeft size={24} />
+                    <IoMdArrowBack size={24} />
                   </button>
                   <div>
                     <h2 className="text-2xl font-bold">Task Location</h2>
@@ -4368,7 +4380,11 @@ useEffect(() => {
       {/* Skeletons are now shown in renderTabContent per tab, not as overlay */}
       {/* Main Header */}
       {activeTab !== "My Location" && (
-        <div className="sticky top-0 z-20 px-5 py-4 flex justify-between items-center text-white shadow-lg bg-gradient-to-r from-blue-600 to-blue-700">
+        <div className={
+          (activeTab === "Home" || activeTab === "Profile" || activeTab === "Projects")
+            ? "sticky top-0 z-20 px-5 py-4 flex justify-between items-center bg-white text-gray-800 shadow-lg"
+            : "sticky top-0 z-20 px-5 py-4 flex justify-between items-center text-white shadow-lg bg-gradient-to-r from-blue-600 to-blue-700"
+        }>
           <div className="flex items-center">
             <img
               src="/img/stelsenlogo.png"
@@ -4379,9 +4395,10 @@ useEffect(() => {
               <div className="text-xl font-bold flex items-center gap-2">
                 {currentUser?.name || (currentUser?.email ? currentUser.email.split("@")[0].replace(/\b\w/g, c => c.toUpperCase()) : "N/A")}
               </div>
-              <div className="flex items-center mt-1 text-xs">
-                <span className="w-2 h-2 rounded-full bg-green-400 mr-2"></span>
-                Status: <span className="ml-1 font-semibold text-green-100">{userStatus}</span>
+              <div className="flex items-center mt-1 text-xs text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-green-500 mr-2 shadow-sm"></span>
+                <span className="font-medium text-gray-700 mr-1">Status:</span>
+                <span className="font-semibold text-green-700">{userStatus}</span>
               </div>
             </div>
           </div>
@@ -4505,7 +4522,7 @@ useEffect(() => {
               onClick={popScreen}
               className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
             >
-              <FiChevronLeft size={24} />
+              <IoMdArrowBack size={24} />
             </button>
             <h3 className="flex-1 text-lg font-bold">Task Progress</h3>
           </div>
@@ -4628,7 +4645,7 @@ useEffect(() => {
               onClick={popScreen}
               className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
             >
-              <FiChevronLeft size={24} />
+              <IoMdArrowBack size={24} />
             </button>
             <h3 className="flex-1 text-lg font-bold">Progress Details</h3>
           </div>
@@ -4732,13 +4749,35 @@ useEffect(() => {
                   }}>
                     Approval Status
                   </p>
-                  <p className={`font-semibold capitalize ${
-                    selectedProgressUpdate.approval_status === 'approved' ? 'text-green-700' :
-                    selectedProgressUpdate.approval_status === 'rejected' ? 'text-red-700' :
-                    'text-yellow-700'
-                  }`}>
-                    {selectedProgressUpdate.approval_status}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className={`font-semibold capitalize ${
+                      selectedProgressUpdate.approval_status === 'approved' ? 'text-green-700' :
+                      selectedProgressUpdate.approval_status === 'rejected' ? 'text-red-700' :
+                      'text-yellow-700'
+                    }`}>
+                      {selectedProgressUpdate.approval_status}
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleApproveProgress(selectedProgressUpdate.id)}
+                        disabled={selectedProgressUpdate.approval_status === 'approved' || selectedProgressUpdate.approval_status === 'rejected'}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectedProgressUpdate.approval_status === 'approved' || selectedProgressUpdate.approval_status === 'rejected' ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                        title="Approve"
+                      >
+                        Approve
+                      </button>
+
+                      <button
+                        onClick={() => handleRejectProgress(selectedProgressUpdate.id)}
+                        disabled={selectedProgressUpdate.approval_status === 'approved' || selectedProgressUpdate.approval_status === 'rejected'}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectedProgressUpdate.approval_status === 'approved' || selectedProgressUpdate.approval_status === 'rejected' ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'}`}
+                        title="Reject"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -4825,7 +4864,7 @@ useEffect(() => {
                     className="bg-white text-gray-700 p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow"
                     onClick={() => popScreen()}
                   >
-                    <FiChevronLeft size={24} />
+                    <IoMdArrowBack size={24} />
                   </button>
                   <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-2 shadow">
                     <div className="text-sm text-gray-500">Current Location</div>
@@ -4959,7 +4998,7 @@ useEffect(() => {
               }}
               className="p-2 rounded-full bg-gray/20 mr-3"
             >
-              <FiChevronLeft size={20} />
+              <IoMdArrowBack size={20} />
             </button>
             <div className="flex-1 text-center font-bold">Camera</div>
             <div style={{width:44}} />
