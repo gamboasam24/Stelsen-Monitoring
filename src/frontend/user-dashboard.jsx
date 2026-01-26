@@ -999,6 +999,8 @@ const getPriorityBadge = (priority) => {
   // Refs for camera
   const cameraVideoRef = useRef(null);
   const cameraCanvasRef = useRef(null);
+  // Map reference to access underlying map instance for pixel -> lat/lng conversions
+  const mapRef = useRef(null);
 
   const updateLocation = (location) => {
     const now = new Date();
@@ -3138,6 +3140,7 @@ const renderCommentsModal = () => (
             {/* MAP */}
             <div className="absolute inset-0 overflow-hidden">
               <Map
+                ref={mapRef}
                 {...viewState}
                 onMove={evt => setViewState(evt.viewState)} 
                 style={{ width: "100%", height: "100%" }}
@@ -3243,11 +3246,57 @@ const renderCommentsModal = () => (
                   <button
                     onClick={() => {
                       if (userCoordinates.latitude && userCoordinates.longitude) {
+                        const lng = userCoordinates.longitude;
+                        const lat = userCoordinates.latitude;
+                        const zoom = 15;
+
+                        // If mapRef is available, compute a pixel offset so marker appears at 75% from top
+                        if (mapRef && mapRef.current && typeof mapRef.current.getMap === 'function') {
+                          try {
+                            const mapObj = mapRef.current.getMap();
+                            const canvas = mapObj.getCanvas();
+                            const height = (canvas && canvas.clientHeight) ? canvas.clientHeight : window.innerHeight;
+
+                            const point = mapObj.project([lng, lat]);
+
+                            // If there is a bottom sheet overlay, compute its height and center the marker
+                            // within the visible map area above the sheet so the profile image sits in the middle.
+                            const bottomSheet = document.querySelector('.absolute.bottom-0');
+                            let targetY;
+                            if (bottomSheet && bottomSheet.clientHeight) {
+                              const bsHeight = bottomSheet.clientHeight;
+                              const bsTop = height - bsHeight; // y coordinate of top of bottom sheet in pixels
+                              // center the marker vertically in the visible area (0 .. bsTop)
+                              // but bias slightly upward so the marker sits higher than exact center
+                              // (40% down from top of visible area instead of 50%)
+                              targetY = Math.round(bsTop * 0.4);
+                            } else {
+                              // Default: move up by 25% of viewport height
+                              targetY = point.y - height * 0.25;
+                            }
+
+                            const center = mapObj.unproject([point.x, targetY]);
+
+                            setViewState(prev => ({
+                              ...prev,
+                              longitude: center.lng,
+                              latitude: center.lat,
+                              zoom,
+                              transitionDuration: 800
+                            }));
+                            return;
+                          } catch (e) {
+                            // Fallback to simple center if projection fails
+                            console.error('Map offset error:', e);
+                          }
+                        }
+
+                        // Fallback: center the map normally
                         setViewState(prev => ({
                           ...prev,
-                          longitude: userCoordinates.longitude,
-                          latitude: userCoordinates.latitude,
-                          zoom: 15,
+                          longitude: lng,
+                          latitude: lat,
+                          zoom,
                           transitionDuration: 800
                         }));
                       }
