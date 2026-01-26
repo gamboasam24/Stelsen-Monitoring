@@ -156,11 +156,7 @@ const UserDashboard = ({ user, logout }) => {
   const [pullDistance, setPullDistance] = useState(0);
   const pullThreshold = 80;
 
-  // Dark mode state
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('userDashboardDarkMode');
-    return saved === 'true';
-  });
+  // dark mode removed — app uses light theme only
 
   // Pin state is provided by backend (persisted like admin)
 
@@ -203,15 +199,7 @@ const UserDashboard = ({ user, logout }) => {
     };
   }, []);
 
-  // Dark mode persistence
-  useEffect(() => {
-    localStorage.setItem('userDashboardDarkMode', darkMode);
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
+  // dark mode persistence removed
 
   // Fetch other users' locations when in My Location tab
   useEffect(() => {
@@ -1358,18 +1346,14 @@ const getPriorityBadge = (priority) => {
   };
 
   const startCamera = async () => {
+    // Navigate to a dedicated camera screen and start camera there
+    pushScreen('camera');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false,
-      });
-      setCameraStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setShowCameraModal(true);
+      await startCameraForModal();
     } catch (error) {
-      console.error('Error accessing camera:', error);
+      console.error('Error starting camera screen:', error);
+      // If it fails, return to previous screen
+      popScreen();
       alert('Unable to access camera. Please check permissions.');
     }
   };
@@ -2029,60 +2013,45 @@ const renderCommentsModal = () => (
                                   </p>
                                 )}
                                 
-                                {comment.attachments && comment.attachments.length > 0 && (
-                                  <div className={`space-y-2 mt-2 ${comment.text ? 'pt-2 border-t border-opacity-20' : ''} ${
-                                    isCurrentUser ? 'border-white/30' : 'border-gray-200'
-                                  }`}>
-                                    {comment.attachments.map((att, idx) => {
-                                      const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
-                                      
-                                      return isImage ? (
-                                        <div key={idx} className="rounded-lg overflow-hidden border border-opacity-20">
-                                          <img
-                                            src={att.path}
-                                            alt={att.name}
-                                            className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                            onClick={() => window.open(att.path, '_blank')}
-                                          />
-                                          {comment.text && (
-                                            <a
-                                              href={att.path}
-                                              download={att.name}
-                                              className={`block text-xs mt-1 px-2 py-1 ${
-                                                isCurrentUser 
-                                                  ? 'text-blue-200 hover:text-white' 
-                                                  : 'text-gray-500 hover:text-gray-700'
-                                              }`}
-                                            >
-                                              📎 {att.name}
-                                            </a>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <a
-                                          key={idx}
-                                          href={att.path || att.data}
-                                          download={att.name}
-                                          className={`flex items-center text-sm px-3 py-2 rounded-lg transition-colors ${
-                                            isCurrentUser 
-                                              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                                              : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                                          }`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                        >
-                                          <FiPaperclip size={16} className="mr-2 flex-shrink-0" />
-                                          <span className="truncate flex-1">{att.name}</span>
-                                          <span className="text-xs opacity-75 ml-2">
-                                            {(att.size / 1024).toFixed(1)}KB
-                                          </span>
-                                        </a>
-                                      );
-                                    })}
-                                  </div>
-                                )}
+                                {/* attachments moved outside the message bubble to render images as standalone */}
                               </div>
                               
+                              {comment.attachments && comment.attachments.length > 0 && (
+                                <div className={`${comment.text ? 'mt-2' : ''} space-y-2`}>
+                                  {comment.attachments.map((att, idx) => {
+                                    const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
+
+                                    return isImage ? (
+                                      <img
+                                        key={idx}
+                                        src={att.path}
+                                        alt={att.name}
+                                        className="w-full max-w-[420px] rounded-2xl h-auto object-cover cursor-pointer hover:opacity-95 transition-opacity shadow-md"
+                                        onClick={() => window.open(att.path, '_blank')}
+                                      />
+                                    ) : (
+                                      <a
+                                        key={idx}
+                                        href={att.path || att.data}
+                                        download={att.name}
+                                        className={`flex items-center text-sm px-3 py-2 rounded-lg transition-colors ${
+                                          isCurrentUser 
+                                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                        }`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <FiPaperclip size={16} className="mr-2 flex-shrink-0" />
+                                        <span className="truncate flex-1">{att.name}</span>
+                                        <span className="text-xs opacity-75 ml-2">
+                                          {(att.size / 1024).toFixed(1)}KB
+                                        </span>
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              )}
                               <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
                                 <span className="text-[10px] text-gray-400 mr-2">
                                   {comment.time}
@@ -2971,62 +2940,66 @@ const renderCommentsModal = () => (
                     <button 
                       className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
                       selectedFilter === "all" 
-                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200" 
+                        ? "bg-gray-200 text-gray-900 border border-gray-300 shadow-sm" 
                         : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
                       }`}
                       onClick={() => setSelectedFilter("all")}
                     >
-                      All ({announcements.length})
+                      <span className="inline-flex items-center">
+                        <span>All</span>
+                        <span className="ml-2 inline-flex items-center justify-center bg-white text-gray-800 text-xs font-semibold px-2 py-0.5 rounded-full">{announcements.length}</span>
+                      </span>
                     </button>
                     <button 
                       className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
                       selectedFilter === "new" 
-                        ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-200" 
+                        ? "bg-gray-200 text-gray-900 border border-gray-300 shadow-sm" 
                         : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
                       }`}
                       onClick={() => setSelectedFilter("new")}
                     >
-                      <span className="inline-flex items-center gap-1.5">
-                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                      New ({announcements.filter(a => a.isNew).length})
+                      <span className="inline-flex items-center">
+                        <span>New</span>
+                        <span className="ml-2 inline-flex items-center justify-center bg-white text-gray-800 text-xs font-semibold px-2 py-0.5 rounded-full">{announcements.filter(a => a.isNew).length}</span>
                       </span>
                     </button>
                     <button 
                       className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
                       selectedFilter === "unread" 
-                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-200" 
+                        ? "bg-gray-200 text-gray-900 border border-gray-300 shadow-sm" 
                         : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
                       }`}
                       onClick={() => setSelectedFilter("unread")}
                     >
-                      <span className="inline-flex items-center gap-1.5">
-                      <MdNotifications size={16} />
-                      Unread ({announcements.filter(a => a.unread).length})
+                      <span className="inline-flex items-center">
+                        <span>Unread</span>
+                        <span className="ml-2 inline-flex items-center justify-center bg-white text-gray-800 text-xs font-semibold px-2 py-0.5 rounded-full">{announcements.filter(a => a.unread).length}</span>
                       </span>
                     </button>
                     <button 
                       className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
                       selectedFilter === "important" 
-                        ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200" 
+                        ? "bg-gray-200 text-gray-900 border border-gray-300 shadow-sm" 
                         : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
                       }`}
                       onClick={() => setSelectedFilter("important")}
                     >
-                      <span className="inline-flex items-center gap-1.5">
-                      ⭐ Important ({announcements.filter(a => a.important).length})
+                      <span className="inline-flex items-center">
+                        <span>Important</span>
+                        <span className="ml-2 inline-flex items-center justify-center bg-white text-gray-800 text-xs font-semibold px-2 py-0.5 rounded-full">{announcements.filter(a => a.important).length}</span>
                       </span>
                     </button>
                     <button 
                       className={`px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
                       selectedFilter === "pinned" 
-                        ? "bg-gradient-to-r from-pink-500 to-red-500 text-white shadow-lg shadow-pink-200" 
+                        ? "bg-gray-200 text-gray-900 border border-gray-300 shadow-sm" 
                         : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95"
                       }`}
                       onClick={() => setSelectedFilter("pinned")}
                     >
-                      <span className="inline-flex items-center gap-1.5">
-                      <MdPushPin size={16} />
-                      Pinned ({announcements.filter(a => a.is_pinned).length})
+                      <span className="inline-flex items-center">
+                        <span>Pinned</span>
+                        <span className="ml-2 inline-flex items-center justify-center bg-white text-gray-800 text-xs font-semibold px-2 py-0.5 rounded-full">{announcements.filter(a => a.is_pinned).length}</span>
                       </span>
                     </button>
                     </div>
@@ -3413,22 +3386,7 @@ const renderCommentsModal = () => (
         );
 
       case "Profile":
-        return !isMobile ? (
-          <div className="p-5">
-            <div className="bg-white rounded-2xl p-5 shadow-lg">
-              <h3 className="text-xl font-bold mb-5">Profile (Desktop View)</h3>
-              <p className="text-gray-600 mb-4">
-                On larger screens, profile shows inline. On mobile, it slides in as a full-screen sidebar.
-              </p>
-              <button
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg"
-                onClick={() => alert("Desktop profile functions")}
-              >
-                Edit Profile
-              </button>
-            </div>
-          </div>
-        ) : null;
+        return renderProfile();
       default:
         return null;
     }
@@ -3581,12 +3539,27 @@ const renderCommentsModal = () => (
   const startCameraForModal = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (cameraVideoRef.current) {
-        cameraVideoRef.current.srcObject = stream;
+      setCameraStream(stream);
+
+      // Wait briefly for video element to mount
+      for (let i = 0; i < 10; i++) {
+        if (cameraVideoRef.current) break;
+        await new Promise(r => setTimeout(r, 50));
       }
+
+      if (cameraVideoRef.current) {
+        try {
+          cameraVideoRef.current.srcObject = stream;
+          await cameraVideoRef.current.play();
+        } catch (e) {
+          console.debug('Camera play failed:', e);
+        }
+      }
+      return stream;
     } catch (error) {
       console.error('Camera error:', error);
       setLocationValidationMsg("❌ Unable to access camera");
+      throw error;
     }
   };
 
@@ -3851,7 +3824,7 @@ const renderCommentsModal = () => (
   const unreadCount = announcements.filter(a => a.unread).length;
 
   return (
-    <div className={`min-h-screen ${activeTab === "My Location" ? "overflow-hidden" : "pb-20"} ${darkMode ? 'bg-gray-900' : 'bg-gray-100'} relative ${!isOnline ? 'pt-10' : ''}`}>
+    <div className={`min-h-screen ${activeTab === "My Location" ? "overflow-hidden" : "pb-20"} bg-gray-100 relative ${!isOnline ? 'pt-10' : ''}`}>
       {/* Offline Mode Indicator */}
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 bg-red-600 text-white px-4 py-2 text-center text-sm font-medium z-[100] flex items-center justify-center gap-2 shadow-lg">
@@ -3886,10 +3859,8 @@ const renderCommentsModal = () => (
       )}
 
       {/* Main Header */}
-      {activeTab !== "My Location" && (
-        <div className={`sticky z-20 px-5 py-4 flex justify-between items-center text-white ${
-          darkMode ? 'bg-gray-800' : 'bg-blue-500'
-        }`} style={{ top: isOnline ? '0' : '36px' }}>
+      {activeTab !== "My Location" && activeTab !== "Profile" && !(profileOpen && isMobile) && (
+        <div className={`sticky z-20 px-5 py-4 flex justify-between items-center text-white bg-blue-500`} style={{ top: isOnline ? '0' : '36px' }}>
           <div className="flex items-center">
             {isMobile && activeTab !== "Profile" && (
              <button 
@@ -3920,27 +3891,7 @@ const renderCommentsModal = () => (
           </div>
           <div className="flex items-center gap-3">
             {/* Dark Mode Toggle */}
-            <div className="flex items-center">
-            <button
-              onClick={() => {
-                triggerHaptic && triggerHaptic('light');
-                setDarkMode(!darkMode);
-              }}
-              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="p-0 ml-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/20 dark:bg-white/5 hover:bg-white/30 dark:hover:bg-white/10 border border-white/10"
-            >
-              {darkMode ? (
-                <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
-                </svg>
-              )}
-            </button>
-            </div>
+            {/* dark mode toggle removed */}
             <div className="relative flex items-center">
               <div
                 className="w-11 h-11 rounded-full border-2 border-white cursor-pointer overflow-hidden"
@@ -4360,6 +4311,85 @@ const renderCommentsModal = () => (
       {/* Comments & Clarifications - Stack Navigation */}
       {getCurrentScreen()?.screen === "comments" && renderCommentsModal()}
 
+      {/* Camera full-screen screen (used by navigation stack) */}
+      {getCurrentScreen()?.screen === "camera" && (
+        <div className="fixed inset-0 bg-white z-[80] flex flex-col">
+          <div className="bg-gradient-to-r from-white-600 to-white-700 px-4 py-3 flex items-center text-black shadow-md">
+            <button onClick={() => {
+                // stop stream
+                if (cameraVideoRef.current && cameraVideoRef.current.srcObject) {
+                  cameraVideoRef.current.srcObject.getTracks().forEach(t => t.stop());
+                }
+                setCameraStream(null);
+                popScreen();
+              }}
+              className="p-2 rounded-full bg-gray/20 mr-3"
+            >
+              <FiChevronLeft size={20} />
+            </button>
+            <div className="flex-1 text-center font-bold">Camera</div>
+            <div style={{width:44}} />
+          </div>
+
+          <div className="flex-1 bg-black flex items-center justify-center">
+            <video ref={cameraVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+            <canvas ref={cameraCanvasRef} style={{ display: 'none' }} />
+          </div>
+
+          <div className="p-4 flex items-center justify-center gap-4">
+            <button
+              onClick={() => {
+                // stop and go back
+                if (cameraVideoRef.current && cameraVideoRef.current.srcObject) {
+                  cameraVideoRef.current.srcObject.getTracks().forEach(t => t.stop());
+                }
+                setCameraStream(null);
+                popScreen();
+              }}
+              className="px-6 py-3 bg-gray-200 rounded-xl"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={async () => {
+                if (cameraCanvasRef.current && cameraVideoRef.current) {
+                  const canvas = cameraCanvasRef.current;
+                  const video = cameraVideoRef.current;
+                  canvas.width = video.videoWidth;
+                  canvas.height = video.videoHeight;
+                  const ctx = canvas.getContext('2d');
+                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                  canvas.toBlob((blob) => {
+                    if (blob) {
+                      const timestamp = Date.now();
+                      const file = new File([blob], `camera-${timestamp}.jpg`, { type: 'image/jpeg' });
+                      setCommentAttachments(prev => [...prev, {
+                        name: file.name,
+                        preview: URL.createObjectURL(blob),
+                        size: file.size,
+                        type: file.type,
+                        rawFile: file,
+                      }] );
+
+                      // stop stream and go back to comments
+                      if (cameraVideoRef.current && cameraVideoRef.current.srcObject) {
+                        cameraVideoRef.current.srcObject.getTracks().forEach(t => t.stop());
+                      }
+                      setCameraStream(null);
+                      popScreen();
+                    }
+                  }, 'image/jpeg', 0.9);
+                }
+              }}
+              className="px-6 py-3 bg-blue-500 text-white rounded-xl"
+            >
+              <FiCamera size={18} className="inline-block mr-2" /> Capture
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Progress Detail View Modal */}
       {showProgressDetailView && selectedProgressUpdate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -4523,6 +4553,7 @@ const renderCommentsModal = () => (
               <video 
                 ref={videoRef}
                 autoPlay 
+                muted
                 playsInline
                 className="w-full h-auto max-h-[60vh] object-contain"
               />

@@ -160,9 +160,26 @@ const AdminDashboard = ({ user, logout }) => {
   }, [isPulling]);
 
   // Haptic feedback (mobile)
+  const [userInteracted, setUserInteracted] = useState(false);
+
+  useEffect(() => {
+    const setInteracted = () => setUserInteracted(true);
+    window.addEventListener('pointerdown', setInteracted, { once: true });
+    window.addEventListener('touchstart', setInteracted, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', setInteracted);
+      window.removeEventListener('touchstart', setInteracted);
+    };
+  }, []);
+
   function triggerHaptic() {
-    if (window.navigator.vibrate) {
-      window.navigator.vibrate(30);
+    try {
+      if (!userInteracted) return;
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(30);
+      }
+    } catch (e) {
+      // ignore vibration errors
     }
   }
 
@@ -1939,19 +1956,40 @@ useEffect(() => {
   };
 
   const startCamera = async () => {
+    // Navigate to a dedicated camera screen and start camera there
+    pushScreen('camera');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' },
-        audio: false 
-      });
-      setCameraStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setShowCameraModal(true);
+      await startCameraForModal();
     } catch (error) {
-      console.error('Error accessing camera:', error);
+      console.error('Error starting camera screen:', error);
+      popScreen();
       alert('Unable to access camera. Please check permissions.');
+    }
+  };
+
+  const startCameraForModal = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      setCameraStream(stream);
+
+      // wait briefly for video element to mount
+      for (let i = 0; i < 10; i++) {
+        if (videoRef.current) break;
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      if (videoRef.current) {
+        try {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        } catch (e) {
+          console.debug('Camera play failed:', e);
+        }
+      }
+      return stream;
+    } catch (error) {
+      console.error('Camera error:', error);
+      throw error;
     }
   };
 
@@ -2353,13 +2391,15 @@ useEffect(() => {
         className="flex-shrink-0 mr-2"
         />
         
-        {/* Breadcrumb for Comments */}
-        <div className="flex items-center text-xs text-gray-500 ml-14 mt-1">
-          <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
-          <FiChevronRight size={14} className="mx-1" />
-          <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
-          <FiChevronRight size={14} className="mx-1" />
-          <span className="text-gray-800 font-medium">Comments</span>
+        {/* Breadcrumb for Comments (inline beside avatar) */}
+        <div className="flex-1 flex items-center text-xs text-gray-500 ml-2">
+          <div className="truncate flex items-center gap-1">
+            <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors truncate">Home</button>
+            <FiChevronRight size={14} className="mx-1" />
+            <button onClick={popScreen} className="hover:text-blue-600 transition-colors truncate">Project</button>
+            <FiChevronRight size={14} className="mx-1" />
+            <span className="text-gray-800 font-medium truncate max-w-[160px]">Comments</span>
+          </div>
         </div>
         
         <button 
@@ -2605,21 +2645,20 @@ useEffect(() => {
                               </div>
                             )}
                             
-                            {/* Images and attachments - NO bubble, Messenger style */}
+                            {/* Images and attachments: render image files as plain images (no chat bubble) */}
                             {comment.attachments && comment.attachments.length > 0 && (
-                              <div className={`space-y-2 ${comment.text ? 'mt-2' : ''} max-w-[280px]`}>
+                              <div className={`${comment.text ? 'mt-2' : ''} space-y-2`}> 
                                 {comment.attachments.map((att, idx) => {
                                   const isImage = att.type && (att.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name));
-                                  
+
                                   return isImage ? (
-                                    <div key={idx} className="rounded-2xl overflow-hidden shadow-md">
-                                      <img
-                                        src={att.path}
-                                        alt={att.name}
-                                        className="w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                        onClick={() => window.open(att.path, '_blank')}
-                                      />
-                                    </div>
+                                    <img
+                                      key={idx}
+                                      src={att.path}
+                                      alt={att.name}
+                                      className="w-full max-w-[420px] rounded-2xl h-auto object-cover cursor-pointer hover:opacity-95 transition-opacity shadow-md"
+                                      onClick={() => window.open(att.path, '_blank')}
+                                    />
                                   ) : (
                                     <div key={idx} className={`relative rounded-2xl px-4 py-2 ${
                                       isCurrentUser 
@@ -4318,7 +4357,7 @@ useEffect(() => {
   const unreadCount = announcements.filter(a => a.unread).length;
 
   return (
-    <div className={`min-h-screen pb-20 bg-gray-100 dark:bg-gray-900 relative ${isOffline ? 'pt-10' : ''}`}>
+    <div className={`min-h-screen pb-20 bg-gray-100 relative ${isOffline ? 'pt-10' : ''}`}>
       {/* Offline banner (auto-detect) */}
       {isOffline && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-2 text-sm font-medium">
@@ -4329,7 +4368,7 @@ useEffect(() => {
       {/* Skeletons are now shown in renderTabContent per tab, not as overlay */}
       {/* Main Header */}
       {activeTab !== "My Location" && (
-        <div className={`sticky top-0 z-20 px-5 py-4 flex justify-between items-center text-white shadow-lg ${darkMode ? 'bg-gradient-to-r from-slate-800 to-slate-900' : 'bg-gradient-to-r from-blue-600 to-blue-700'}`}>
+        <div className="sticky top-0 z-20 px-5 py-4 flex justify-between items-center text-white shadow-lg bg-gradient-to-r from-blue-600 to-blue-700">
           <div className="flex items-center">
             <img
               src="/img/stelsenlogo.png"
@@ -4347,14 +4386,7 @@ useEffect(() => {
             </div>
           </div>
           <div className="flex items-center">
-            <button
-              onClick={() => setDarkMode(prev => !prev)}
-              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              className="mr-2 w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/20 dark:bg-white/5 hover:bg-white/30 dark:hover:bg-white/10 border border-white/10"
-            >
-              {darkMode ? <FiSun size={18} className="text-yellow-400" /> : <FiMoon size={18} className="text-white" />}
-            </button>
+            {/* dark mode toggle removed */}
             <div
               className="w-11 h-11 rounded-full border-2 border-white cursor-pointer shadow overflow-hidden"
               onClick={handleProfileClick}
@@ -4914,41 +4946,78 @@ useEffect(() => {
       )}
 
       {/* Camera Modal */}
-      {showCameraModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold">Take Photo</h3>
-              <button onClick={stopCamera} className="text-gray-500 hover:text-gray-700">
-                <IoMdClose size={24} />
-              </button>
-            </div>
-            
-            <div className="relative bg-black">
-              <video 
-                ref={videoRef}
-                autoPlay 
-                playsInline
-                className="w-full h-auto max-h-[60vh] object-contain"
-              />
-              <canvas ref={canvasRef} style={{ display: 'none' }} />
-            </div>
+      {/* Navigation-style Camera Screen (takes precedence when active) */}
+      {getCurrentScreen()?.screen === "camera" && (
+        <div className="fixed inset-0 bg-white z-[80] flex flex-col">
+          <div className="bg-gradient-to-r from-white-600 to-white-700 px-4 py-3 flex items-center text-black shadow-md">
+            <button onClick={() => {
+                if (videoRef.current && videoRef.current.srcObject) {
+                  videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+                }
+                setCameraStream(null);
+                popScreen();
+              }}
+              className="p-2 rounded-full bg-gray/20 mr-3"
+            >
+              <FiChevronLeft size={20} />
+            </button>
+            <div className="flex-1 text-center font-bold">Camera</div>
+            <div style={{width:44}} />
+          </div>
 
-            <div className="p-4 flex justify-center gap-4">
-              <button
-                onClick={stopCamera}
-                className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={capturePhoto}
-                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
-              >
-                <FiCamera size={20} />
-                Capture
-              </button>
-            </div>
+          <div className="flex-1 bg-black flex items-center justify-center">
+            <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+          </div>
+
+          <div className="p-4 flex items-center justify-center gap-4">
+            <button
+              onClick={() => {
+                if (videoRef.current && videoRef.current.srcObject) {
+                  videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+                }
+                setCameraStream(null);
+                popScreen();
+              }}
+              className="px-6 py-3 bg-gray-200 rounded-xl"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={async () => {
+                if (canvasRef.current && videoRef.current) {
+                  const canvas = canvasRef.current;
+                  const video = videoRef.current;
+                  canvas.width = video.videoWidth;
+                  canvas.height = video.videoHeight;
+                  const ctx = canvas.getContext('2d');
+                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                  canvas.toBlob((blob) => {
+                    if (blob) {
+                      const timestamp = Date.now();
+                      const file = new File([blob], `camera-${timestamp}.jpg`, { type: 'image/jpeg' });
+                      setCommentAttachments(prev => [...prev, {
+                        name: file.name,
+                        preview: URL.createObjectURL(blob),
+                        size: file.size,
+                        type: file.type,
+                        rawFile: file,
+                      }]);
+
+                      if (videoRef.current && videoRef.current.srcObject) {
+                        videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+                      }
+                      setCameraStream(null);
+                      popScreen();
+                    }
+                  }, 'image/jpeg', 0.9);
+                }
+              }}
+              className="px-6 py-3 bg-blue-500 text-white rounded-xl"
+            >
+              <FiCamera size={18} className="inline-block mr-2" /> Capture
+            </button>
           </div>
         </div>
       )}
