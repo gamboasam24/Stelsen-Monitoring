@@ -203,6 +203,7 @@ const AdminDashboard = ({ user, logout }) => {
   const [announcementContent, setAnnouncementContent] = useState("");
   const [announcementType, setAnnouncementType] = useState("general");
   const [announcementPriority, setAnnouncementPriority] = useState("medium");
+  const [isCreatingAnnouncement, setIsCreatingAnnouncement] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -246,6 +247,7 @@ const AdminDashboard = ({ user, logout }) => {
   const [taskProgressList, setTaskProgressList] = useState([]);
   const [selectedProgressUpdate, setSelectedProgressUpdate] = useState(null);
   const [isLoadingTaskProgress, setIsLoadingTaskProgress] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   
   // Comments expansion state - tracks which projects have expanded comments
   const [expandedProjectComments, setExpandedProjectComments] = useState({});
@@ -800,6 +802,8 @@ const createAnnouncement = async () => {
   };
 
   try {
+    if (isCreatingAnnouncement) return;
+    setIsCreatingAnnouncement(true);
     const response = await fetch("/backend/announcements.php", {
       method: "POST",
       credentials: "include",
@@ -810,32 +814,57 @@ const createAnnouncement = async () => {
     });
 
     const data = await response.json();
-  if (data.status === "success") {
-  fetch("/backend/announcements.php", { credentials: "include" })
-    .then(res => handleApiResponse(res))
-    .then(data => {
-      const normalized = data.map(a => ({
-        id: a.announcement_id,
-        title: a.title,
-        content: a.content,
-        type: a.type,
-        priority: a.priority,
-        author: a.author === "admin" ? "Admin" : a.author,
-        time: formatTimeAgo(a.created_at),
-        unread: a.unread === 1,
-        category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
-        important: a.priority === "high",
-        color: getColorForType(a.type),
-        icon: getIconForType(a.type),
-      }));
+    if (data.status === "success") {
+      // show success alert
+      Swal.fire({
+        icon: 'success',
+        title: 'Announcement posted',
+        text: data.message || 'Announcement created successfully',
+        timer: 2000,
+        showConfirmButton: false
+      });
 
-      setAnnouncements(normalized);
-    });
+      // refresh announcements list
+      fetch("/backend/announcements.php", { credentials: "include" })
+        .then(res => handleApiResponse(res))
+        .then(data => {
+          const normalized = data.map(a => ({
+            id: a.announcement_id,
+            title: a.title,
+            content: a.content,
+            type: a.type,
+            priority: a.priority,
+            author: a.author === "admin" ? "Admin" : a.author,
+            time: formatTimeAgo(a.created_at),
+            unread: a.unread === 1,
+            category: a.type.charAt(0).toUpperCase() + a.type.slice(1),
+            important: a.priority === "high",
+            color: getColorForType(a.type),
+            icon: getIconForType(a.type),
+          }));
 
-  setShowAnnouncementModal(false);
-}
+          setAnnouncements(normalized);
+        })
+        .catch(err => console.error('Announcements refresh error:', err));
+
+      setShowAnnouncementModal(false);
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to post',
+        text: data.message || 'Could not create announcement',
+      });
+    }
   } catch (error) {
     console.error("Error creating announcement:", error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Network error',
+      text: 'Unable to create announcement. Check your connection and try again.'
+    });
+  }
+  finally {
+    setIsCreatingAnnouncement(false);
   }
 };
 
@@ -854,6 +883,8 @@ const createProject = async () => {
   };
 
   try {
+    if (isCreatingProject) return;
+    setIsCreatingProject(true);
     const response = await fetch("/backend/projects.php", {
       method: "POST",
       credentials: "include",
@@ -865,6 +896,15 @@ const createProject = async () => {
 
     const data = await response.json();
     if (data.status === "success") {
+      // show success alert
+      Swal.fire({
+        icon: 'success',
+        title: 'Project created',
+        text: data.message || 'Project created successfully',
+        timer: 2000,
+        showConfirmButton: false
+      });
+
       // Fetch projects again
       fetch("/backend/projects.php", {
         credentials: "include",
@@ -883,9 +923,22 @@ const createProject = async () => {
       setProjectBudget("");
       setProjectStartDate(new Date().toISOString().split('T')[0]);
       setSelectedUsers([]);
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to create',
+        text: data.message || 'Could not create project',
+      });
     }
   } catch (error) {
     console.error("Error creating project:", error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Network error',
+      text: 'Unable to create project. Check your connection and try again.'
+    });
+  } finally {
+    setIsCreatingProject(false);
   }
 };
 
@@ -3006,14 +3059,24 @@ useEffect(() => {
         <button
           onClick={createAnnouncement}
           className={`w-full py-4 rounded-full font-bold text-white ${
-            announcementTitle.trim() && announcementContent.trim()
+            announcementTitle.trim() && announcementContent.trim() && !isCreatingAnnouncement
               ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
               : "bg-gray-400 cursor-not-allowed"
           }`}
-          disabled={!announcementTitle.trim() || !announcementContent.trim()}
+          disabled={!announcementTitle.trim() || !announcementContent.trim() || isCreatingAnnouncement}
         >
           <div className="flex items-center justify-center">
-            Publish Announcement
+            {isCreatingAnnouncement ? (
+              <>
+                <svg className="w-5 h-5 animate-spin mr-2 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Publishing...
+              </>
+            ) : (
+              'Publish Announcement'
+            )}
           </div>
         </button>
       </div>
@@ -3235,7 +3298,7 @@ useEffect(() => {
             }
 
             // All fields are filled, proceed with creation
-            createProject();
+            if (!isCreatingProject) createProject();
           }}
           className={`w-full py-4 rounded-xl font-bold text-white ${
             projectTitle.trim() && 
@@ -3251,12 +3314,25 @@ useEffect(() => {
             !projectDeadline.trim() || 
             !projectManager.trim() || 
             !projectBudget.trim() || 
-            selectedUsers.length === 0
+            selectedUsers.length === 0 ||
+            isCreatingProject
           }
         >
           <div className="flex items-center justify-center">
-            <MdAddTask className="mr-2" />
-            Create Project
+            {isCreatingProject ? (
+              <>
+                <svg className="w-5 h-5 animate-spin mr-2 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating...
+              </>
+            ) : (
+              <>
+                <MdAddTask className="mr-2" />
+                Create Project
+              </>
+            )}
           </div>
         </button>
       </div>
