@@ -4758,7 +4758,7 @@ useEffect(() => {
               alt="Logo"
               className="w-9 h-9 rounded-full border-2 border-white shadow-sm"
             />
-            <h2 className="text-lg font-semibold">Dashboard</h2>
+            <h2 className="text-lg font-semibold">STELSEN</h2>
           </div>
           <div className="flex items-center gap-2">
             <button

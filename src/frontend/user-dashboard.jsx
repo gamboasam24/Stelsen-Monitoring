@@ -87,11 +87,16 @@ const UserDashboard = ({ user, logout }) => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("new");
+  const [projectFilter, setProjectFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all"); // all, today, week, month
   const [showDateFilterMenu, setShowDateFilterMenu] = useState(false);
   const [customDateRange, setCustomDateRange] = useState({ start: null, end: null });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const actionMenuRef = useRef(null);
+  const filterButtonsRef = useRef(null);
+  const projectsLoadedRef = useRef(false);
+  const announcementsLoadedRef = useRef(false);
+  const usersLoadedRef = useRef(false);
 
   // Prevent body scroll when date picker modal is open
   useEffect(() => {
@@ -212,9 +217,7 @@ const UserDashboard = ({ user, logout }) => {
         latitude: userCoordinates.latitude,
         zoom: 15
       });
-      // Auto-refresh every 10 seconds for live location updates
-      const interval = setInterval(fetchOtherUsersLocations, 10000);
-      return () => clearInterval(interval);
+      // Auto-refresh removed — fetch occurs once when tab activated
     }
   }, [activeTab]);
 
@@ -459,7 +462,7 @@ const UserDashboard = ({ user, logout }) => {
 
   useEffect(() => {
   const fetchAnnouncements = async () => {
-    setIsLoadingAnnouncements(true);
+    if (!announcementsLoadedRef.current) setIsLoadingAnnouncements(true);
     try {
       const res = await fetch("/backend/announcements.php", {
         credentials: "include",
@@ -489,6 +492,7 @@ const UserDashboard = ({ user, logout }) => {
       });
 
       setAnnouncements(normalized);
+      announcementsLoadedRef.current = true;
       setIsLoadingAnnouncements(false);
     } catch (err) {
       console.error("Announcement fetch error:", err);
@@ -498,11 +502,8 @@ const UserDashboard = ({ user, logout }) => {
 
   // Initial fetch
   fetchAnnouncements();
-  
-  // Auto-refresh every 45 seconds for live updates
-  const interval = setInterval(fetchAnnouncements, 45000);
-  
-  return () => clearInterval(interval);
+
+  // Auto-refresh removed
 }, []);
 
 // Fetch users for names/avatars
@@ -518,6 +519,7 @@ useEffect(() => {
           }))
         : [];
       setUsers(normalized);
+      usersLoadedRef.current = true;
     } catch (err) {
       console.error("Users fetch error:", err);
       setUsers([]);
@@ -526,11 +528,8 @@ useEffect(() => {
 
   // Initial fetch
   fetchUsers();
-  
-  // Auto-refresh every 60 seconds for live updates
-  const interval = setInterval(fetchUsers, 60000);
-  
-  return () => clearInterval(interval);
+
+  // Auto-refresh removed
 }, []);
 
 // Initial loading management - hide loading screen after data is fetched
@@ -542,120 +541,96 @@ useEffect(() => {
 }, []);
 
 // Fetch projects assigned to current user
-useEffect(() => {
-  const fetchProjects = async () => {
-    setIsLoadingProjects(true);
-    try {
-      const response = await fetch("/backend/projects.php", {
-        method: "GET",
-        credentials: "include",
-      });
-      const data = await response.json();
-      
-      // Filter projects where current user is assigned
-      // Handle both string and number IDs for comparison
-      const userProjects = data.filter(project => {
-        if (!project.assignedUsers || !Array.isArray(project.assignedUsers)) {
-          return false;
+const fetchProjects = async () => {
+  if (!projectsLoadedRef.current) setIsLoadingProjects(true);
+  try {
+    const response = await fetch("/backend/projects.php", {
+      method: "GET",
+      credentials: "include",
+    });
+    const data = await response.json();
+
+    const userProjects = data.filter(project => {
+      if (!project.assignedUsers || !Array.isArray(project.assignedUsers)) return false;
+      return project.assignedUsers.some(assignedId => String(assignedId) === String(user?.id) || Number(assignedId) === Number(user?.id));
+    });
+
+    const projectsWithComments = await Promise.all(
+      userProjects.map(async (project) => {
+        if ((project.progress || 0) >= 100 && project.status !== 'completed') {
+          project.status = 'completed';
+          fetch("/backend/projects.php", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ id: project.id, status: 'completed' })
+          }).catch(err => console.error('Failed to auto-update project status:', err));
         }
-        // Check if user ID exists in assignedUsers (handle both string and number)
-        return project.assignedUsers.some(assignedId => 
-          String(assignedId) === String(user?.id) || 
-          Number(assignedId) === Number(user?.id)
-        );
-      });
-      
-      // Fetch comment counts for each project
-      const projectsWithComments = await Promise.all(
-        userProjects.map(async (project) => {
-          // Auto-update status to 'completed' if progress is 100%
-          if ((project.progress || 0) >= 100 && project.status !== 'completed') {
-            project.status = 'completed';
-            // Update on backend asynchronously
-            fetch("/backend/projects.php", {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({
-                id: project.id,
-                status: 'completed'
-              })
-            }).catch(err => console.error('Failed to auto-update project status:', err));
-          }
-          
-          try {
-            const commentsRes = await fetch(`/backend/comments.php?project_id=${project.id}`, { 
-              credentials: "include" 
-            });
-            
-            // Check if response status is OK before parsing JSON
-            if (!commentsRes.ok) {
-              console.error(`Failed to fetch comments for project ${project.id}: HTTP ${commentsRes.status}`);
-              const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
-              return { ...project, comments: [], isNew };
-            }
-            
-            // Get response text first to debug HTML errors
-            const responseText = await commentsRes.text();
-            let commentsData;
-            try {
-              commentsData = JSON.parse(responseText);
-            } catch (jsonErr) {
-              console.error(`Failed to parse JSON for project ${project.id}. Response:`, responseText.substring(0, 200));
-              const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
-              return { ...project, comments: [], isNew };
-            }
-            
-            const comments = commentsData.status === "success" 
-              ? (commentsData.comments || []).map(c => ({
-                  id: c.comment_id,
-                  text: c.comment,
-                  time: getCommentTimeAgo(c.created_at),
-                  created_at: c.created_at,
-                  email: c.email,
-                  profile_image: c.profile_image,
-                  user: c.user || formatAuthorName(c.email),
-                  attachments: c.attachments || null,
-                  // Progress fields - direct from backend
-                  progress_percentage: c.progress_percentage || null,
-                  progress_status: c.progress_status || null,
-                  evidence_photo: c.evidence_photo || null,
-                  location_latitude: c.location_latitude || null,
-                  location_longitude: c.location_longitude || null,
-                  location_accuracy: c.location_accuracy || null,
-                  approval_status: c.approval_status || null,
-                  comment_type: c.comment_type || null,
-                  // Nested progress object for compatibility with ProgressApprovalCard
-                  progress: c.progress || null,
-                  progress_id: c.progress_id || null,
-                }))
-              : [];
-            const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
-            return { ...project, comments, isNew };
-          } catch (err) {
-            console.error(`Failed to fetch comments for project ${project.id}:`, err);
+
+        try {
+          const commentsRes = await fetch(`/backend/comments.php?project_id=${project.id}`, { credentials: "include" });
+          if (!commentsRes.ok) {
+            console.error(`Failed to fetch comments for project ${project.id}: HTTP ${commentsRes.status}`);
             const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
             return { ...project, comments: [], isNew };
           }
-        })
-      );
-      
-      setProjects(projectsWithComments);
-      setIsLoadingProjects(false);
-    } catch (err) {
-      console.error("Failed to fetch projects:", err);
-      setIsLoadingProjects(false);
-    }
-  };
 
+          const responseText = await commentsRes.text();
+          let commentsData;
+          try {
+            commentsData = JSON.parse(responseText);
+          } catch (jsonErr) {
+            console.error(`Failed to parse JSON for project ${project.id}. Response:`, responseText.substring(0, 200));
+            const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+            return { ...project, comments: [], isNew };
+          }
+
+          const comments = commentsData.status === "success"
+            ? (commentsData.comments || []).map(c => ({
+                id: c.comment_id,
+                text: c.comment,
+                time: getCommentTimeAgo(c.created_at),
+                created_at: c.created_at,
+                email: c.email,
+                profile_image: c.profile_image,
+                user: c.user || formatAuthorName(c.email),
+                attachments: c.attachments || null,
+                progress_percentage: c.progress_percentage || null,
+                progress_status: c.progress_status || null,
+                evidence_photo: c.evidence_photo || null,
+                location_latitude: c.location_latitude || null,
+                location_longitude: c.location_longitude || null,
+                location_accuracy: c.location_accuracy || null,
+                approval_status: c.approval_status || null,
+                comment_type: c.comment_type || null,
+                progress: c.progress || null,
+                progress_id: c.progress_id || null,
+              }))
+            : [];
+
+          const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+          return { ...project, comments, isNew };
+        } catch (err) {
+          console.error(`Failed to fetch comments for project ${project.id}:`, err);
+          const isNew = isProjectNew(project.startDate || project.start_date || project.created_at, project.progress);
+          return { ...project, comments: [], isNew };
+        }
+      })
+    );
+
+    setProjects(projectsWithComments);
+    projectsLoadedRef.current = true;
+    setIsLoadingProjects(false);
+  } catch (err) {
+    console.error("Failed to fetch projects:", err);
+    setIsLoadingProjects(false);
+  }
+};
+
+useEffect(() => {
   if (user?.id) {
-    // Initial fetch
     fetchProjects();
-    
-    // Auto-refresh every 30 seconds for live updates
-    const interval = setInterval(fetchProjects, 30000);
-    
-    return () => clearInterval(interval);
+    // Auto-refresh removed
   }
 }, [user]);
 
@@ -873,69 +848,66 @@ const getPriorityBadge = (priority) => {
   };
 
   useEffect(() => {
-    // Get initial position
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const longitude = pos.coords.longitude;
-        const latitude = pos.coords.latitude;
-        
-        // Update actual user coordinates for marker
-        setUserCoordinates({
-          longitude,
-          latitude
-        });
-        
-        // Update map view to show user location
-        setViewState({
-          longitude,
-          latitude,
-          zoom: 15
-        });
-        
-        // Get actual location name from coordinates
-        const locationName = await getLocationName(longitude, latitude);
-        setCurrentLocation(locationName);
-        
-        // Save initial location to backend with actual name
-        saveLocationToBackend(longitude, latitude, locationName);
-      },
-      () => {
-        alert("Location access denied");
-        setCurrentLocation("Location access denied");
-      }
-    );
+    if (!navigator || !navigator.geolocation) {
+      console.warn('Geolocation API not available in this browser');
+      setCurrentLocation('Geolocation not available');
+      return;
+    }
 
-    // Watch for continuous location updates
-    const watchId = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const longitude = pos.coords.longitude;
-        const latitude = pos.coords.latitude;
-        
-        // Update actual user coordinates for marker
-        setUserCoordinates({
-          longitude,
-          latitude
-        });
-        
-        // Get updated location name
-        const locationName = await getLocationName(longitude, latitude);
-        setCurrentLocation(locationName);
-        
-        // Save updated location to backend
-        saveLocationToBackend(longitude, latitude, locationName);
-      },
-      () => {
-        console.error("Error tracking location");
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 10000, // 10 seconds
-        timeout: 5000 // 5 seconds
-      }
-    );
+    let watchId = null;
+    try {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const longitude = pos.coords.longitude;
+          const latitude = pos.coords.latitude;
 
-    // Cleanup watch on unmount
-    return () => navigator.geolocation.clearWatch(watchId);
+          setUserCoordinates({ longitude, latitude });
+
+          setViewState(prev => ({ ...prev, longitude, latitude, zoom: 15 }));
+
+          const locationName = await getLocationName(longitude, latitude);
+          setCurrentLocation(locationName);
+
+          saveLocationToBackend(longitude, latitude, locationName);
+        },
+        (err) => {
+          console.error('Error getting initial position:', err);
+          setCurrentLocation('Location access denied');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+
+      watchId = navigator.geolocation.watchPosition(
+        async (pos) => {
+          const longitude = pos.coords.longitude;
+          const latitude = pos.coords.latitude;
+
+          setUserCoordinates({ longitude, latitude });
+
+          const locationName = await getLocationName(longitude, latitude);
+          setCurrentLocation(locationName);
+
+          saveLocationToBackend(longitude, latitude, locationName);
+        },
+        (err) => {
+          console.warn('Error tracking location:', err);
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+      );
+    } catch (err) {
+      console.error('Geolocation initialization error:', err);
+      setCurrentLocation('Unable to access location');
+    }
+
+    return () => {
+      try {
+        if (watchId !== null && navigator && navigator.geolocation && typeof navigator.geolocation.clearWatch === 'function') {
+          navigator.geolocation.clearWatch(watchId);
+        }
+      } catch (err) {
+        console.warn('Error clearing geolocation watch:', err);
+      }
+    };
   }, []);
 
   // Mark a specific announcement as read
@@ -1436,9 +1408,8 @@ const getPriorityBadge = (priority) => {
       }
     };
 
-    // Refresh every 3 seconds
-    const interval = setInterval(refreshComments, 3000);
-    return () => clearInterval(interval);
+    // Auto-refresh removed — perform a single refresh when modal/project changes
+    refreshComments();
   }, [showCommentsModal, selectedProject?.id]);
 
   const getProfileImageByEmail = (email) => {
@@ -2791,7 +2762,7 @@ const renderCommentsModal = () => (
   );
 
   const renderTabContent = () => {
-    const filteredProjects = selectedFilter === "all" ? projects : projects.filter(p => p.status === selectedFilter);
+    const filteredProjects = projectFilter === "all" ? projects : projects.filter(p => p.status === projectFilter);
     
     switch (activeTab) {
       case "Home":
@@ -3386,22 +3357,53 @@ const renderCommentsModal = () => (
         </div>
       )}
 
-            {/* Filter Buttons */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-              {["all", "pending", "ongoing", "scheduled", "completed"].map(status => (
-                <button
-                  key={status}
-                  onClick={() => setSelectedFilter(status)}
-                  className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
-                    selectedFilter === status
-                      ? "bg-blue-500 text-white shadow-lg"
-                      : "bg-white text-gray-700 border border-gray-300 hover:border-blue-500"
-                  }`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
-              ))}
-            </div>
+            {/* Filter Buttons (admin-style) */}
+            {(() => {
+              const statusLabels = { all: 'All', pending: 'Pending', ongoing: 'Ongoing', scheduled: 'Scheduled', completed: 'Completed' };
+              const statusCounts = {
+                all: projects.length,
+                pending: projects.filter(p => p.status === 'pending').length,
+                ongoing: projects.filter(p => p.status === 'ongoing').length,
+                scheduled: projects.filter(p => p.status === 'scheduled').length,
+                completed: projects.filter(p => p.status === 'completed').length,
+              };
+
+              return (
+                <div className="mb-6 pb-2 overflow-x-auto snap-x snap-mandatory -mx-4 px-4">
+                  <div className="flex items-center space-x-3" ref={filterButtonsRef} role="tablist" aria-label="Project filters">
+                    {Object.keys(statusLabels).map(status => (
+                      <div key={status} className="snap-start flex-shrink-0">
+                        <button
+                          onClick={() => setProjectFilter(status)}
+                          role="tab"
+                          aria-pressed={projectFilter === status}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setProjectFilter(status); return; }
+                            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                              e.preventDefault();
+                              const keysArr = Object.keys(statusLabels);
+                              const idx = keysArr.indexOf(status);
+                              const nextIdx = e.key === 'ArrowRight' ? Math.min(keysArr.length-1, idx+1) : Math.max(0, idx-1);
+                              const btn = filterButtonsRef.current?.querySelectorAll('button')[nextIdx];
+                              btn?.focus();
+                            }
+                          }}
+                          className={`px-2 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${projectFilter === status ? 'text-blue-600' : 'text-gray-600'}`}
+                        >
+                          <div className="flex items-baseline gap-2">
+                            <span>{statusLabels[status]}</span>
+                            <span className="text-xs text-gray-400">{statusCounts[status] ?? 0}</span>
+                          </div>
+                        </button>
+                        <div className="h-0.5 mt-2">
+                          <div className={`mx-auto transition-all duration-300 ${projectFilter === status ? 'bg-blue-600 w-16 rounded-full h-0.5' : 'w-0'}`} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Projects List */}
             <div className="mb-6">
@@ -3413,7 +3415,7 @@ const renderCommentsModal = () => (
                   <ShimmerProjectCard />
                 </div>
               ) : filteredProjects.length > 0 ? (
-                <div className="space-y-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {filteredProjects.map(renderProjectCard)}
                 </div>
               ) : selectedFilter !== "all" ? (
