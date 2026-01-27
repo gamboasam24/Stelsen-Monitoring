@@ -42,3 +42,50 @@ html, body {
     box-shadow: 0 0 0 30px rgba(59, 130, 246, 0);
   }
 }
+
+/* Force light theme overrides to ensure Home/Projects/Location use white backgrounds */
+:root {
+  color-scheme: light;
+}
+html, body, #root {
+  background-color: #ffffff !important;
+  color-scheme: light !important;
+}
+
+/* Neutralize Tailwind dark variants by mapping common dark backgrounds to light */
+.dark .bg-slate-900,
+.dark .bg-slate-800,
+.dark .bg-gray-900,
+.dark .bg-gray-800,
+.dark .bg-slate-700,
+.dark .bg-gray-700 {
+  background-color: #ffffff !important;
+}
+
+.dark .text-gray-200,
+.dark .text-white,
+.dark .text-gray-50 {
+  color: #111827 !important;
+}
+
+.dark .border-slate-700,
+.dark .dark\:border-slate-700,
+.dark .border-slate-800,
+.dark .border-gray-700 {
+  border-color: #e5e7eb !important;
+}
+
+/* Prevent dark-mode class from inverting card backgrounds */
+.dark .bg-white {
+  background-color: #ffffff !important;
+}
+
+/* Make sure sticky headers keep light background */
+.dark .sticky, .sticky {
+  background-color: #ffffff !important;
+}
+
+/* Prevent any scroll chaining differences from dark theme */
+html, body {
+  -webkit-text-size-adjust: 100%;
+}
