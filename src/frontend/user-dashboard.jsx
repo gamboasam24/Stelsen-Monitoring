@@ -20,6 +20,8 @@ import {
   MdPushPin,
   MdChat,
   MdCheckCircle,
+  MdCall,
+  MdVideocam,
   MdPerson,
   MdWork,
   MdChatBubble,
@@ -1177,6 +1179,17 @@ const getPriorityBadge = (priority) => {
           profile_image: c.profile_image,
           user: c.user || formatAuthorName(c.email),
           attachments: c.attachments || null,
+          // Progress-related fields (mirror fetchProjects / auto-refresh mapping)
+          progress_percentage: c.progress_percentage || null,
+          progress_status: c.progress_status || null,
+          evidence_photo: c.evidence_photo || null,
+          location_latitude: c.location_latitude || null,
+          location_longitude: c.location_longitude || null,
+          location_accuracy: c.location_accuracy || null,
+          approval_status: c.approval_status || null,
+          comment_type: c.comment_type || null,
+          progress: c.progress || null,
+          progress_id: c.progress_id || null,
         }));
 
         setSelectedProject(prev => prev ? { ...prev, comments: mapped } : prev);
@@ -1637,18 +1650,18 @@ const renderAnnouncementCard = (announcement) => (
       onTouchEnd={onTouchEnd}
     >
       {/* Header (clean) */}
-      <div className="sticky top-0 z-20 bg-white px-5 py-4 border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-4 border-b border-blue-600 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button 
               onClick={popScreen}
-              className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-gray-100 mr-0"
+              className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white/10 mr-0"
               aria-label="Back"
             >
-              <IoMdArrowBack size={20} className="text-gray-700" />
+              <IoMdArrowBack size={20} className="text-white" />
             </button>
             <div className="flex flex-col">
-              <h3 className="text-lg font-semibold text-gray-900 leading-tight">Task Details</h3>
+              <h3 className="text-lg font-semibold text-white leading-tight">Task Details</h3>
             </div>
           </div>
 
@@ -1850,14 +1863,16 @@ const renderCommentsModal = () => (
           className="flex-shrink-0 mr-4"
         />
 
-        {/* Breadcrumb for Comments - single-line with horizontal scroll */}
-        <div className="flex-1 flex items-center text-sm text-gray-500 ml-3 mt-1 whitespace-nowrap overflow-x-auto pr-2">
-          <div className="inline-flex items-center gap-1 flex-none">
-            <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
-            <FiChevronRight size={14} className="mx-1 flex-none" />
-            <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
-            <FiChevronRight size={14} className="mx-1 flex-none" />
-            <span className="text-gray-800 font-medium flex-none">Comments</span>
+        {/* Title + Call/Video actions */}
+        <div className="flex-1 flex items-center justify-between ml-3 mt-1">
+          <span className="text-gray-800 font-medium">Comments</span>
+          <div className="flex items-center gap-2">
+            <button title="Voice call" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <MdCall size={18} className="text-gray-700" />
+            </button>
+            <button title="Video call" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <MdVideocam size={18} className="text-gray-700" />
+            </button>
           </div>
         </div>
 
@@ -3924,35 +3939,19 @@ const renderCommentsModal = () => (
         </div>
       )}
 
-      {/* Main Header */}
+      {/* Main Header (match admin style) */}
       {activeTab !== "My Location" && (
-        <div className={
-          (activeTab === "Home" || activeTab === "Profile" || activeTab === "Projects" || activeTab === "My Project")
-            ? "sticky top-0 z-20 px-5 py-4 flex justify-between items-center bg-white text-gray-800 shadow-lg"
-            : "sticky top-0 z-20 px-5 py-4 flex justify-between items-center text-white shadow-lg bg-gradient-to-r from-blue-600 to-blue-700"
-        }>
-          <div className="flex items-center">
+        <div className="sticky top-0 z-20 px-4 py-3 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-sm">
+          <div className="flex items-center gap-3">
             <img
               src="/img/stelsenlogo.png"
               alt="Logo"
-              className="w-10 h-10 rounded-full mr-3 border-2 border-white shadow"
+              className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
             />
-            <div>
-              <div className="text-xl font-bold flex items-center gap-2">
-                {user?.name || (user?.email ? formatAuthorName(user.email) : "N/A")}
-              </div>
-              <div className="flex items-center mt-1 text-xs text-gray-600">
-                <span className="w-2 h-2 rounded-full bg-green-500 mr-2 shadow-sm"></span>
-                <span className="font-medium text-gray-700 mr-1">Status:</span>
-                <span className="font-semibold text-green-700">{userStatus}</span>
-              </div>
-            </div>
+            <h2 className="text-lg font-semibold text-white">STELSEN</h2>
           </div>
-          <div className="flex items-center">
-            <div
-              className="w-11 h-11 rounded-full border-2 border-white cursor-pointer shadow overflow-hidden"
-              onClick={handleProfileClick}
-            >
+          <div className="flex items-center gap-2">
+            <button onClick={handleProfileClick} className="w-10 h-10 rounded-full bg-white relative overflow-visible">
               <Avatar
                 userObj={{
                   ...user,
@@ -3961,7 +3960,10 @@ const renderCommentsModal = () => (
                 }}
                 size={40}
               />
-            </div>
+              {isOnline && (
+                <span style={{ transform: 'translate(20%, 20%)' }} className="absolute right-0 bottom-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white" />
+              )}
+            </button>
           </div>
         </div>
       )}
@@ -4112,14 +4114,14 @@ const renderCommentsModal = () => (
       {getCurrentScreen()?.screen === "taskProgress" && (
         <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
           {/* Header */}
-          <div className="sticky top-0 z-20 bg-white text-gray-800 px-5 py-4 border-b border-gray-200 flex items-center">
+          <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-4 border-b border-blue-600 flex items-center">
             <button 
               onClick={popScreen}
-              className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"
+              className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white/10 mr-3 transition-colors"
             >
-              <IoMdArrowBack size={24} />
+              <IoMdArrowBack size={24} className="text-white" />
             </button>
-            <h3 className="flex-1 text-lg font-bold">Task Progress</h3>
+            <h3 className="flex-1 text-lg font-bold text-white">Task Progress</h3>
           </div>
 
           {/* Content */}

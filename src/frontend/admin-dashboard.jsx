@@ -19,6 +19,8 @@ import {
   MdEvent, 
   MdAnnouncement,
   MdCheckCircle,
+  MdCall,
+  MdVideocam,
   MdPerson,
   MdWork,
   MdCalendarToday,
@@ -2404,15 +2406,15 @@ useEffect(() => {
   const renderProjectDetailsModal = () => (
     <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right transition-colors duration-300">
       {/* Messenger-style Header (back, avatar, inline breadcrumb, status + users button) */}
-      <div className="sticky top-0 z-20 bg-transparent px-4 py-3 border-b-0 shadow-none transition-colors duration-300">
+      <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 shadow-sm transition-colors duration-300">
         <div className="w-full">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button 
                 onClick={popScreen}
-                className="p-3 rounded-full min-w-[56px] min-h-[56px] hover:bg-gray-100 mr-0"
+                className="p-3 rounded-full min-w-[56px] min-h-[56px] hover:bg-white-400 mr-0"
               >
-                <IoMdArrowBack size={20} className="text-gray-700" />
+                <IoMdArrowBack size={20} className="text-white-700" />
               </button>
               <h3 className="text-xl font-bold">Task Details</h3>
             </div>
@@ -2565,7 +2567,7 @@ useEffect(() => {
   const renderCommentsModal = () => (
   <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right transition-colors duration-300">
     {/* Messenger-style Header */}
-      <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow transition-colors duration-300">
+      <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm transition-colors duration-300">
         <button 
         onClick={() => popScreen()}
         className="p-3 rounded-full min-w-[56px] min-h-[56px] hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
@@ -2579,14 +2581,16 @@ useEffect(() => {
         className="flex-shrink-0 mr-2"
         />
         
-        {/* Breadcrumb for Comments (inline beside avatar) */}
-        <div className="flex-1 flex items-center text-sm text-gray-500 ml-2 whitespace-nowrap overflow-x-auto pr-2">
-          <div className="inline-flex items-center gap-1 flex-none">
-            <button onClick={() => { popScreen(); popScreen(); setActiveTab('Home'); }} className="hover:text-blue-600 transition-colors">Home</button>
-            <FiChevronRight size={14} className="mx-1 flex-none" />
-            <button onClick={popScreen} className="hover:text-blue-600 transition-colors">Project</button>
-            <FiChevronRight size={14} className="mx-1 flex-none" />
-            <span className="text-gray-800 font-medium flex-none">Comments</span>
+        {/* Title + Call/Video actions */}
+        <div className="flex-1 flex items-center justify-between ml-2">
+          <span className="text-gray-800 font-medium">Comments</span>
+          <div className="flex items-center gap-2">
+            <button title="Voice call" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <MdCall size={18} className="text-gray-700" />
+            </button>
+            <button title="Video call" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <MdVideocam size={18} className="text-gray-700" />
+            </button>
           </div>
         </div>
         
@@ -2608,7 +2612,7 @@ useEffect(() => {
         return (
           <div className="fixed inset-0 bg-white z-40 flex flex-col animate-slide-in-right">
             {/* Dynamic Header */}
-            <div className="sticky top-0 z-20 bg-white px-4 sm:px-5 py-4 border-b border-gray-200 flex items-center">
+            <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-5 py-4 border-b border-blue-400 flex items-center">
               <button 
                 onClick={popScreen}
                 className="p-3 rounded-full min-w-[56px] min-h-[56px] hover:bg-gray-100 mr-3"
@@ -3697,26 +3701,28 @@ useEffect(() => {
               ) : (
                 <>
                   {/* Active Projects Card */}
-                  <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 text-white rounded-2xl p-4 sm:p-5 shadow-lg hover:shadow-xl transition-all active:scale-95 touch-manipulation">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 text-white rounded-2xl p-4 sm:p-5 shadow-lg hover:shadow-2xl transition-transform transform-gpu hover:-translate-y-1 active:scale-95 touch-manipulation">
+                    <div className="absolute -top-6 -right-6 w-36 h-36 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
+                    <div className="absolute -bottom-8 -left-8 w-40 h-40 rounded-full bg-white/3 opacity-10 pointer-events-none"></div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative z-10">
                       <div className="flex-1">
-                        <div className="text-3xl sm:text-4xl font-bold leading-none mb-1">{projects.length}</div>
-                        <div className="text-xs sm:text-sm opacity-90 font-medium">Active Tasks</div>
+                        <div className="text-4xl sm:text-5xl font-extrabold leading-none mb-1 drop-shadow">{projects.length}</div>
+                        <div className="text-xs sm:text-sm opacity-95 font-semibold">Active Tasks</div>
                       </div>
-                      <div className="p-3 bg-white/20 rounded-full">
-                        <MdDashboard size={24} className="text-white" />
+                      <div className="w-14 h-14 flex items-center justify-center bg-white/10 rounded-full ring-1 ring-white/20">
+                        <MdDashboard size={26} className="text-white" />
                       </div>
                     </div>
-                    
+
                     {/* Progress Indicator */}
-                    <div className="mt-3 pt-3 border-t border-white/20">
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="opacity-80">Progress</span>
+                    <div className="mt-4 pt-3 border-t border-white/20 relative z-10">
+                      <div className="flex items-center justify-between text-xs mb-2">
+                        <span className="opacity-90">Progress</span>
                         <span className="font-semibold">{Math.round(projects.filter(p => p.status === 'completed').length / Math.max(projects.length, 1) * 100)}%</span>
                       </div>
-                      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-white rounded-full transition-all duration-500"
+                          className="h-full bg-gradient-to-r from-white/70 via-white/40 to-white/20 rounded-full transition-all duration-700"
                           style={{ width: `${Math.round(projects.filter(p => p.status === 'completed').length / Math.max(projects.length, 1) * 100)}%` }}
                         ></div>
                       </div>
@@ -3724,16 +3730,17 @@ useEffect(() => {
                   </div>
 
                   {/* Announcements Card */}
-                 <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 text-white rounded-2xl p-4 sm:p-5 shadow-lg hover:shadow-xl transition-all active:scale-95 touch-manipulation">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                 <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 text-white rounded-2xl p-4 sm:p-5 shadow-lg hover:shadow-2xl transition-transform transform-gpu hover:-translate-y-1 active:scale-95 touch-manipulation">
+                    <div className="absolute -top-6 -right-4 w-28 h-28 rounded-full bg-white/6 blur-2xl pointer-events-none"></div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative z-10">
                       <div className="flex-1">
-                        <div className="text-3xl sm:text-4xl font-bold leading-none mb-1">{announcements.length}</div>
-                        <div className="text-xs sm:text-sm opacity-90 font-medium">Announcements</div>
+                        <div className="text-4xl sm:text-5xl font-extrabold leading-none mb-1 drop-shadow">{announcements.length}</div>
+                        <div className="text-xs sm:text-sm opacity-95 font-semibold">Announcements</div>
                       </div>
-                      <div className="p-3 bg-white/20 rounded-full relative">
-                        <IoMdMegaphone size={24} className="text-white" />
+                      <div className="w-14 h-14 flex items-center justify-center bg-white/10 rounded-full ring-1 ring-white/20 relative">
+                        <IoMdMegaphone size={26} className="text-white" />
                         {unreadCount > 0 && (
-                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center font-bold shadow-lg">
+                          <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-[11px] flex items-center justify-center font-bold shadow-lg">
                             {unreadCount}
                           </div>
                         )}
@@ -4512,7 +4519,7 @@ useEffect(() => {
       </div>
       <button 
         onClick={() => setProfileOpen(false)}
-          className="p-3 rounded-full min-w-[56px] min-h-[56px] bg-white/20 hover:bg-white/30 transition-colors"
+          className="p-3 rounded-full min-w-[25px] min-h-[25px] bg-white/20 hover:bg-white/30 transition-colors"
       >
         <IoMdClose size={24} />
       </button>
@@ -4747,29 +4754,18 @@ useEffect(() => {
       {/* Skeletons are now shown in renderTabContent per tab, not as overlay */}
       {/* Main Header (compact for mobile) */}
       {activeTab !== "My Location" && (
-        <div className={
-          (activeTab === "Home" || activeTab === "Profile" || activeTab === "Projects")
-            ? "sticky top-0 z-20 px-4 py-3 flex justify-between items-center bg-white text-gray-800 shadow-sm"
-            : "sticky top-0 z-20 px-4 py-3 flex justify-between items-center text-white shadow-sm bg-gradient-to-r from-blue-600 to-blue-700"
-        }>
+        <div className="sticky top-0 z-20 px-4 py-3 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-sm">
           <div className="flex items-center gap-3">
             <img
               src="/img/stelsenlogo.png"
               alt="Logo"
-              className="w-9 h-9 rounded-full border-2 border-white shadow-sm"
+              className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
             />
             <h2 className="text-lg font-semibold">STELSEN</h2>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowActionMenu(true)}
-              className="p-2 rounded-md text-gray-600 hover:bg-gray-100"
-              aria-label="More"
-              title="More"
-            >
-              <MdMenu size={22} />
-            </button>
-            <button onClick={handleProfileClick} className="w-10 h-10 rounded-full overflow-hidden bg-white">
+            
+            <button onClick={handleProfileClick} className="w-10 h-10 rounded-full bg-white relative overflow-visible">
               <Avatar
                 user={{
                   ...currentUser,
@@ -4778,6 +4774,9 @@ useEffect(() => {
                 }}
                 size={40}
               />
+              {!isOffline && (
+                <span style={{ transform: 'translate(20%, 20%)' }} className="absolute right-0 bottom-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white" />
+              )}
             </button>
           </div>
         </div>
@@ -4792,32 +4791,32 @@ useEffect(() => {
 
       {/* Bottom Navbar */}
       {activeTab !== "My Location" && (
-        <div className={`fixed bottom-0 left-0 w-full bg-white border-t border-gray-300 flex items-center justify-around py-3 z-10 transition-all duration-300 ${profileOpen ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'}`}>
+        <div className={`fixed bottom-0 left-0 w-full bg-white border-t border-gray-300 flex items-center justify-around py-1 z-10 transition-all duration-300 ${profileOpen ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'}`}>
           <button
-            className={`flex flex-col items-center relative min-w-[56px] min-h-[56px] justify-center ${activeTab === "Home" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "Home" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("Home")}
           >
-            <IoMdHome size={28} />
-            <span className="text-xs mt-1">Home</span>
+            <IoMdHome size={22} />
+            <span className="text-xs mt-0.5">Home</span>
           </button>
 
           <button
-            className={`flex flex-col items-center relative min-w-[56px] min-h-[56px] justify-center ${activeTab === "Projects" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "Projects" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("Projects")}
           >
-            <MdDashboard size={28} />
-            <span className="text-xs mt-1">Projects</span>
+            <MdDashboard size={22} />
+            <span className="text-xs mt-0.5">Projects</span>
           </button>
 
-          {/* Centered Add Button with Tooltip */}
-          <div className="relative -top-6">
+          {/* Centered Add Button (floating, mobile style) */}
+          <div className="relative -top-4">
             <button
               onClick={() => {
                 triggerHaptic && triggerHaptic('medium');
                 setShowActionMenu(true);
               }}
               title="Quick Actions"
-              className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 transition-all group"
+              className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:shadow-xl active:scale-95 transition-all group"
             >
               <MdAdd size={32} />
               <span className="absolute -top-10 bg-gray-800 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Quick Actions</span>
@@ -4825,19 +4824,21 @@ useEffect(() => {
           </div>
 
           <button
-            className={`flex flex-col items-center relative min-w-[56px] min-h-[56px] justify-center ${activeTab === "My Location" ? "text-blue-500" : "text-gray-500"}`}
+            className={`flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center ${activeTab === "My Location" ? "text-blue-500" : "text-gray-500"}`}
             onClick={() => handleTabChange("My Location")}
           >
-            <MdLocationOn size={24} />
-            <span className="text-xs mt-1">Location</span>
+            <MdLocationOn size={20} />
+            <span className="text-xs mt-0.5">Location</span>
           </button>
 
           <button
-            className={`flex flex-col items-center relative min-w-[56px] min-h-[56px] justify-center ${activeTab === "Profile" ? "text-blue-500" : "text-gray-500"}`}
+            className="flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center text-gray-500"
             onClick={handleProfileClick}
           >
-            <FaUser size={24} />
-            <span className="text-xs mt-1">Profile</span>
+            <div className="relative">
+              <FaUser size={!isOffline ? 22 : 20} />
+            </div>
+            <span className="text-xs mt-0.5">Profile</span>
           </button>
         </div>
       )}
@@ -4879,7 +4880,7 @@ useEffect(() => {
       {/* Task Progress - Stack Navigation */}
       {getCurrentScreen()?.screen === "taskProgress" && (
         <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-slide-in-right">
-          <div className="sticky top-0 z-20 bg-white text-gray-800 px-4 sm:px-5 py-4 border-b border-gray-200 flex items-center">
+          <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-5 py-4 border-b border-blue-400 flex items-center">
             <button
               onClick={popScreen}
               className="p-3 rounded-full min-w-[44px] min-h-[44px] hover:bg-white hover:bg-opacity-20 mr-3 transition-colors"

@@ -38,6 +38,7 @@ function App() {
   const [user, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isValidatingSession, setIsValidatingSession] = useState(true);
+  const [showStartupSplash, setShowStartupSplash] = useState(false);
   
   // Auth flow state
   const [currentView, setCurrentView] = useState(AUTH_VIEWS.LOGIN);
@@ -90,19 +91,23 @@ function App() {
 
   //============================================ Handle Logout ============================================//
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("auth_token");
-    setCurrentUser(null);
-    setLoggedIn(false);
-    setEmail("");
-    setPhone("");
-    setPassword("");
-    setConfirmPassword("");
-    setNewPassword("");
-    setVerificationCode("");
-    setError("");
-    setSuccess("");
-    setCurrentView(AUTH_VIEWS.LOGIN);
+    setShowStartupSplash(true);
+    setTimeout(() => {
+      localStorage.removeItem("user");
+      localStorage.removeItem("auth_token");
+      setCurrentUser(null);
+      setLoggedIn(false);
+      setEmail("");
+      setPhone("");
+      setPassword("");
+      setConfirmPassword("");
+      setNewPassword("");
+      setVerificationCode("");
+      setError("");
+      setSuccess("");
+      setCurrentView(AUTH_VIEWS.LOGIN);
+      setShowStartupSplash(false);
+    }, 800);
   };
 
   //============================================ Handle Login ============================================//
@@ -142,9 +147,11 @@ function App() {
           localStorage.setItem("auth_token", data.token);
           localStorage.setItem("user", JSON.stringify(data.user));
           setCurrentUser(data.user);
+          setShowStartupSplash(true);
           setTimeout(() => {
             setLoggedIn(true);
-          }, 1000);
+            setShowStartupSplash(false);
+          }, 900);
         } else {
           setError(data.message || "Invalid credentials");
         }
@@ -365,10 +372,11 @@ function App() {
 
           setCurrentUser(data.user);
           setSuccess("Logged in with Google 🚀");
-
+          setShowStartupSplash(true);
           setTimeout(() => {
             setLoggedIn(true);
-          }, 800);
+            setShowStartupSplash(false);
+          }, 900);
         } else {
           setError(data.message || "Google login failed");
         }
