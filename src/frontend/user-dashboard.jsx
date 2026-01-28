@@ -639,12 +639,12 @@ useEffect(() => {
    // Get icon for announcement type
     const getIconForType = (type) => {
       switch (type) {
-        case "meeting": return <MdCalendarToday className="text-white" size={18} />;
-        case "deadline": return <IoMdTime className="text-white" size={18} />;
-        case "safety": return <HiOutlineClipboardList className="text-white" size={18} />;
-        case "update": return <MdAnnouncement className="text-white" size={18} />;
-        case "question": return <MdChat className="text-white" size={18} />;
-        default: return <MdChatBubble className="text-white" size={18} />;
+        case "meeting": return <MdCalendarToday className="text-white" size={24} />;
+        case "deadline": return <IoMdTime className="text-white" size={24} />;
+        case "safety": return <HiOutlineClipboardList className="text-white" size={24} />;
+            case "update": return <MdAnnouncement className="text-white" size={24} />;
+            case "question": return <MdChat className="text-white" size={24} />;
+            default: return <MdChatBubble className="text-white" size={24} />;
       }
     };
 
@@ -1053,6 +1053,17 @@ const getPriorityBadge = (priority) => {
       default: return "bg-gradient-to-br from-gray-500 to-gray-600";
     }
   };
+
+    const getIconColorClass = (color) => {
+      switch (color) {
+        case "blue": return "text-blue-600";
+        case "red": return "text-red-600";
+        case "green": return "text-green-600";
+        case "purple": return "text-purple-600";
+        case "yellow": return "text-yellow-500";
+        default: return "text-gray-600";
+      }
+    };
 
   const handleProfileClick = () => {
     if (isMobile) {
@@ -1492,8 +1503,11 @@ const renderAnnouncementCard = (announcement) => (
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center">
-          <div className={`w-11 h-11 rounded-xl ${getCategoryColor(announcement.color)} flex items-center justify-center mr-3`}>
-            {announcement.icon}
+          <div className="mr-3 flex items-center justify-center">
+            {React.isValidElement(announcement.icon)
+              ? React.cloneElement(announcement.icon, { className: getIconColorClass(announcement.color), size: 24 })
+              : announcement.icon
+            }
           </div>
           <div>
           <h4 className="font-bold text-gray-800">{announcement.title}</h4>
