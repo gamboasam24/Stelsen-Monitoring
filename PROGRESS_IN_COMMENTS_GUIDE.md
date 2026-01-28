@@ -1,41 +1,5 @@
-# Progress Updates in Comments - Implementation Guide
-
-## Overview
-Progress updates submitted by users are now posted directly to the project comments/conversation section. Both admins and users can see the evidence photos and location data in the comment thread without needing a separate approval interface.
-
-## What Changed
-
-### 1. Database Schema
-
-#### Modified `project_comments` Table
-The `project_comments` table now includes progress-related fields:
-
-```sql
-ALTER TABLE project_comments ADD COLUMN (
-  progress_percentage INT DEFAULT NULL,
-  progress_status VARCHAR(50) DEFAULT NULL,
-  evidence_photo LONGTEXT DEFAULT NULL,
-  location_latitude DECIMAL(10,8) DEFAULT NULL,
-  location_longitude DECIMAL(11,8) DEFAULT NULL,
-  location_accuracy FLOAT DEFAULT NULL,
-  comment_type VARCHAR(50) DEFAULT 'text'
-);
-```
-
-**New Fields:**
-- `progress_percentage`: The progress % (0-100)
-- `progress_status`: Status ("Not Started", "In Progress", "Completed")
-- `evidence_photo`: Base64-encoded JPEG image data
-- `location_latitude`: GPS latitude (8 decimal places)
-- `location_longitude`: GPS longitude (8 decimal places)
-- `location_accuracy`: GPS accuracy in meters
-- `comment_type`: Type of comment ("text" or "progress")
-
-### 2. Backend Changes
-
-#### `project_progress.php` - Updated Logic
-**Previous:** Stored progress updates in separate `project_progress` table
-**New:** Posts progress updates as comments in `project_comments` table
+This document has been replaced with a redirect stub.
+See the archived copy at [docs/archived_docs/PROGRESS_IN_COMMENTS_GUIDE.md](docs/archived_docs/PROGRESS_IN_COMMENTS_GUIDE.md).
 
 ```php
 // Instead of INSERT into project_progress...

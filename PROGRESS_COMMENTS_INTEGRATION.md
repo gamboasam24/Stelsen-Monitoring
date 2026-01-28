@@ -155,7 +155,8 @@ location_accuracy          FLOAT              ±meters
 
 ### New Files
 1. ✅ **add_progress_fields_to_comments.sql** - Migration script (if needed)
-2. ✅ **PROGRESS_IN_COMMENTS_GUIDE.md** - Full documentation
+This document has been replaced with a redirect stub.
+See the archived copy at [docs/archived_docs/PROGRESS_COMMENTS_INTEGRATION.md](docs/archived_docs/PROGRESS_COMMENTS_INTEGRATION.md).
 
 ---
 

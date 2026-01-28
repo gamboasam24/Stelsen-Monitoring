@@ -1,6 +1,7 @@
-# PIN FEATURE DEPLOYMENT CHECKLIST
+This document has been replaced with a redirect stub.
+See the archived copy at [docs/archived_docs/DEPLOYMENT_CHECKLIST.md](docs/archived_docs/DEPLOYMENT_CHECKLIST.md).
 
-## Pre-Deployment
+## Post-Deployment (24 Hours)
 
 ### Code Review
 - [x] Backend: `/src/backend/announcements.php` modified

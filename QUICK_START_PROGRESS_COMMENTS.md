@@ -103,9 +103,9 @@ Translation: "Progress updates should go to the message conversation/comment sec
 
 ### Created (Documentation)
 - ✅ [add_progress_fields_to_comments.sql](add_progress_fields_to_comments.sql)
-- ✅ [PROGRESS_IN_COMMENTS_GUIDE.md](PROGRESS_IN_COMMENTS_GUIDE.md)
-- ✅ [PROGRESS_COMMENTS_INTEGRATION.md](PROGRESS_COMMENTS_INTEGRATION.md)
-- ✅ [IMPLEMENTATION_VERIFICATION.md](IMPLEMENTATION_VERIFICATION.md)
+- ✅ [PROGRESS_IN_COMMENTS_GUIDE.md](docs/archived_docs/PROGRESS_IN_COMMENTS_GUIDE.md)
+- ✅ [PROGRESS_COMMENTS_INTEGRATION.md](docs/archived_docs/PROGRESS_COMMENTS_INTEGRATION.md)
+- ✅ [IMPLEMENTATION_VERIFICATION.md](docs/archived_docs/IMPLEMENTATION_VERIFICATION.md)
 
 ---
 
@@ -142,18 +142,16 @@ Translation: "Progress updates should go to the message conversation/comment sec
 
 ## 📊 Data Flow
 
-```
-User Submits Progress
-          ↓
-    Validates Input
-          ↓
-  Creates FormData
-          ↓
-POST /backend/project_progress.php
-          ↓
- Database Validation
-          ↓
-INSERT into project_comments
+-
+## 📞 Documentation Available
+
+  → Complete technical documentation
+
+  → User-friendly overview
+
+  → Implementation checklist
+ This document has been replaced with a redirect stub.
+ See the archived copy at [docs/archived_docs/QUICK_START_PROGRESS_COMMENTS.md](docs/archived_docs/QUICK_START_PROGRESS_COMMENTS.md).
 (with type='progress' & all fields)
           ↓
 JSON Success Response
@@ -247,13 +245,13 @@ Both admin & user see it together!
 
 ## 📞 Documentation Available
 
-- [PROGRESS_IN_COMMENTS_GUIDE.md](PROGRESS_IN_COMMENTS_GUIDE.md)
+- - [PROGRESS_IN_COMMENTS_GUIDE.md](docs/archived_docs/PROGRESS_IN_COMMENTS_GUIDE.md)
   → Complete technical documentation
 
-- [PROGRESS_COMMENTS_INTEGRATION.md](PROGRESS_COMMENTS_INTEGRATION.md)
+- - [PROGRESS_COMMENTS_INTEGRATION.md](docs/archived_docs/PROGRESS_COMMENTS_INTEGRATION.md)
   → User-friendly overview
 
-- [IMPLEMENTATION_VERIFICATION.md](IMPLEMENTATION_VERIFICATION.md)
+- - [IMPLEMENTATION_VERIFICATION.md](docs/archived_docs/IMPLEMENTATION_VERIFICATION.md)
   → Implementation checklist
 
 ---

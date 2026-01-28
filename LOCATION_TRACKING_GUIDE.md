@@ -19,7 +19,6 @@
    - Automatically saves location to database
    - Fallback to initial letter if no profile image
 
----
 
 ## 🗄️ Database Setup
 
@@ -49,31 +48,17 @@ Or import the SQL file:
 mysql -u your_username -p your_database < create_user_locations_table.sql
 ```
 
----
 
 ## 🎨 How It Works
 
 ### 1. **Profile Image Marker**
 When you open the "My Location" tab:
-- ✅ Your profile image appears as a circular marker
-- ✅ Blue pulsing radar effect surrounds it
-- ✅ If no profile image: Shows first letter of your email
-- ✅ Marker updates when you move
 
 ### 2. **Location Tracking**
-- **On Page Load**: Automatically gets your current location and saves it
-- **Manual Update**: Click the location button (top-right) to update
-- **Continuous**: Location saves every time you use the GeolocateControl
 
 ### 3. **Data Stored**
 Each location record includes:
-- User ID
-- Longitude (decimal, 7 places)
-- Latitude (decimal, 7 places)
-- Location name (optional)
-- Timestamps (created_at, updated_at)
 
----
 
 ## 🔧 API Endpoints
 
@@ -159,7 +144,6 @@ Response:
 }
 ```
 
----
 
 ## 🎯 Features
 
@@ -176,7 +160,6 @@ Response:
 3. **Profile Integration**: Each marker shows user's profile image
 4. **Location History**: Track when users updated their location
 
----
 
 ## 🔒 Security Features
 
@@ -186,7 +169,6 @@ Response:
 4. **Foreign Key Constraints**: Automatic cleanup when user is deleted
 5. **Prepared Statements**: SQL injection protection
 
----
 
 ## 🎨 Customization
 
@@ -214,7 +196,6 @@ When updating location, include a name:
 saveLocationToBackend(longitude, latitude, "Office Building");
 ```
 
----
 
 ## 🧪 Testing
 
@@ -245,7 +226,6 @@ fetch('/backend/location.php?user_id=all', {
 .then(data => console.log('All locations:', data));
 ```
 
----
 
 ## 📊 Database Queries
 
@@ -281,12 +261,8 @@ ORDER BY distance_km;
 
 ### Location Update History
 ```sql
--- Note: Current implementation only stores latest location per user
--- To track history, you'd need to remove the WHERE clause in UPDATE
--- and always INSERT new records
 ```
 
----
 
 ## 🚀 Future Enhancements (Optional)
 
@@ -322,7 +298,6 @@ Allow users to share their location with specific team members
 ### 5. **Offline Support**
 Cache last known location using localStorage
 
----
 
 ## 📝 Summary
 
@@ -333,3 +308,5 @@ Cache last known location using localStorage
 ✅ **Features**: Auto-save + manual update + real-time tracking
 
 **Your location tracking system is now fully operational!** 🎉
+This document has been replaced with a redirect stub.
+See the archived copy at [docs/archived_docs/LOCATION_TRACKING_GUIDE.md](docs/archived_docs/LOCATION_TRACKING_GUIDE.md).

@@ -1,3 +1,4 @@
+````markdown
 # Pin Feature - Quick Reference
 
 ## What Changed?
@@ -73,17 +74,27 @@ POST /backend/announcements.php
 ## Troubleshooting
 
 ### Pins not showing?
+- Clear browser cache (Ctrl+Shift+Delete or Cmd+Shift+Delete)
+- Refresh the page (F5)
+- Check that you're logged in with the correct account
 
 ### Someone else's pins showing?
+- Should NOT happen with the new system
+- Each user only sees their own pins
+- If this occurs, clear cache and refresh
 
 ### Pin button not working?
+- Check browser console for errors (F12)
+- Verify user_pins table exists: `DESCRIBE user_pins;`
+- Check your internet connection
 
-This document has been replaced with a redirect stub.
-See the archived copy for full details.
+## Files Modified
 - `src/backend/announcements.php` - Backend logic updated
 - `add_user_pins_table.sql` - New database table
-- `PIN_FEATURE_DOCUMENTATION.md` - Full documentation (docs/archived_docs/PIN_FEATURE_DOCUMENTATION.md)
+- `PIN_FEATURE_DOCUMENTATION.md` - Full documentation
 
 ## Files NOT Modified
 - `src/frontend/admin-dashboard.jsx` - No changes needed
 - `src/frontend/user-dashboard.jsx` - No changes needed
+
+````

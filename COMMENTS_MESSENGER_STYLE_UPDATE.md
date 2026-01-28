@@ -3,17 +3,8 @@
 ## Overview
 Updated the comments section in the user dashboard to use a Messenger-style interface with proper date grouping, date separators, and a "View Previous Comments" feature that shows/hides older conversation history.
 
-## Changes Made
-
-### 1. Added State Variable for Expanded Comments
-**File:** `src/frontend/user-dashboard.jsx` (Line 145)
-
-```javascript
-// Comments expansion state - tracks which projects have expanded comments
-const [expandedProjectComments, setExpandedProjectComments] = useState({});
-```
-
-This tracks which projects have their older comments expanded or hidden.
+This document has been replaced with a redirect stub.
+See the archived copy at [docs/archived_docs/COMMENTS_MESSENGER_STYLE_UPDATE.md](docs/archived_docs/COMMENTS_MESSENGER_STYLE_UPDATE.md).
 
 ### 2. Created Helper Function: `groupCommentsByDate()`
 **File:** `src/frontend/user-dashboard.jsx` (Lines 360-398)

@@ -1,3 +1,4 @@
+````markdown
 # 🚀 Quick Start: Mapbox Integration
 
 ## Step 1: Get Your Mapbox Token (2 minutes)
@@ -61,7 +62,6 @@ Replace with:
 
 ---
 
-For detailed documentation, see [MAPBOX_SETUP_GUIDE.md](docs/archived_docs/MAPBOX_SETUP_GUIDE.md)
+For detailed documentation, see [MAPBOX_SETUP_GUIDE.md](./MAPBOX_SETUP_GUIDE.md)
 
-This document has been replaced with a redirect stub.
-See the archived copy at [docs/archived_docs/MAPBOX_QUICK_START.md](docs/archived_docs/MAPBOX_QUICK_START.md).
+````

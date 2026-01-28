@@ -1,4 +1,5 @@
-# 🗺️ Mapbox Integration Guide
+This document has been replaced with a redirect stub.
+See the archived copy at [docs/archived_docs/MAPBOX_SETUP_GUIDE.md](docs/archived_docs/MAPBOX_SETUP_GUIDE.md).
 
 ## ✅ What Was Changed
 

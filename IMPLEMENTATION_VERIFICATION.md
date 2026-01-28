@@ -1,43 +1,5 @@
-# Implementation Verification Checklist
-
-## ✅ All Components Implemented
-
-### Database Layer
-- [x] Enhanced `project_comments` table schema
-  - [x] Added `progress_percentage` column
-  - [x] Added `progress_status` column  
-  - [x] Added `evidence_photo` column (LONGTEXT for base64)
-  - [x] Added `location_latitude` column (DECIMAL)
-  - [x] Added `location_longitude` column (DECIMAL)
-  - [x] Added `location_accuracy` column (FLOAT)
-  - [x] Added `comment_type` column (VARCHAR)
-  - [x] Added indexes for performance
-
-### Backend PHP Layer
-- [x] **db.php** - Auto-creates enhanced comments table
-- [x] **project_progress.php**
-  - [x] Changed from separate table to comments insertion
-  - [x] Builds comment text with progress summary
-  - [x] Validates all input (percentage 0-100, valid status)
-  - [x] Handles optional geolocation
-  - [x] Fixed bind_param type string: "iisissddd"
-  - [x] Returns success/error JSON
-  
-- [x] **comments.php**
-  - [x] Fetches progress fields from database
-  - [x] Returns progress data in comment object
-  - [x] Maintains backward compatibility with text comments
-
-### Frontend React Layer
-- [x] **user-dashboard.jsx**
-  - [x] Updated comment mapping (3 locations)
-  - [x] Added `comment_type` field
-  - [x] Added `progress` object to mapped data
-  - [x] Created progress comment renderer
-  - [x] Styled progress card with header, bar, badge
-  - [x] Photo display from base64
-  - [x] Location information display
-  - [x] Notes section
+This document has been replaced with a redirect stub.
+See the archived copy at [docs/archived_docs/IMPLEMENTATION_VERIFICATION.md](docs/archived_docs/IMPLEMENTATION_VERIFICATION.md).
   - [x] Auto-refresh comments after submission
   - [x] Mobile responsive design
 
@@ -198,10 +160,10 @@
 1. [add_progress_fields_to_comments.sql](add_progress_fields_to_comments.sql)
    - Migration script for manual deployment
    
-2. [PROGRESS_IN_COMMENTS_GUIDE.md](PROGRESS_IN_COMMENTS_GUIDE.md)
+2. [PROGRESS_IN_COMMENTS_GUIDE.md](docs/archived_docs/PROGRESS_IN_COMMENTS_GUIDE.md)
    - Comprehensive implementation documentation
    
-3. [PROGRESS_COMMENTS_INTEGRATION.md](PROGRESS_COMMENTS_INTEGRATION.md)
+3. [PROGRESS_COMMENTS_INTEGRATION.md](docs/archived_docs/PROGRESS_COMMENTS_INTEGRATION.md)
    - User-friendly integration summary
 
 ### Modified Files
@@ -279,10 +241,10 @@
 ## 📞 Support References
 
 ### For Users
-See: [PROGRESS_COMMENTS_INTEGRATION.md](PROGRESS_COMMENTS_INTEGRATION.md)
+See: [PROGRESS_COMMENTS_INTEGRATION.md](docs/archived_docs/PROGRESS_COMMENTS_INTEGRATION.md)
 
 ### For Developers
-See: [PROGRESS_IN_COMMENTS_GUIDE.md](PROGRESS_IN_COMMENTS_GUIDE.md)
+See: [PROGRESS_IN_COMMENTS_GUIDE.md](docs/archived_docs/PROGRESS_IN_COMMENTS_GUIDE.md)
 
 ### For Database Admin
 Run: [add_progress_fields_to_comments.sql](add_progress_fields_to_comments.sql) if needed
