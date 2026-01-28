@@ -2657,14 +2657,14 @@ useEffect(() => {
         return (
           <div className="fixed inset-0 bg-white z-40 flex flex-col animate-slide-in-right">
             {/* Dynamic Header */}
-            <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-5 py-4 border-b border-blue-400 flex items-center">
+            <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-5 py-4 border-b border-white-400 flex items-center">
               <button 
                 onClick={popScreen}
                 className="p-3 rounded-full min-w-[56px] min-h-[56px] hover:bg-gray-100 mr-3"
               >
                 <IoMdArrowBack size={24} className="text-gray-700" />
               </button>
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-xl font-bold text-white">
                 {currentScreen?.screen === "projectUsers" ? "Project Team" : "Add Users to Project"}
               </h3>
             </div>
