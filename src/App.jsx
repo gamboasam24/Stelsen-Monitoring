@@ -89,6 +89,133 @@ function App() {
     validateSession();
   }, []);
 
+  // Register service worker and provide push subscription helpers
+  useEffect(() => {
+    const urlBase64ToUint8Array = (base64String) => {
+      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    };
+
+    const registerAndSubscribe = async () => {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        console.log('Service worker registered:', reg);
+
+        // Expose convenience function for manual enabling
+        window.enablePushNotifications = async () => {
+          try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') return { success: false, reason: 'permission_denied' };
+
+            if (!reg) {
+              console.error('Service worker registration missing');
+              return { success: false, reason: 'sw_registration_missing' };
+            }
+
+            // Fetch VAPID public key from backend (endpoint should return { publicKey: 'BASE64_URL_SAFE' })
+            let publicKey = null;
+            // When running Vite dev server (usually :5173) the PHP backend may be served from Apache on a different origin.
+            const isVite = window.location.port === '5173' || window.location.hostname === 'localhost' && window.location.port && window.location.port !== '80' && window.location.port !== '';
+            const siteOrigin = (isVite ? window.location.origin.replace(/:\d+$/, '') : window.location.origin);
+
+            const tryEndpoints = [
+              '/backend/push_vapid_public.php',
+              '/stelsen_monitoring/backend/push_vapid_public.php',
+              siteOrigin + '/backend/push_vapid_public.php',
+              siteOrigin + '/stelsen_monitoring/backend/push_vapid_public.php'
+            ];
+
+            for (const ep of tryEndpoints) {
+              try {
+                console.debug('Attempting VAPID fetch from', ep);
+                const res = await fetch(ep, { credentials: 'include' });
+                if (!res.ok) {
+                  console.debug('VAPID endpoint responded non-ok', ep, res.status);
+                  continue;
+                }
+                const json = await res.json();
+                publicKey = json.publicKey || json.public_key || null;
+                if (publicKey) break;
+              } catch (err) {
+                console.warn('VAPID fetch failed for', ep, err);
+              }
+            }
+
+            if (!publicKey) {
+              console.warn('No VAPID public key available. Aborting subscription. Ensure backend/push_vapid_public.php is reachable and returns { publicKey }');
+              return { success: false, reason: 'no_vapid_key' };
+            }
+
+            // Sanitize and convert the returned public key to a Uint8Array
+            let applicationServerKey;
+            try {
+              // Remove surrounding quotes/newlines and whitespace
+              let cleanKey = String(publicKey).trim().replace(/\s+/g, '');
+
+              // If PEM format, extract the base64 block
+              if (/-----BEGIN PUBLIC KEY-----/.test(cleanKey)) {
+                cleanKey = cleanKey.replace(/-----BEGIN PUBLIC KEY-----/, '').replace(/-----END PUBLIC KEY-----/, '');
+                cleanKey = cleanKey.replace(/\r|\n/g, '');
+              }
+
+              // Remove any accidental surrounding quotes
+              cleanKey = cleanKey.replace(/^"|"$/g, '');
+
+              // Convert
+              applicationServerKey = urlBase64ToUint8Array(cleanKey);
+            } catch (err) {
+              console.error('Invalid VAPID public key format', publicKey, err);
+              return { success: false, reason: 'invalid_vapid_format', detail: err && err.message };
+            }
+            let subscription;
+            try {
+              subscription = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey
+              });
+            } catch (err) {
+              console.error('Push subscribe failed', err);
+              return { success: false, reason: 'subscribe_failed', detail: err.message };
+            }
+
+            // Send subscription to backend to save
+            try {
+              const saveRes = await fetch('/backend/save_subscription.php', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(subscription)
+              });
+              if (!saveRes.ok) {
+                console.warn('Saving subscription returned non-OK status', saveRes.status);
+                return { success: false, reason: 'save_failed', status: saveRes.status };
+              }
+            } catch (err) {
+              console.warn('Failed to save subscription to backend', err);
+              return { success: false, reason: 'save_failed', detail: err.message };
+            }
+
+            return { success: true, subscription };
+          } catch (err) {
+            console.error('enablePushNotifications failed', err);
+            return { success: false, reason: 'unexpected_error', detail: err && err.message };
+          }
+        };
+      } catch (err) {
+        console.error('Service worker registration failed', err);
+      }
+    };
+
+    registerAndSubscribe();
+  }, []);
+
   //============================================ Handle Logout ============================================//
   const handleLogout = () => {
     setShowStartupSplash(true);

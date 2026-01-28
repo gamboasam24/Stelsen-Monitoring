@@ -1,0 +1,7 @@
+{
+  "name": "stelsen/push-server",
+  "description": "Push notification utilities for Stelsen Monitoring",
+  "require": {
+    "minishlink/web-push": "^6.0"
+  }
+}

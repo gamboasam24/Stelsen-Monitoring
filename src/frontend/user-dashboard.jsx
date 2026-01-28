@@ -128,6 +128,67 @@ const UserDashboard = ({ user, logout }) => {
   const [cameraStream, setCameraStream] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(typeof Notification !== 'undefined' && Notification.permission === 'granted');
+  
+  const togglePush = async (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    try {
+      if (pushEnabled) {
+        // Unsubscribe
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg && reg.pushManager) {
+            const subscription = await reg.pushManager.getSubscription();
+            if (subscription) {
+              const endpoint = subscription.endpoint;
+              await subscription.unsubscribe();
+              // Inform server to remove saved subscription
+              try {
+                await fetch('/backend/remove_subscription.php', {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ endpoint })
+                });
+              } catch (err) {
+                console.warn('Failed to call remove_subscription', err);
+              }
+            }
+          }
+        }
+        setPushEnabled(false);
+        setToast({ show: true, message: 'Push notifications disabled', type: 'success' });
+      } else {
+        if (window.enablePushNotifications) {
+          setIsLoading(true);
+          const res = await window.enablePushNotifications();
+          setIsLoading(false);
+          if (res && res.success) {
+            setPushEnabled(true);
+            setToast({ show: true, message: 'Push notifications enabled', type: 'success' });
+          } else {
+            console.warn('enablePushNotifications failed', res);
+            const reason = res && (res.reason || res.detail || res.status) ? (res.reason || res.detail || res.status) : 'unknown';
+            let message = 'Failed to enable push';
+            if (reason === 'permission_denied') message = 'Push permission denied';
+            else if (reason === 'no_vapid_key') message = 'Server not configured for push (no VAPID key)';
+            else if (reason === 'subscribe_failed') message = `Subscription failed: ${res.detail || ''}`;
+            else if (reason === 'save_failed') message = `Failed to save subscription on server (${res.status || res.detail || 'error'})`;
+            else if (reason === 'sw_registration_missing') message = 'Service worker registration missing';
+            else if (reason === 'unexpected_error') message = `Error: ${res.detail || 'unexpected'}`;
+
+            setToast({ show: true, message, type: 'error' });
+          }
+        } else {
+          setToast({ show: true, message: 'Service workers not supported', type: 'error' });
+        }
+      }
+    } catch (err) {
+      console.error('togglePush error', err);
+      setIsLoading(false);
+      setToast({ show: true, message: 'Error toggling push', type: 'error' });
+    }
+  };
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [readComments, setReadComments] = useState(() => {
     try {
@@ -187,6 +248,37 @@ const UserDashboard = ({ user, logout }) => {
     }
   }, [toast.show]);
 
+  // Keep pushEnabled state in sync with actual Push subscription (prefer real subscription over permission)
+  useEffect(() => {
+    let mounted = true;
+    const update = async () => {
+      try {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistration) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg && reg.pushManager) {
+            const sub = await reg.pushManager.getSubscription();
+            if (!mounted) return;
+            setPushEnabled(!!sub);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Error checking push subscription', e);
+      }
+
+      // Fallback to permission when subscription can't be checked
+      if (!mounted) return;
+      setPushEnabled(typeof Notification !== 'undefined' && Notification.permission === 'granted');
+    };
+
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      mounted = false;
+      document.removeEventListener('visibilitychange', update);
+    };
+  }, []);
+
   // Online/Offline detection
   useEffect(() => {
     const handleOnline = () => {
@@ -244,12 +336,26 @@ const UserDashboard = ({ user, logout }) => {
 
   // Detect first user interaction so vibration is allowed by the browser
   useEffect(() => {
-    const setInteracted = () => setUserInteracted(true);
+    const lastUserGestureRef = { current: false };
+    // store ref on window so other functions can access (safe in this module scope)
+    window.__stelsen_lastUserGesture = lastUserGestureRef;
+
+    const setInteracted = (ev) => {
+      setUserInteracted(true);
+      try {
+        // capture whether the gesture is a trusted user gesture
+        lastUserGestureRef.current = !!(ev && ev.isTrusted);
+      } catch (e) {
+        lastUserGestureRef.current = true;
+      }
+    };
+
     window.addEventListener('pointerdown', setInteracted, { once: true });
     window.addEventListener('touchstart', setInteracted, { once: true });
     return () => {
       window.removeEventListener('pointerdown', setInteracted);
       window.removeEventListener('touchstart', setInteracted);
+      try { delete window.__stelsen_lastUserGesture; } catch (e) {}
     };
   }, []);
 
@@ -269,6 +375,41 @@ const UserDashboard = ({ user, logout }) => {
   const [announcements, setAnnouncements] = useState([
 
   ]);
+  // Track per-announcement read timestamps (client-side) so 'New' can persist for 1 day after read
+  const [announcementReadAt, setAnnouncementReadAt] = useState(() => {
+    try {
+      const raw = localStorage.getItem('announcementReadAt');
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  // Periodically recompute `isNew` for announcements so the badge expires automatically
+  useEffect(() => {
+    let mounted = true;
+    const recompute = () => {
+      if (!mounted) return;
+      setAnnouncements(prev => {
+        if (!prev) return prev;
+        const now = new Date();
+        return prev.map(ann => {
+          const createdDate = new Date(ann.created_at);
+          const daysDiff = (now - createdDate) / (1000 * 60 * 60 * 24);
+          const readTs = announcementReadAt && announcementReadAt[ann.id] ? new Date(announcementReadAt[ann.id]) : null;
+          const readDaysDiff = readTs ? (now - readTs) / (1000 * 60 * 60 * 24) : Infinity;
+          const isNew = (daysDiff <= 1) || (readDaysDiff <= 1);
+          if (ann.isNew === isNew) return ann;
+          return { ...ann, isNew };
+        });
+      });
+    };
+
+    // Run immediately, then every hour
+    recompute();
+    const interval = setInterval(recompute, 1000 * 60 * 60);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [announcementReadAt]);
 
   // Filtered announcements
   const filteredAnnouncements = announcements.filter(ann => {
@@ -474,6 +615,8 @@ const UserDashboard = ({ user, logout }) => {
         const createdDate = new Date(a.created_at);
         const now = new Date();
         const daysDiff = (now - createdDate) / (1000 * 60 * 60 * 24);
+        const readTs = announcementReadAt && announcementReadAt[a.announcement_id] ? new Date(announcementReadAt[a.announcement_id]) : null;
+        const readDaysDiff = readTs ? (now - readTs) / (1000 * 60 * 60 * 24) : Infinity;
         return {
           id: a.announcement_id,
           title: a.title,
@@ -488,7 +631,8 @@ const UserDashboard = ({ user, logout }) => {
           unread: a.unread === 1,
           icon: getIconForType(a.type),
           is_pinned: a.is_pinned === 1,
-          isNew: daysDiff <= 3,
+          // Consider 'new' for 1 day after creation OR for 1 day after the user read it
+          isNew: (daysDiff <= 1) || (readDaysDiff <= 1),
           created_at: a.created_at,
         };
       });
@@ -924,10 +1068,24 @@ const getPriorityBadge = (priority) => {
     });
 
     // Update local state to reflect the change immediately
+    const now = Date.now();
+    // Persist read timestamp
+    setAnnouncementReadAt(prev => {
+      const next = { ...(prev || {}), [id]: now };
+      try { localStorage.setItem('announcementReadAt', JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+
     setAnnouncements(prev => 
-      prev.map(ann => 
-        ann.id === id ? { ...ann, unread: false } : ann
-      )
+      prev.map(ann => {
+        if (ann.id !== id) return ann;
+        // compute isNew: 1 day after creation OR 1 day after read
+        const createdDate = new Date(ann.created_at);
+        const daysSinceCreated = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+        const daysSinceRead = 0; // just read
+        const isNew = (daysSinceCreated <= 1) || (daysSinceRead <= 1);
+        return { ...ann, unread: false, isNew };
+      })
     );
   };
 
@@ -1096,7 +1254,10 @@ const getPriorityBadge = (priority) => {
   // Haptic feedback helper
   const triggerHaptic = (style = 'light') => {
     try {
-      if (!userInteracted) return; // Avoid vibration until user has interacted with the page
+      // Avoid vibration until a user interaction has occurred and it was a trusted gesture
+      const lastUserGestureRef = window.__stelsen_lastUserGesture;
+      const gestureAllowed = (lastUserGestureRef && lastUserGestureRef.current) || userInteracted;
+      if (!gestureAllowed) return;
       if ('vibrate' in navigator) {
         const patterns = {
           light: [10],
@@ -2005,30 +2166,28 @@ const renderCommentsModal = () => (
                                 </span>
                               )}
                               
-                              <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
-                                isCurrentUser 
-                                  ? 'bg-blue-500 text-white rounded-br-sm' 
-                                  : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
-                              }`}>
-                                {/* Messenger-style tail */}
-                                {!isCurrentUser ? (
-                                  <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                                    <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
-                                  </div>
-                                ) : (
-                                  <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
-                                    <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
-                                  </div>
-                                )}
-                                
-                                {comment.text && (
+                              {comment.text ? (
+                                <div className={`relative rounded-2xl px-4 py-2 max-w-[280px] ${
+                                  isCurrentUser 
+                                    ? 'bg-blue-500 text-white rounded-br-sm' 
+                                    : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
+                                }`}>
+                                  {/* Messenger-style tail */}
+                                  {!isCurrentUser ? (
+                                    <div className="absolute -left-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                                      <div className="absolute w-3 h-3 bg-white transform rotate-45 translate-y-1/2"></div>
+                                    </div>
+                                  ) : (
+                                    <div className="absolute -right-1.5 bottom-0 w-3 h-3 overflow-hidden">
+                                      <div className="absolute w-3 h-3 bg-blue-500 transform rotate-45 translate-y-1/2"></div>
+                                    </div>
+                                  )}
+                                  
                                   <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
                                     {comment.text}
                                   </p>
-                                )}
-                                
-                                {/* attachments moved outside the message bubble to render images as standalone */}
-                              </div>
+                                </div>
+                              ) : null}
                               
                               {comment.attachments && comment.attachments.length > 0 && (
                                 <div className={`${comment.text ? 'mt-2' : ''} space-y-2`}>
@@ -2502,10 +2661,18 @@ const renderCommentsModal = () => (
           <h4 className="font-bold text-gray-700 mb-3">Preferences</h4>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span>Notifications</span>
-              <div className="w-12 h-6 bg-blue-500 rounded-full relative">
-                <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
-              </div>
+                  <span>Notifications</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={togglePush}
+                      aria-pressed={pushEnabled}
+                      aria-label="Toggle notifications"
+                      className={`relative w-12 h-6 rounded-full transition-colors focus:outline-none ${pushEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
+                    >
+                      <span className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${pushEnabled ? 'right-1' : 'left-1'}`}></span>
+                    </button>
+                    {/* no textual label next to toggle by design */}
+                  </div>
             </div>
             <div className="flex items-center justify-between">
               <span>Dark Mode</span>
@@ -3029,9 +3196,9 @@ const renderCommentsModal = () => (
                         <div className="w-1.5 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
                         Announcements
                       </h2>
-                      <div className="flex items-center gap-3 px-4 py-2 bg-white border border-gray-300 rounded-xl flex-shrink-0">
-                        <MdCalendarToday size={18} className="text-blue-500" />
-                        <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-sm text-gray-700 whitespace-nowrap">
+                        <MdCalendarToday size={18} className="text-blue-500 mr-1" />
+                        <span className="font-medium">
                           {dateFilter === "all" && new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           {dateFilter === "today" && "Today"}
                           {dateFilter === "week" && "This Week"}

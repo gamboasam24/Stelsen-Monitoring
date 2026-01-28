@@ -173,9 +173,15 @@ const AdminDashboard = ({ user, logout }) => {
 
   function triggerHaptic() {
     try {
-      if (!userInteracted) return;
+      const lastUserGestureRef = window.__stelsen_lastUserGesture;
+      const gestureAllowed = (lastUserGestureRef && lastUserGestureRef.current) || userInteracted;
+      if (!gestureAllowed) return;
       if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(30);
+        try {
+          navigator.vibrate(30);
+        } catch (e) {
+          // ignore vibration/intervention errors
+        }
       }
     } catch (e) {
       // ignore vibration errors
@@ -248,6 +254,9 @@ const AdminDashboard = ({ user, logout }) => {
   const [taskProgressList, setTaskProgressList] = useState([]);
   const [selectedProgressUpdate, setSelectedProgressUpdate] = useState(null);
   const [isLoadingTaskProgress, setIsLoadingTaskProgress] = useState(false);
+  const [showSubscriptionsModal, setShowSubscriptionsModal] = useState(false);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [pendingPins, setPendingPins] = useState({});
   const isFetchingLocationsRef = useRef(false);
@@ -268,6 +277,28 @@ const AdminDashboard = ({ user, logout }) => {
       document.body.style.overflow = 'unset';
     };
   }, [showDatePicker]);
+
+  // Fetch subscriptions when modal opens
+  useEffect(() => {
+    if (!showSubscriptionsModal) return;
+    const fetchSubscriptions = async () => {
+      setIsLoadingSubscriptions(true);
+      try {
+        const res = await fetch('/backend/list_subscriptions.php', { credentials: 'include' });
+        if (res.ok) {
+          const json = await res.json();
+          setSubscriptions(json || []);
+        } else {
+          setSubscriptions([]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch subscriptions', err);
+        setSubscriptions([]);
+      }
+      setIsLoadingSubscriptions(false);
+    };
+    fetchSubscriptions();
+  }, [showSubscriptionsModal]);
   const [cameraStream, setCameraStream] = useState(null);
 
   // Project modal states
@@ -4647,7 +4678,7 @@ useEffect(() => {
           <FiChevronRight size={20} className="text-gray-400" />
         </button>
 
-        <button className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
+        <button onClick={() => setShowSubscriptionsModal(true)} className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center hover:bg-gray-50 transition-colors active:bg-gray-100">
           <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mr-4">
             <IoMdNotifications size={22} className="text-red-500" />
           </div>
@@ -4695,6 +4726,64 @@ useEffect(() => {
         <FaSignOutAlt size={20} className="mr-2" />
         Logout Admin Account
       </button>
+
+      {/* Subscriptions Modal */}
+      {showSubscriptionsModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div className="w-full max-w-2xl bg-white rounded-2xl p-5 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Push Subscriptions</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowSubscriptionsModal(false)} className="text-sm text-gray-500 hover:text-gray-700">Close</button>
+              </div>
+            </div>
+
+            {isLoadingSubscriptions ? (
+              <div>Loading...</div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {subscriptions.length === 0 ? (
+                  <div className="text-sm text-gray-500">No subscriptions saved.</div>
+                ) : subscriptions.map((s, idx) => (
+                  <div key={s.endpoint || idx} className="flex items-start justify-between bg-gray-50 p-3 rounded-lg">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{s.endpoint || 'Unknown endpoint'}</div>
+                      <div className="text-xs text-gray-500 mt-1">Keys: {s.keys ? Object.keys(s.keys).join(', ') : 'n/a'}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Remove this subscription?')) return;
+                          try {
+                            const res = await fetch('/backend/remove_subscription.php', {
+                              method: 'POST',
+                              credentials: 'include',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ endpoint: s.endpoint })
+                            });
+                            const json = await res.json();
+                            if (json.status === 'success') {
+                              setSubscriptions(prev => prev.filter(x => x.endpoint !== s.endpoint));
+                            } else {
+                              alert('Failed to remove subscription');
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert('Error removing subscription');
+                          }
+                        }}
+                        className="text-sm text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* App Version */}
       <div className="text-center text-gray-400 text-sm py-3 border-t">
