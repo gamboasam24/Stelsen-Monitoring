@@ -259,7 +259,7 @@ Next steps:
 - [ ] Collect feedback in first 24 hours
 - [ ] Run performance benchmark
 - [ ] Document any issues
-- [ ] Archive this checklist
+- [ ]  Archive this checklist
 
 ---
 
