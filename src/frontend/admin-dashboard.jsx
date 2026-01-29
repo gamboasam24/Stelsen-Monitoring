@@ -1555,6 +1555,8 @@ const markAsRead = async (id) => {
         budget: project.budget || 0,
         team_users: project.team_users || 0,
         assignedUsers: project.assignedUsers || project.assigned_users || [],
+        startDate: project.startDate || project.start_date || project.created_at || "",
+        created_at: project.created_at || "",
         comments: [],
         isNew: isProjectNew(project.startDate || project.start_date || project.created_at, project.progress),
       };
@@ -3812,6 +3814,60 @@ useEffect(() => {
               )}
             </div>
 
+            {/* Recent Notifications */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 font-serif">
+                  <div className="w-1.5 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
+                  Notifications
+                </h2>
+                <span className="text-xs text-gray-500">{notificationItems.length} new</span>
+              </div>
+
+              {notificationItems.length > 0 ? (
+                <div className="space-y-3">
+                  {notificationItems.slice(0, 5).map((item) => (
+                    <div
+                      key={item.key}
+                      className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-start gap-3"
+                    >
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          item.type === "task"
+                            ? "bg-blue-100 text-blue-600"
+                            : "bg-purple-100 text-purple-600"
+                        }`}
+                      >
+                        {item.type === "task" ? <MdAssignment size={18} /> : <IoMdMegaphone size={18} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-semibold text-gray-800 truncate">
+                            {item.type === "task" ? "New Task" : "Announcement"}
+                          </h4>
+                          <span className="text-xs text-gray-400 whitespace-nowrap">
+                            {formatTimeAgo(item.date)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 font-medium truncate">{item.title}</p>
+                        {item.description && (
+                          <p className="text-xs text-gray-500 truncate">{item.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-8 text-center shadow border border-gray-200">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <FiBell size={28} className="text-blue-400" />
+                  </div>
+                  <h3 className="text-gray-700 font-semibold text-lg mb-1">No new notifications</h3>
+                  <p className="text-gray-500 text-sm">New tasks and announcements will appear here.</p>
+                </div>
+              )}
+            </div>
+
             {/* Recent Announcements */}
             <div className="mb-8">
               {/* Search and Filter Bar */}
@@ -4851,8 +4907,46 @@ useEffect(() => {
     </div>
   );
 
-  const unreadCount = announcements.filter(a => a.unread).length;
-  const notificationBadgeCount = unreadCount;
+  const unreadAnnouncements = announcements.filter(a => a.unread);
+  const unreadCount = unreadAnnouncements.length;
+  const currentUserId =
+    currentUser?.id ||
+    currentUser?.user_id ||
+    currentUser?.login_id ||
+    currentUser?.userId ||
+    currentUser?.loginId;
+
+  const isUserAssignedToProject = (project) => {
+    const assigned = project?.assignedUsers || [];
+    if (!assigned || assigned.length === 0) return true;
+    if (!currentUserId) return false;
+    return assigned.map(String).includes(String(currentUserId));
+  };
+
+  const newTaskNotifications = projects.filter(
+    (project) => project.isNew && isUserAssignedToProject(project)
+  );
+
+  const notificationItems = [
+    ...unreadAnnouncements.map((announcement) => ({
+      key: `announcement-${announcement.id}`,
+      type: "announcement",
+      title: announcement.title,
+      description: announcement.content,
+      date: announcement.created_at || new Date().toISOString(),
+      timestamp: new Date(announcement.created_at || Date.now()).getTime(),
+    })),
+    ...newTaskNotifications.map((project) => ({
+      key: `task-${project.id}`,
+      type: "task",
+      title: project.title,
+      description: project.description,
+      date: project.startDate || project.created_at || new Date().toISOString(),
+      timestamp: new Date(project.startDate || project.created_at || Date.now()).getTime(),
+    })),
+  ].sort((a, b) => b.timestamp - a.timestamp);
+
+  const notificationBadgeCount = unreadCount + newTaskNotifications.length;
 
   return (
     <div className={`min-h-screen pb-20 bg-gray-100 relative ${isOffline ? 'pt-10' : ''}`}>
@@ -4962,21 +5056,6 @@ useEffect(() => {
               <FaUser size={!isOffline ? 22 : 20} />
             </div>
             <span className="text-xs mt-0.5">Profile</span>
-          </button>
-
-          <button
-            className="flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center text-gray-500"
-            onClick={handleNotificationsClick}
-          >
-            <div className="relative">
-              <IoMdNotifications size={22} />
-              {notificationBadgeCount > 0 && (
-                <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white">
-                  {notificationBadgeCount > 99 ? '99+' : notificationBadgeCount}
-                </span>
-              )}
-            </div>
-            <span className="text-xs mt-0.5">Alerts</span>
           </button>
         </div>
       )}
