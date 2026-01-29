@@ -1414,10 +1414,46 @@ const getPriorityBadge = (priority) => {
 
     document.addEventListener('click', clickHandler, true);
     document.addEventListener('change', changeHandler, true);
+    // Immediate touchstart haptic for touch devices
+    const touchImmediate = (e) => {
+      try {
+        if (!e.isTrusted) return;
+        const el = e.target && (e.target.closest ? e.target.closest('button, [role="button"], a, select, [data-haptic], img.profile') : null);
+        if (el) triggerHaptic('light');
+      } catch (err) {}
+    };
+    document.addEventListener('touchstart', touchImmediate, true);
+
     return () => {
       document.removeEventListener('click', clickHandler, true);
       document.removeEventListener('change', changeHandler, true);
+      document.removeEventListener('touchstart', touchImmediate, true);
     };
+  }, []);
+
+  // Tag interactive elements with `data-haptic` so global haptic bindings trigger reliably
+  useEffect(() => {
+    const tagInteractive = (root = document) => {
+      try {
+        const selectors = 'button, select, [role="button"], a, img.profile, .avatar img, [data-haptic]';
+        const els = root.querySelectorAll ? root.querySelectorAll(selectors) : [];
+        els.forEach(el => {
+          try { el.setAttribute('data-haptic', 'true'); } catch (e) {}
+        });
+      } catch (e) {}
+    };
+
+    tagInteractive(document);
+    const mo = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        m.addedNodes && m.addedNodes.forEach(node => {
+          if (!(node instanceof HTMLElement)) return;
+          tagInteractive(node);
+        });
+      }
+    });
+    if (document && document.body) mo.observe(document.body, { childList: true, subtree: true });
+    return () => mo.disconnect();
   }, []);
 
   // Swipe gesture handlers for back navigation
@@ -4382,7 +4418,7 @@ const renderCommentsModal = () => (
           >
             <FaUser size={24} />
             <span className="text-xs mt-1">Profile</span>
-          </button>
+          </button> 
         </div>
       )}
 

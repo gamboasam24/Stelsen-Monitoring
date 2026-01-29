@@ -188,6 +188,86 @@ const AdminDashboard = ({ user, logout }) => {
     }
   }
 
+  // Global haptic listeners: trigger haptics on interactive element clicks/changes
+  useEffect(() => {
+    const onInteraction = (e) => {
+      try {
+        if (!e.isTrusted) return;
+        const el = e.target;
+        const tag = el && el.tagName && el.tagName.toUpperCase();
+        const interactiveTags = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL'];
+
+        if (el && (el.getAttribute && el.getAttribute('data-haptic') !== null)) {
+          triggerHaptic('light');
+          return;
+        }
+
+        if (tag && interactiveTags.includes(tag)) {
+          triggerHaptic('light');
+          return;
+        }
+
+        if (el && el.getAttribute && el.getAttribute('role') === 'button') {
+          triggerHaptic('light');
+        }
+      } catch (err) {
+        // swallow errors to avoid interfering with app
+      }
+    };
+
+    const onChange = (e) => {
+      try {
+        if (!e.isTrusted) return;
+        triggerHaptic('light');
+      } catch {}
+    };
+
+    document.addEventListener('click', onInteraction, true);
+    document.addEventListener('change', onChange, true);
+
+    // Also trigger on touchstart for immediate haptic feedback on touch devices
+    const onTouchStartImmediate = (e) => {
+      try {
+        if (!e.isTrusted) return;
+        const el = e.target;
+        const interactive = el && (el.closest && (el.closest('button, [role="button"], a, select, [data-haptic], img.profile')));
+        if (interactive) triggerHaptic('light');
+      } catch (err) {}
+    };
+    document.addEventListener('touchstart', onTouchStartImmediate, { capture: true });
+
+    return () => {
+      document.removeEventListener('click', onInteraction, true);
+      document.removeEventListener('change', onChange, true);
+      document.removeEventListener('touchstart', onTouchStartImmediate, { capture: true });
+    };
+  }, [triggerHaptic]);
+
+  // Ensure interactive elements have `data-haptic` so global listeners pick them up
+  useEffect(() => {
+    const tagInteractive = (root = document) => {
+      try {
+        const selectors = 'button, select, [role="button"], a, img.profile, .avatar img, [data-haptic]';
+        const els = root.querySelectorAll ? root.querySelectorAll(selectors) : [];
+        els.forEach(el => {
+          try { el.setAttribute('data-haptic', 'true'); } catch (e) {}
+        });
+      } catch (e) {}
+    };
+
+    tagInteractive(document);
+    const mo = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        m.addedNodes && m.addedNodes.forEach(node => {
+          if (!(node instanceof HTMLElement)) return;
+          tagInteractive(node);
+        });
+      }
+    });
+    if (document && document.body) mo.observe(document.body, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, []);
+
   // Manual refresh handler
   function handleRefresh() {
     // Example: reload projects/announcements/users
@@ -1071,7 +1151,7 @@ const handleBudgetChange = (e) => {
   if (!imageSrc || imgError) {
     return (
       <div
-        className={`bg-blue-500 text-white font-bold flex items-center justify-center rounded-full ${className}`.trim()}
+        className={`bg-blue-500 text-white font-bold flex items-center justify-center rounded-full profile ${className}`.trim()}
         style={{ width: size, height: size }}
       >
         {initial.toUpperCase()}
@@ -1087,7 +1167,7 @@ const handleBudgetChange = (e) => {
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer" // 🔥 REQUIRED FOR GOOGLE
-      className={`rounded-full object-cover ${className}`.trim()}
+      className={`rounded-full object-cover profile ${className}`.trim()}
       style={{ width: size, height: size }}
     />
   );
@@ -1173,6 +1253,7 @@ const handleBudgetChange = (e) => {
               alt="Evidence"
               className="w-full h-48 object-cover cursor-pointer group-hover:scale-[1.02] transition-transform duration-300"
               onClick={() => window.open(progress.photo, '_blank')}
+              onTouchStart={() => triggerHaptic('light')}
             />
             <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 shadow-lg">
               <FiCamera size={12} />
@@ -1203,6 +1284,7 @@ const handleBudgetChange = (e) => {
             {!showMap ? (
               <button
                 onClick={toggleMap}
+                onTouchStart={() => triggerHaptic('light')}
                 className="flex items-center justify-between w-full text-sm text-gray-700 hover:text-blue-600 transition-colors group"
               >
                 <div className="flex items-center gap-3">
@@ -1229,6 +1311,7 @@ const handleBudgetChange = (e) => {
                   </div>
                   <button
                     onClick={toggleMap}
+                    onTouchStart={() => triggerHaptic('light')}
                     className="p-3 rounded-full min-w-[56px] min-h-[56px] hover:bg-gray-100 transition-colors"
                   >
                     <FiX className="text-gray-500" size={18} />
@@ -1296,6 +1379,7 @@ const handleBudgetChange = (e) => {
           <div className="px-4 py-4 bg-white flex gap-3">
             <button
               onClick={handleReject}
+              onTouchStart={() => triggerHaptic('light')}
               disabled={isApproving}
               className="flex-1 py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
             >
@@ -1304,6 +1388,7 @@ const handleBudgetChange = (e) => {
             </button>
             <button
               onClick={handleApprove}
+              onTouchStart={() => triggerHaptic('light')}
               disabled={isApproving}
               className="flex-1 py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:scale-[0.98] text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
             >
@@ -2324,6 +2409,7 @@ useEffect(() => {
           )}
           <button 
             onClick={() => togglePin(announcement.id, !announcement.is_pinned)}
+            onTouchStart={() => triggerHaptic('light')}
             className={(announcement.is_pinned ? "text-red-500" : "text-gray-400") + " hover:text-yellow-600"}
             title={announcement.is_pinned ? "Unpin" : "Pin"}
           >
@@ -2352,6 +2438,7 @@ useEffect(() => {
           {announcement.unread ? (
             <button 
               onClick={() => markAsRead(announcement.id)}
+              onTouchStart={() => triggerHaptic('light')}
               className="text-xs text-blue-500 font-medium hover:text-blue-600"
             >
               Mark as read
@@ -2378,7 +2465,7 @@ useEffect(() => {
     const compact = isMobile;
     if (compact) {
       return (
-        <div key={item.id} onClick={() => viewProjectDetails(item)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); viewProjectDetails(item); } }} className="relative bg-white rounded-2xl p-3 mb-3 shadow-md hover:shadow-lg transition-all cursor-pointer">
+        <div key={item.id} onClick={() => viewProjectDetails(item)} onTouchStart={() => triggerHaptic('light')} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); viewProjectDetails(item); } }} className="relative bg-white rounded-2xl p-3 mb-3 shadow-md hover:shadow-lg transition-all cursor-pointer">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-gray-800 truncate">{item.title}</h4>
@@ -2438,6 +2525,7 @@ useEffect(() => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => openCommentsScreen(item)}
+              onTouchStart={() => triggerHaptic('light')}
               className="flex items-center text-xs text-gray-500 relative hover:text-blue-500 transition-colors"
             >
               <MdComment size={14} className="mr-1" />
@@ -2448,6 +2536,7 @@ useEffect(() => {
             </button>
             <button 
               onClick={() => viewProjectDetails(item)}
+              onTouchStart={() => triggerHaptic('light')}
               className="text-blue-500 text-sm font-medium flex items-center"
             >
               Task Details <FiChevronRight size={16} className="ml-1" />
@@ -2571,6 +2660,7 @@ useEffect(() => {
             <div className="mb-4">
               <button
                 onClick={() => openCommentsScreen(selectedProject)}
+                onTouchStart={() => triggerHaptic('light')}
                 className="w-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 transition-all border border-blue-200"
               >
                 <div className="flex items-center justify-between">
@@ -2601,6 +2691,7 @@ useEffect(() => {
             <div className="mb-6">
               <button
                 onClick={() => openTaskProgressScreen(selectedProject)}
+                onTouchStart={() => triggerHaptic('light')}
                 className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-sky-50 to-cyan-50 hover:from-sky-100 hover:to-cyan-100 rounded-xl transition-all border border-sky-200 hover:border-sky-300 hover:shadow-md"
               >
                 <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-sky-500 to-cyan-600 rounded-full flex items-center justify-center shadow-lg">
@@ -2625,6 +2716,7 @@ useEffect(() => {
       <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center border-b border-gray-200 shadow-sm transition-colors duration-300">
         <button 
         onClick={() => popScreen()}
+        onTouchStart={() => triggerHaptic('light')}
         className="p-3 rounded-full min-w-[56px] min-h-[56px] hover:bg-gray-100 mr-2 transition-colors flex-shrink-0"
         >
         <IoMdArrowBack size={24} className="text-gray-700" />
@@ -2640,10 +2732,10 @@ useEffect(() => {
         <div className="flex-1 flex items-center justify-between ml-2">
           <span className="text-gray-800 font-medium">Comments</span>
           <div className="flex items-center gap-2">
-            <button title="Voice call" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <button title="Voice call" onTouchStart={() => triggerHaptic('light')} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
               <MdCall size={18} className="text-gray-700" />
             </button>
-            <button title="Video call" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <button title="Video call" onTouchStart={() => triggerHaptic('light')} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
               <MdVideocam size={18} className="text-gray-700" />
             </button>
           </div>
@@ -2651,6 +2743,7 @@ useEffect(() => {
         
         <button 
         onClick={() => pushScreen("projectUsers")}
+        onTouchStart={() => triggerHaptic('light')}
         className="p-3 rounded-full min-w-[56px] min-h-[56px] hover:bg-gray-100 transition-colors ml-2"
         title="View and manage project users"
         >
@@ -2667,14 +2760,15 @@ useEffect(() => {
         return (
           <div className="fixed inset-0 bg-white z-40 flex flex-col animate-slide-in-right">
             {/* Dynamic Header */}
-            <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-5 py-4 border-b border-white-400 flex items-center">
+            <div className="sticky top-0 z-20 bg-white text-gray-900 px-4 sm:px-5 py-4 border-b border-gray-200 flex items-center">
               <button 
                 onClick={popScreen}
+                onTouchStart={() => triggerHaptic('light')}
                 className="p-3 rounded-full min-w-[56px] min-h-[56px] hover:bg-gray-100 mr-3"
               >
                 <IoMdArrowBack size={24} className="text-gray-700" />
               </button>
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-xl font-bold text-gray-900">
                 {currentScreen?.screen === "projectUsers" ? "Project Team" : "Add Users to Project"}
               </h3>
             </div>
@@ -2687,6 +2781,7 @@ useEffect(() => {
                   {/* Add User Button */}
                   <button
                     onClick={() => pushScreen("addUserToProject")}
+                    onTouchStart={() => triggerHaptic('light')}
                     className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium flex items-center justify-center hover:from-blue-600 hover:to-blue-700 transition-all"
                   >
                     <MdAdd size={20} className="mr-2" />
@@ -2711,6 +2806,7 @@ useEffect(() => {
                               </div>
                               <button
                                 onClick={() => removeUserFromProject(user.id, formatAuthorName(user.email || user.name))}
+                                onTouchStart={() => triggerHaptic('light')}
                                 className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
                                 title="Remove user"
                               >
@@ -2739,6 +2835,7 @@ useEffect(() => {
                       <button
                         key={user.id}
                         onClick={() => addUserToProject(user.id, formatAuthorName(user.email || user.name))}
+                        onTouchStart={() => triggerHaptic('light')}
                         className="w-full flex items-center p-4 bg-gray-50 hover:bg-blue-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all"
                       >
                         <Avatar user={user} size={40} />
@@ -3282,7 +3379,7 @@ useEffect(() => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-5 bg-gray-50 dark:bg-slate-900">
+      <div className="flex-1 overflow-y-auto p-4 md]:p-5 bg-white">
         <div className="space-y-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -3306,7 +3403,7 @@ useEffect(() => {
               onChange={(e) => setProjectDescription(e.target.value)}
               placeholder="Enter project description"
               rows={3}
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
             />
           </div>
 
@@ -3362,7 +3459,7 @@ useEffect(() => {
                   type="date"
                   value={projectStartDate}
                   onChange={(e) => setProjectStartDate(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
                 />
               </div>
 
@@ -3374,7 +3471,7 @@ useEffect(() => {
                   type="date"
                   value={projectDeadline}
                   onChange={(e) => setProjectDeadline(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
                 />
               </div>
           </div>
@@ -3391,7 +3488,7 @@ useEffect(() => {
                   value={projectManager}
                   onChange={(e) => setProjectManager(e.target.value)}
                   placeholder="Project manager"
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
                 />
               </div>
             
@@ -3407,7 +3504,7 @@ useEffect(() => {
                     value={projectBudget}
                     onChange={handleBudgetChange}
                     placeholder="50,000"
-                    className="w-full p-3 pl-8 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
+                    className="w-full p-3 pl-8 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
                   />
                 </div>
               </div>
@@ -3432,7 +3529,7 @@ useEffect(() => {
                 const options = Array.from(e.target.selectedOptions, option => option.value);
                 setSelectedUsers(options);
               }}
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-slate-800"
+              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
             >
               {users.map(user => (
                 <option key={user.id} value={user.id}>
