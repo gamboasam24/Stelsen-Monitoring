@@ -1370,14 +1370,19 @@ const getPriorityBadge = (priority) => {
     return navigationStack[navigationStack.length - 1];
   };
 
-  // Haptic feedback helper
+  // Haptic feedback helper (debounced to avoid double-triggering)
   const triggerHaptic = (style = 'light') => {
     try {
       // Avoid vibration until a user interaction has occurred and it was a trusted gesture
       const lastUserGestureRef = window.__stelsen_lastUserGesture;
       const gestureAllowed = (lastUserGestureRef && lastUserGestureRef.current) || userInteracted;
       if (!gestureAllowed) return;
-      if ('vibrate' in navigator) {
+
+      if (!('vibrate' in navigator)) return;
+
+      const now = Date.now();
+      if (!triggerHaptic._last || (now - triggerHaptic._last) > 60) {
+        triggerHaptic._last = now;
         const patterns = {
           light: [10],
           medium: [20],
@@ -1385,12 +1390,35 @@ const getPriorityBadge = (priority) => {
           success: [10, 50, 10],
           error: [50, 100, 50]
         };
-        navigator.vibrate(patterns[style] || patterns.light);
+        try { navigator.vibrate(patterns[style] || patterns.light); } catch (e) { /* ignore */ }
       }
     } catch (e) {
       // ignore any vibration/intervention errors
     }
   };
+
+  // Global haptic bindings: vibrate on clicks of interactive elements and select changes
+  useEffect(() => {
+    const clickHandler = (e) => {
+      try {
+        const el = e.target && e.target.closest && e.target.closest('button, [role="button"], a, [data-haptic], img');
+        if (el) triggerHaptic('light');
+      } catch (err) { }
+    };
+
+    const changeHandler = (e) => {
+      try {
+        if (e.target && e.target.tagName === 'SELECT') triggerHaptic('light');
+      } catch (err) { }
+    };
+
+    document.addEventListener('click', clickHandler, true);
+    document.addEventListener('change', changeHandler, true);
+    return () => {
+      document.removeEventListener('click', clickHandler, true);
+      document.removeEventListener('change', changeHandler, true);
+    };
+  }, []);
 
   // Swipe gesture handlers for back navigation
   const minSwipeDistance = 50; // minimum distance for a swipe
@@ -1746,6 +1774,8 @@ const getPriorityBadge = (priority) => {
     if (!imageSrc || imgError) {
       return (
         <div
+          role="button"
+          data-haptic="true"
           className={`bg-blue-500 text-white font-bold flex items-center justify-center rounded-full ${className}`.trim()}
           style={{ width: size, height: size }}
         >
@@ -1760,6 +1790,8 @@ const getPriorityBadge = (priority) => {
         alt="Profile"
         onError={() => setImgError(true)}
         referrerPolicy="no-referrer"
+        data-haptic="true"
+        role="button"
         className={`rounded-full object-cover ${className}`.trim()}
         style={{ width: size, height: size }}
       />
