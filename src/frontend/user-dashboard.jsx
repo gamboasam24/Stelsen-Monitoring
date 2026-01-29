@@ -4383,9 +4383,6 @@ const renderCommentsModal = () => (
             <FaUser size={24} />
             <span className="text-xs mt-1">Profile</span>
           </button>
-          ]
-
-      
         </div>
       )}
 
