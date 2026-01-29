@@ -4383,23 +4383,9 @@ const renderCommentsModal = () => (
             <FaUser size={24} />
             <span className="text-xs mt-1">Profile</span>
           </button>
+          ]
 
-          {/* Notifications Button */}
-          <button
-            className="flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center text-gray-500"
-            onClick={handleNotificationsClick}
-            onTouchStart={() => triggerHaptic('light')}
-          >
-            <div className="relative">
-              <IoMdNotifications size={24} />
-              {notificationBadgeCount > 0 && (
-                <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white">
-                  {notificationBadgeCount > 99 ? '99+' : notificationBadgeCount}
-                </span>
-              )}
-            </div>
-            <span className="text-xs mt-1">Alerts</span>
-          </button>
+      
         </div>
       )}
 
