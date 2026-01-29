@@ -129,6 +129,37 @@ const UserDashboard = ({ user, logout }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(typeof Notification !== 'undefined' && Notification.permission === 'granted');
+  const [taskCompletionBadgeCount, setTaskCompletionBadgeCount] = useState(0);
+  const notifiedAnnouncementsRef = useRef(new Set());
+  const notifiedCompletedProjectsRef = useRef(new Set());
+  const hasLoadedAnnouncementsOnceRef = useRef(false);
+  const hasLoadedProjectsOnceRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const rawAnnouncements = localStorage.getItem('notifiedAnnouncementIds');
+      if (rawAnnouncements) {
+        const ids = JSON.parse(rawAnnouncements);
+        if (Array.isArray(ids)) {
+          notifiedAnnouncementsRef.current = new Set(ids.map(String));
+        }
+      }
+      const rawCompleted = localStorage.getItem('notifiedCompletedProjectIds');
+      if (rawCompleted) {
+        const ids = JSON.parse(rawCompleted);
+        if (Array.isArray(ids)) {
+          notifiedCompletedProjectsRef.current = new Set(ids.map(String));
+        }
+      }
+      const rawBadge = localStorage.getItem('taskCompletionBadgeCount');
+      const badgeCount = rawBadge ? parseInt(rawBadge, 10) : 0;
+      if (!Number.isNaN(badgeCount)) {
+        setTaskCompletionBadgeCount(badgeCount);
+      }
+    } catch (e) {
+      // Ignore localStorage parsing errors
+    }
+  }, []);
   
   const togglePush = async (e) => {
     if (e && e.stopPropagation) e.stopPropagation();
@@ -187,6 +218,33 @@ const UserDashboard = ({ user, logout }) => {
       console.error('togglePush error', err);
       setIsLoading(false);
       setToast({ show: true, message: 'Error toggling push', type: 'error' });
+    }
+  };
+  
+  const saveIdSet = (key, set) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(Array.from(set)));
+    } catch (e) {
+      // Ignore localStorage write errors
+    }
+  };
+
+  const showSystemNotification = (title, body, tag, url) => {
+    if (!pushEnabled) return;
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission !== 'granted') return;
+    try {
+      const notification = new Notification(title, {
+        body,
+        icon: '/img/stelsenlogo.png',
+        tag: tag || 'stelsen'
+      });
+      notification.onclick = () => {
+        window.focus();
+        if (url) window.location.href = url;
+      };
+    } catch (e) {
+      console.warn('System notification failed', e);
     }
   };
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
@@ -637,6 +695,23 @@ const UserDashboard = ({ user, logout }) => {
         };
       });
 
+      const newlyUnread = normalized.filter(a => a.unread && !notifiedAnnouncementsRef.current.has(String(a.id)));
+      if (!hasLoadedAnnouncementsOnceRef.current) {
+        normalized.forEach(a => {
+          if (a.unread) notifiedAnnouncementsRef.current.add(String(a.id));
+        });
+        saveIdSet('notifiedAnnouncementIds', notifiedAnnouncementsRef.current);
+        hasLoadedAnnouncementsOnceRef.current = true;
+      } else if (newlyUnread.length > 0) {
+        newlyUnread.forEach(a => notifiedAnnouncementsRef.current.add(String(a.id)));
+        saveIdSet('notifiedAnnouncementIds', notifiedAnnouncementsRef.current);
+        const title = newlyUnread.length > 1 ? 'New Announcements' : 'New Announcement';
+        const body = newlyUnread.length > 1
+          ? `You have ${newlyUnread.length} new announcements`
+          : (newlyUnread[0].title || 'A new announcement was posted');
+        showSystemNotification(title, body, 'announcement', '/');
+      }
+
       setAnnouncements(normalized);
       announcementsLoadedRef.current = true;
       setIsLoadingAnnouncements(false);
@@ -763,6 +838,36 @@ const fetchProjects = async () => {
         }
       })
     );
+
+    const completedProjects = projectsWithComments.filter(project => {
+      const progressValue = Number(project.progress ?? project.progress_percentage ?? 0);
+      const statusValue = String(project.status || '').toLowerCase();
+      return progressValue >= 100 || statusValue === 'completed';
+    });
+    const newlyCompleted = completedProjects.filter(project => !notifiedCompletedProjectsRef.current.has(String(project.id)));
+
+    if (!hasLoadedProjectsOnceRef.current) {
+      completedProjects.forEach(project => notifiedCompletedProjectsRef.current.add(String(project.id)));
+      saveIdSet('notifiedCompletedProjectIds', notifiedCompletedProjectsRef.current);
+      hasLoadedProjectsOnceRef.current = true;
+    } else if (newlyCompleted.length > 0) {
+      newlyCompleted.forEach(project => notifiedCompletedProjectsRef.current.add(String(project.id)));
+      saveIdSet('notifiedCompletedProjectIds', notifiedCompletedProjectsRef.current);
+      setTaskCompletionBadgeCount(prev => {
+        const next = prev + newlyCompleted.length;
+        try {
+          localStorage.setItem('taskCompletionBadgeCount', String(next));
+        } catch (e) {
+          // ignore
+        }
+        return next;
+      });
+      const title = newlyCompleted.length > 1 ? 'Tasks Completed' : 'Task Completed';
+      const body = newlyCompleted.length > 1
+        ? `${newlyCompleted.length} tasks were completed`
+        : (newlyCompleted[0].title ? `${newlyCompleted[0].title} is completed` : 'A task was completed');
+      showSystemNotification(title, body, 'task-complete', '/');
+    }
 
     setProjects(projectsWithComments);
     projectsLoadedRef.current = true;
@@ -1228,6 +1333,20 @@ const getPriorityBadge = (priority) => {
       setProfileOpen(true);
     } else {
       setActiveTab("Profile");
+    }
+  };
+
+  const handleNotificationsClick = () => {
+    setActiveTab("Home");
+    setSelectedFilter("unread");
+    setShowAnnouncementFilterMenu(false);
+    if (profileOpen) setProfileOpen(false);
+    if (showActionMenu) setShowActionMenu(false);
+    setTaskCompletionBadgeCount(0);
+    try {
+      localStorage.setItem('taskCompletionBadgeCount', '0');
+    } catch (e) {
+      // ignore
     }
   };
 
@@ -4084,6 +4203,7 @@ const renderCommentsModal = () => (
   };
 
   const unreadCount = announcements.filter(a => a.unread).length;
+  const notificationBadgeCount = unreadCount + taskCompletionBadgeCount;
 
   return (
     <div className={`min-h-screen ${activeTab === "My Location" ? "overflow-hidden" : "pb-20"} bg-gray-100 relative ${!isOnline ? 'pt-10' : ''}`}>
@@ -4132,6 +4252,18 @@ const renderCommentsModal = () => (
             <h2 className="text-lg font-semibold text-white">STELSEN</h2>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleNotificationsClick}
+              aria-label="Notifications"
+              className="relative w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors flex items-center justify-center"
+            >
+              <IoMdNotifications size={22} className="text-white" />
+              {notificationBadgeCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-blue-700">
+                  {notificationBadgeCount > 99 ? '99+' : notificationBadgeCount}
+                </span>
+              )}
+            </button>
             <button onClick={handleProfileClick} className="w-10 h-10 rounded-full bg-white relative overflow-visible">
               <Avatar
                 userObj={{
@@ -4218,6 +4350,23 @@ const renderCommentsModal = () => (
           >
             <FaUser size={24} />
             <span className="text-xs mt-1">Profile</span>
+          </button>
+
+          {/* Notifications Button */}
+          <button
+            className="flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center text-gray-500"
+            onClick={handleNotificationsClick}
+            onTouchStart={() => triggerHaptic('light')}
+          >
+            <div className="relative">
+              <IoMdNotifications size={24} />
+              {notificationBadgeCount > 0 && (
+                <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white">
+                  {notificationBadgeCount > 99 ? '99+' : notificationBadgeCount}
+                </span>
+              )}
+            </div>
+            <span className="text-xs mt-1">Alerts</span>
           </button>
         </div>
       )}

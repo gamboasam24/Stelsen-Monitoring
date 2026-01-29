@@ -17,6 +17,33 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $account_type = $_SESSION['account_type'];
 
+function send_push_best_effort($payload) {
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if (!$host) return;
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $urls = [
+        $scheme . '://' . $host . '/backend/send_push.php',
+        $scheme . '://' . $host . '/stelsen_monitoring/backend/send_push.php'
+    ];
+
+    $body = json_encode($payload);
+    if (!$body) return;
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/json\r\nContent-Length: " . strlen($body) . "\r\n",
+            'content' => $body,
+            'timeout' => 2
+        ]
+    ]);
+
+    foreach ($urls as $url) {
+        $result = @file_get_contents($url, false, $context);
+        if ($result !== false) break;
+    }
+}
+
 // Ensure user_pins table exists for user-specific pinning
 $conn->query("CREATE TABLE IF NOT EXISTS user_pins (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -174,6 +201,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {
         // ignore email errors
     }
+
+    send_push_best_effort([
+        'title' => 'New Announcement',
+        'body' => $title,
+        'icon' => '/img/stelsenlogo.png',
+        'url' => '/',
+        'tag' => 'announcement'
+    ]);
 
     echo json_encode([
         'status' => 'success',

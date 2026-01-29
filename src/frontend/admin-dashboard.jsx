@@ -1716,6 +1716,14 @@ useEffect(() => {
     }
   };
 
+  const handleNotificationsClick = () => {
+    setActiveTab("Home");
+    setSelectedFilter("unread");
+    setShowAnnouncementFilterMenu(false);
+    if (profileOpen) setProfileOpen(false);
+    if (showActionMenu) setShowActionMenu(false);
+  };
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (profileOpen) setProfileOpen(false);
@@ -4844,6 +4852,7 @@ useEffect(() => {
   );
 
   const unreadCount = announcements.filter(a => a.unread).length;
+  const notificationBadgeCount = unreadCount;
 
   return (
     <div className={`min-h-screen pb-20 bg-gray-100 relative ${isOffline ? 'pt-10' : ''}`}>
@@ -4867,7 +4876,18 @@ useEffect(() => {
             <h2 className="text-lg font-semibold">STELSEN</h2>
           </div>
           <div className="flex items-center gap-2">
-            
+            <button
+              onClick={handleNotificationsClick}
+              aria-label="Notifications"
+              className="relative w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors flex items-center justify-center"
+            >
+              <IoMdNotifications size={22} className="text-white" />
+              {notificationBadgeCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-blue-700">
+                  {notificationBadgeCount > 99 ? '99+' : notificationBadgeCount}
+                </span>
+              )}
+            </button>
             <button onClick={handleProfileClick} className="w-10 h-10 rounded-full bg-white relative overflow-visible">
               <Avatar
                 user={{
@@ -4942,6 +4962,21 @@ useEffect(() => {
               <FaUser size={!isOffline ? 22 : 20} />
             </div>
             <span className="text-xs mt-0.5">Profile</span>
+          </button>
+
+          <button
+            className="flex flex-col items-center relative min-w-[44px] min-h-[44px] justify-center text-gray-500"
+            onClick={handleNotificationsClick}
+          >
+            <div className="relative">
+              <IoMdNotifications size={22} />
+              {notificationBadgeCount > 0 && (
+                <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white">
+                  {notificationBadgeCount > 99 ? '99+' : notificationBadgeCount}
+                </span>
+              )}
+            </div>
+            <span className="text-xs mt-0.5">Alerts</span>
           </button>
         </div>
       )}

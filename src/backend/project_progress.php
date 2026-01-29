@@ -68,6 +68,33 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = intval($_SESSION['user_id']);
 $account_type = $_SESSION['account_type'] ?? 'user';
 
+function send_push_best_effort($payload) {
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if (!$host) return;
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $urls = [
+        $scheme . '://' . $host . '/backend/send_push.php',
+        $scheme . '://' . $host . '/stelsen_monitoring/backend/send_push.php'
+    ];
+
+    $body = json_encode($payload);
+    if (!$body) return;
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/json\r\nContent-Length: " . strlen($body) . "\r\n",
+            'content' => $body,
+            'timeout' => 2
+        ]
+    ]);
+
+    foreach ($urls as $url) {
+        $result = @file_get_contents($url, false, $context);
+        if ($result !== false) break;
+    }
+}
+
 /* =========================
    🗂️ ENSURE TABLE EXISTS
    ========================= */
@@ -496,6 +523,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'review_progre
                         }
                     }
                     $get_progress_stmt->close();
+                }
+            }
+
+            if ($approval_status === 'APPROVED') {
+                $info_stmt = $conn->prepare("
+                    SELECT pp.progress_percentage, pp.status, p.title 
+                    FROM project_progress pp 
+                    LEFT JOIN projects p ON pp.project_id = p.id
+                    WHERE pp.id = ?
+                ");
+                if ($info_stmt) {
+                    $info_stmt->bind_param("i", $progress_id);
+                    $info_stmt->execute();
+                    $info_res = $info_stmt->get_result();
+                    if ($row = $info_res->fetch_assoc()) {
+                        $progress_percentage = (int)($row['progress_percentage'] ?? 0);
+                        $status_value = strtolower(trim($row['status'] ?? ''));
+                        $is_completed = $progress_percentage >= 100 || $status_value === 'completed';
+                        if ($is_completed) {
+                            $title = 'Task Completed';
+                            $body = !empty($row['title'])
+                                ? $row['title'] . ' is completed'
+                                : 'A task was completed';
+                            send_push_best_effort([
+                                'title' => $title,
+                                'body' => $body,
+                                'icon' => '/img/stelsenlogo.png',
+                                'url' => '/',
+                                'tag' => 'task-complete'
+                            ]);
+                        }
+                    }
+                    $info_stmt->close();
                 }
             }
 
